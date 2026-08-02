@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f5f4ef" />
+  <title>今天要做什么 · Todo List</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">✓</span><span>DAYLIST</span></div>
+      <div class="date" id="today"></div>
+    </header>
+
+    <section class="intro">
+      <p class="eyebrow">个人任务空间 / <span id="task-count">0</span> 项待处理</p>
+      <h1>把今天，<em>一件件</em>做好。</h1>
+      <p class="subtitle">清晰的清单，给专注留出更多空间。</p>
+    </section>
+
+    <section class="workspace" aria-label="待办事项">
+      <form class="composer" id="todo-form">
+        <span class="plus" aria-hidden="true">＋</span>
+        <input id="todo-input" type="text" maxlength="100" placeholder="添加一项任务..." autocomplete="off" aria-label="任务内容" />
+        <button class="add-button" type="submit">添加任务 <span>↵</span></button>
+      </form>
+
+      <div class="toolbar">
+        <div class="filters" role="tablist" aria-label="任务筛选">
+          <button class="filter active" data-filter="all" role="tab" aria-selected="true">全部 <span class="filter-count" id="all-count">0</span></button>
+          <button class="filter" data-filter="active" role="tab" aria-selected="false">进行中 <span class="filter-count" id="active-count">0</span></button>
+          <button class="filter" data-filter="completed" role="tab" aria-selected="false">已完成 <span class="filter-count" id="completed-count">0</span></button>
+        </div>
+        <button class="clear-button" id="clear-completed" type="button">清除已完成</button>
+      </div>
+
+      <div class="progress-wrap">
+        <div class="progress-label"><span>今日进度</span><strong id="progress-text">0%</strong></div>
+        <div class="progress-track"><div class="progress-bar" id="progress-bar"></div></div>
+      </div>
+
+      <ul class="todo-list" id="todo-list" aria-live="polite"></ul>
+      <div class="empty-state" id="empty-state" hidden>
+        <div class="empty-icon">✦</div>
+        <p id="empty-title">还没有任务</p>
+        <span id="empty-hint">从上方添加一项，开始你的今天。</span>
+      </div>
+    </section>
+
+    <footer class="footer"><span>按 Enter 快速添加</span><span>本地自动保存</span></footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
