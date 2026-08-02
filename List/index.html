@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="炭火与香料，一席南岸风味。预约 Ember House。" />
+    <title>Ember House | 炭火南岸菜</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;600;700;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="mobile.css" />
+    <link rel="stylesheet" href="menu.css" />
+    <link rel="stylesheet" href="image.css" />
+    <link rel="stylesheet" href="menu-media.css" />
+    <script src="https://unpkg.com/lucide@latest"></script>
+  </head>
+  <body>
+    <header class="site-header" id="top">
+      <a class="brand" href="#top" aria-label="Ember House 首页">
+        <span class="brand-mark">EH</span>
+        <span class="brand-text">Ember House<small>炭火南岸菜</small></span>
+      </a>
+      <nav class="nav-links" aria-label="主导航">
+        <a href="#story">我们的故事</a>
+        <a href="#menu">菜单</a>
+        <a href="#visit">到店指南</a>
+      </nav>
+      <button class="button button-dark header-cta" data-scroll="#booking"><i data-lucide="calendar-days"></i>预约座位</button>
+      <button class="menu-toggle" aria-label="打开菜单" aria-expanded="false"><i data-lucide="menu"></i></button>
+    </header>
+
+    <main>
+      <section class="hero" id="story">
+        <div class="hero-copy">
+          <p class="eyebrow">SHANGHAI · SINCE 2018</p>
+          <h1>让炭火，<br /><em>讲述南岸风味。</em></h1>
+          <p class="hero-lede">以海岸线为灵感，以炭火为语言。我们把每日新鲜食材、慢火与明亮香料，写成一桌自然流动的晚餐。</p>
+          <div class="hero-actions">
+            <button class="button button-accent" data-scroll="#booking">预订今晚 <i data-lucide="arrow-up-right"></i></button>
+            <a class="text-link" href="#menu">查看菜单 <i data-lucide="arrow-down"></i></a>
+          </div>
+          <div class="hero-note"><span class="dot"></span><span>本周五晚尚有少量座位</span></div>
+        </div>
+        <div class="hero-visual" role="img" aria-label="炭火烤制的时令蔬菜与海鲜">
+          <div class="hero-image"></div>
+          <div class="image-caption"><span>今日炭火 · 19:40</span><span>¥¥¥</span></div>
+        </div>
+      </section>
+
+      <section class="booking-band" id="booking">
+        <div class="booking-intro"><span class="section-kicker">BOOK A TABLE</span><h2>为今晚留一盏灯。</h2></div>
+        <form class="booking-form" id="bookingForm">
+          <label>日期<input type="date" id="dateInput" required /></label>
+          <label>时间<select id="timeInput"><option>18:30</option><option>19:00</option><option>19:30</option><option>20:00</option><option>20:30</option></select></label>
+          <label>人数<select id="guestsInput"><option>2 位</option><option>3 位</option><option>4 位</option><option>5 位</option><option>6 位</option></select></label>
+          <button class="button button-accent" type="submit">查询座位 <i data-lucide="arrow-right"></i></button>
+        </form>
+        <p class="booking-message" id="bookingMessage" aria-live="polite"></p>
+      </section>
+
+      <section class="menu-section" id="menu">
+        <div class="section-heading"><div><span class="section-kicker">FROM THE FIRE</span><h2>火候正好，<br />风味自成一派。</h2></div><a href="#menu" class="round-link" aria-label="查看完整菜单"><i data-lucide="arrow-up-right"></i></a></div>
+        <div class="dish-grid">
+          <article class="dish-card"><div class="dish-photo photo-1"></div><div class="dish-info"><div><h3>炭烤小鱿鱼</h3><p>柠檬叶 · 烟熏番茄 · 海盐</p></div><strong>¥128</strong></div></article>
+          <article class="dish-card featured"><div class="dish-photo photo-2"></div><div class="dish-info"><div><h3>焦香茄子</h3><p>芝麻酱 · 石榴 · 薄荷</p></div><strong>¥68</strong></div></article>
+          <article class="dish-card"><div class="dish-photo photo-3"></div><div class="dish-info"><div><h3>慢烤羊肩</h3><p>孜然酸奶 · 香草油 · 烤蒜</p></div><strong>¥248</strong></div></article>
+        </div>
+        <div class="menu-footer"><p>菜单随潮汐而变。我们每天从本地市场挑选最好的食材。</p><a class="text-link" href="#visit">了解更多 <i data-lucide="arrow-right"></i></a></div>
+      </section>
+
+      <section class="quote-section">
+        <div class="quote-rule"></div><blockquote>“最好的味道，<br /><em>总是带着一点火的性格。”</em></blockquote><p>— 主厨 林川</p>
+      </section>
+
+      <section class="visit-section" id="visit">
+        <div class="visit-map" aria-label="Ember House 地图示意"><div class="map-pin"><i data-lucide="map-pin"></i><span>EMBER HOUSE</span></div><div class="map-lines"></div></div>
+        <div class="visit-copy"><span class="section-kicker">COME BY</span><h2>在城市南岸，<br />见面吧。</h2><p>我们藏在城市南岸的一栋温暖房子里。推门进来，先闻到炭火，再听见晚风。</p><div class="visit-details"><div><span>地址</span><strong>昆明市呈贡区雨花街道蓝光天骄三期 10 栋 1005</strong></div><div><span>营业时间</span><strong>周二至周日 · 17:30—23:00</strong></div><div><span>电话</span><strong>021 6318 2018</strong></div></div><a class="button button-dark" href="tel:02163182018"><i data-lucide="phone"></i>联系我们</a></div>
+      </section>
+    </main>
+    <section class="menu-drawer" id="menuDrawer" aria-hidden="true" aria-labelledby="menuDrawerTitle">
+      <div class="menu-drawer-head"><div><span class="section-kicker">EMBER HOUSE MENU</span><h2 id="menuDrawerTitle">沙县风味菜单</h2><p>现点现做，价格透明。点击右上角关闭菜单。</p></div><button class="drawer-close" type="button" aria-label="关闭详细菜单"><i data-lucide="x"></i></button></div>
+      <div class="menu-tabs" role="tablist" aria-label="菜单分类"><button class="menu-tab is-active" type="button" role="tab" aria-selected="true" data-category="主食">主食</button><button class="menu-tab" type="button" role="tab" aria-selected="false" data-category="小吃">小吃</button><button class="menu-tab" type="button" role="tab" aria-selected="false" data-category="饮品">饮品</button></div>
+      <div class="menu-table-wrap"><table class="menu-table"><thead><tr><th>菜品</th><th>说明</th><th>价格</th></tr></thead><tbody id="menuItems"></tbody></table></div>
+      <div class="drawer-note"><i data-lucide="info"></i><span>图片仅供参考，具体供应以门店当日为准。</span><button class="button button-dark" type="button" data-scroll="#booking" data-menu-close="true">预约座位 <i data-lucide="arrow-right"></i></button></div>
+    </section>
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+    <footer><div class="footer-brand"><span class="brand-mark">EH</span><span>Ember House</span></div><p>炭火南岸菜 · 上海</p><div class="socials"><a href="#top" aria-label="Instagram"><i data-lucide="instagram"></i></a><a href="#top" aria-label="微信"><i data-lucide="message-circle"></i></a></div></footer>
+    <script src="script.js"></script>
+  </body>
+</html>

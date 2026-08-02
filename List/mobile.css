@@ -1,0 +1,20 @@
+@media (max-width: 800px) {
+  .nav-links.is-open {
+    display: flex;
+    position: absolute;
+    top: 70px;
+    left: 0;
+    right: 0;
+    padding: 18px 8vw;
+    background: var(--paper);
+    flex-direction: column;
+    gap: 15px;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+.visit-details strong {
+  max-width: 68%;
+  text-align: right;
+  overflow-wrap: anywhere;
+}

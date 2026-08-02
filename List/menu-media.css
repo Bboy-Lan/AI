@@ -1,0 +1,10 @@
+.photo-1{background-image:url('dish-jiaozi.jpg')}
+.photo-2{background-image:url('dish-rice.jpg')}
+.photo-3{background-image:url('dish-egg.jpg')}
+.dish-photo{background-position:center;background-size:cover}
+.menu-row-image{width:72px;height:56px;display:block;object-fit:cover;border-radius:2px;box-shadow:0 4px 10px rgba(32,35,31,.12)}
+.menu-table td:first-child{width:88px}
+.menu-table td:nth-child(2){padding-left:14px}
+.menu-table td:last-child{white-space:nowrap}
+.menu-item-name{display:block;font-family:var(--serif);font-size:16px;font-weight:700}
+.menu-item-desc{display:block;color:var(--muted);font-size:12px;margin-top:3px}
