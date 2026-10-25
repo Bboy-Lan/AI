@@ -24,7 +24,7 @@ import {
   SWEETSALTY_LABEL,
 } from '../data/campus'
 import { priceBasisLabel } from '../lib/match'
-import { repo, useRepoState } from '../lib/repo'
+import { repo, useRepoState, notifyDataChanged } from '../lib/repo'
 import { useFavorites } from '../lib/useFavorites'
 import { EmptyState, FoodImage, Notice, Sheet, Spinner, Stamp, Stars } from '../components/ui'
 
@@ -43,6 +43,7 @@ export function DetailPage() {
   const [itemState, setItemState] = useState<LoadState<FoodItem | null>>({ status: 'loading' })
   const [reviewsState, setReviewsState] = useState<LoadState<Review[]>>({ status: 'loading' })
   const [alreadyRated, setAlreadyRated] = useState(false)
+  const [editingReview, setEditingReview] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [reviewDone, setReviewDone] = useState(false)
   const [reviewError, setReviewError] = useState<string | null>(null)
@@ -108,7 +109,10 @@ export function DetailPage() {
       )
       setAlreadyRated(true)
       setReviewDone(true)
-      // 刷新投稿上的聚合均分与人数
+      setEditingReview(false)
+      // 聚合分由触发器更新；失效缓存后重读，并通知其他页面刷新
+      repo.invalidateItems()
+      notifyDataChanged('review', false)
       try {
         const fresh = await repo.getItem(id)
         if (fresh) setItemState({ status: 'ok', data: fresh })
@@ -119,6 +123,27 @@ export function DetailPage() {
       setReviewError(err instanceof Error ? err.message : '评论提交失败，请重试')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const startEditReview = async () => {
+    if (!id) return
+    setReviewError(null)
+    setAte(true)
+    setEditingReview(true)
+    if (repo.mode === 'remote') {
+      try {
+        const own = await repo.getOwnReview(id)
+        if (own) {
+          setNickname(own.nickname)
+          setRating(own.rating)
+          setText(own.text)
+          setAteDate(own.ateDate || monthNow())
+          return
+        }
+      } catch {
+        /* 预填失败则用空表单 */
+      }
     }
   }
 
@@ -349,11 +374,23 @@ export function DetailPage() {
         <Notice tone="yellow">
           这是起始<b>示例内容</b>，不能对它提交真实云端评价——它不是云大现场投稿。打开同学真实投稿即可自报吃过并评分。
         </Notice>
-      ) : alreadyRated ? (
+      ) : alreadyRated && !editingReview ? (
         <Notice tone="green">
-          {reviewDone
-            ? '已记下你的体验分与评论。同一身份对这条投稿只保留一份评分，再提交会覆盖原来的，不会重复计数。'
-            : '你已经给它打过分；如需修改，重新提交即可覆盖，评价人数不会重复增加。'}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div>
+              {reviewDone
+                ? '已记下你的体验分与评论。同一身份对这条投稿只保留一份评分，再提交会覆盖原来的，不会重复计数。'
+                : '你已经给它打过分；同一身份只保留一份评分，修改后覆盖原来的，评价人数不会重复增加。'}
+            </div>
+            <button
+              type="button"
+              className="btn btn--soft"
+              style={{ alignSelf: 'flex-start' }}
+              onClick={() => void startEditReview()}
+            >
+              <PenLine size={15} /> 修改我的评分与评论
+            </button>
+          </div>
         </Notice>
       ) : (
         <form className="info-card stack" onSubmit={submitReview}>
@@ -421,7 +458,7 @@ export function DetailPage() {
                 className="btn btn--blue btn--block"
                 disabled={submitting || !ate || !ateDate || !rating || !nickname.trim() || !text.trim()}
               >
-                <Send size={15} /> {submitting ? '提交中…' : '提交体验分与评论'}
+                <Send size={15} /> {submitting ? '提交中…' : editingReview ? '覆盖更新（不增加评价人数）' : '提交体验分与评论'}
               </button>
             </>
           )}

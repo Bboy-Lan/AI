@@ -5,7 +5,7 @@ import type { Category, FoodItem } from '../types'
 import { CAMPUSES, campusName } from '../data/campus'
 import { SAMPLE_ITEMS } from '../data/seed'
 import { defaultFilters, rankItems, type FoodFilters } from '../lib/match'
-import { repo, useRepoState } from '../lib/repo'
+import { repo, useRepoState, DATA_CHANGED_EVENT } from '../lib/repo'
 import { useProfile } from '../lib/profile'
 import { useFavorites } from '../lib/useFavorites'
 import { HERO_IMAGE } from '../lib/images'
@@ -61,6 +61,32 @@ export function DiscoverPage() {
       alive = false
     }
   }, [reloadKey])
+
+  // 投稿/评分等数据变化后即时重拉；标签页重新可见时也刷新（跨标签更新）
+  useEffect(() => {
+    let alive = true
+    const reload = () => {
+      repo
+        .listItems()
+        .then((list) => {
+          if (alive) setItems(list)
+        })
+        .catch(() => undefined)
+    }
+    window.addEventListener(DATA_CHANGED_EVENT, reload)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        repo.invalidateItems()
+        reload()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      alive = false
+      window.removeEventListener(DATA_CHANGED_EVENT, reload)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [])
 
   // 校区跟随“我的口味/首访”设置
   useEffect(() => {

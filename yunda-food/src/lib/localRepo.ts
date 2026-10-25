@@ -83,6 +83,15 @@ export class LocalRepo implements FoodRepository {
     return all.find((i) => i.id === id) ?? null
   }
 
+  async listMyItems(): Promise<FoodItem[]> {
+    // 本地模式没有云端身份，本机草稿即“我的发布”
+    return this.readDrafts()
+  }
+
+  invalidateItems(): void {
+    // localStorage 直读直写，无需缓存失效
+  }
+
   async submit(input: SubmissionInput): Promise<SubmissionResult> {
     const item = toItem(input, uid('local'), 'local-draft', new Date().toISOString())
     const drafts = this.readDrafts()
@@ -110,6 +119,11 @@ export class LocalRepo implements FoodRepository {
   async hasOwnRating(itemId: string): Promise<boolean> {
     const map = readJSON<Record<string, Review>>(KEYS.ownRatings, {})
     return Boolean(map[itemId])
+  }
+
+  async getOwnReview(itemId: string): Promise<Review | null> {
+    const map = readJSON<Record<string, Review>>(KEYS.ownRatings, {})
+    return map[itemId] ?? null
   }
 
   async addReview(input: Omit<Review, 'id' | 'createdAt'>): Promise<Review> {

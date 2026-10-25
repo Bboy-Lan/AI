@@ -117,6 +117,8 @@ export class SupabaseRepo implements FoodRepository {
   private listeners = new Set<() => void>()
   private sessionPromise: Promise<Session | null> | null = null
   private checkedOnce = false
+  private remoteCache: FoodItem[] | null = null
+  private inflightList: Promise<FoodItem[]> | null = null
 
   constructor(url: string, anonKey: string) {
     this.db = createClient(url, anonKey, {
@@ -188,7 +190,12 @@ export class SupabaseRepo implements FoodRepository {
     }
   }
 
-  async listItems(): Promise<FoodItem[]> {
+  invalidateItems(): void {
+    this.remoteCache = null
+    this.inflightList = null
+  }
+
+  private async fetchRemote(): Promise<FoodItem[]> {
     const { data, error } = await this.db
       .from('food_items')
       .select(ITEM_COLUMNS)
@@ -201,8 +208,29 @@ export class SupabaseRepo implements FoodRepository {
     }
     this.setState('online')
     const remote = (data ?? []).map((r) => mapItem(r as Row))
-    // 云端正常时，示例仍展示但始终带“示例”印章
-    return [...remote, ...SAMPLE_ITEMS]
+    this.remoteCache = remote
+    return remote
+  }
+
+  async listItems(): Promise<FoodItem[]> {
+    if (this.remoteCache) return [...this.remoteCache, ...SAMPLE_ITEMS]
+    if (this.inflightList) return this.inflightList.then((remote) => [...remote, ...SAMPLE_ITEMS])
+    this.inflightList = this.fetchRemote()
+    try {
+      const remote = await this.inflightList
+      return [...remote, ...SAMPLE_ITEMS]
+    } finally {
+      this.inflightList = null
+    }
+  }
+
+  async listMyItems(): Promise<FoodItem[]> {
+    const { data: sess } = await this.db.auth.getSession()
+    if (!sess.session) return []
+    const { data, error } = await this.db.rpc('my_food_items')
+    if (error) throw toRepoError('读取我的投稿', error)
+    const rows = (Array.isArray(data) ? data : []) as Row[]
+    return rows.map((r) => mapItem(r))
   }
 
   async getItem(id: string): Promise<FoodItem | null> {
@@ -210,6 +238,11 @@ export class SupabaseRepo implements FoodRepository {
       return SAMPLE_ITEMS.find((s) => s.id === id) ?? null
     }
     if (!isUuidId(id)) return null
+    // 优先用缓存，保证发布成功后立刻跳转详情时能看到最新数据
+    if (this.remoteCache) {
+      const hit = this.remoteCache.find((i) => i.id === id)
+      if (hit) return hit
+    }
     const { data, error } = await this.db
       .from('food_items')
       .select(ITEM_COLUMNS)
@@ -282,6 +315,8 @@ export class SupabaseRepo implements FoodRepository {
       if (error) throw toRepoError('投稿保存', error)
       const item = mapItem((data ?? {}) as Row)
       if (!item.id) throw new RepoError('投稿已发送但没拿到记录，请刷新列表确认', 'no_return')
+      // 立即更新缓存，保证发布后列表/详情/我的页马上能看到，无需手动刷新
+      this.remoteCache = [item, ...(this.remoteCache ?? [])]
       this.setState('online')
       return { ok: true, item, savedRemotely: true }
     } catch (e) {
@@ -320,16 +355,17 @@ export class SupabaseRepo implements FoodRepository {
 
   async hasOwnRating(itemId: string): Promise<boolean> {
     if (!isUuidId(itemId)) return false
+    const own = await this.getOwnReview(itemId)
+    return Boolean(own)
+  }
+
+  async getOwnReview(itemId: string): Promise<Review | null> {
+    if (!isUuidId(itemId)) return null
     const { data: sess } = await this.db.auth.getSession()
-    if (!sess.session) return false
-    const { data, error } = await this.db
-      .from('reviews')
-      .select('id')
-      .eq('item_id', itemId)
-      .eq('user_id', sess.session.user.id)
-      .maybeSingle()
-    if (error) throw toRepoError('读取评分状态', error)
-    return Boolean(data)
+    if (!sess.session) return null
+    const { data, error } = await this.db.rpc('my_review', { p_item_id: itemId })
+    if (error) throw toRepoError('读取我的评分', error)
+    return data ? this.mapReview(data as Row) : null
   }
 
   async addReview(input: Omit<Review, 'id' | 'createdAt'>): Promise<Review> {

@@ -11,7 +11,7 @@ import {
   STAPLE_LABEL,
   SWEETSALTY_LABEL,
 } from '../data/campus'
-import { repo, useRepoState } from '../lib/repo'
+import { repo, useRepoState, notifyDataChanged } from '../lib/repo'
 import { useProfile } from '../lib/profile'
 import { compressImage, ImagePickError, MAX_SOURCE_BYTES } from '../lib/imageProcess'
 import { Chip, Notice, Seg, Stamp } from '../components/ui'
@@ -118,6 +118,8 @@ export function PublishPage() {
     if (res.ok) {
       setSavedItem(res.item)
       setPhase('remote-ok')
+      // 缓存已就地插入新投稿；通知各页面刷新（dropCache=false，避免无谓重复请求）
+      notifyDataChanged('item-created', false)
     } else if (res.savedDraft && res.item) {
       setSavedItem(res.item)
       setMessage(res.message)

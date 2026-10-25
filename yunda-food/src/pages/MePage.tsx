@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import type { FoodItem } from '../types'
 import { campusName } from '../data/campus'
-import { repo, useRepoState } from '../lib/repo'
+import { repo, useRepoState, DATA_CHANGED_EVENT } from '../lib/repo'
 import { useFavorites } from '../lib/useFavorites'
 import { useProfile } from '../lib/profile'
 import { profileTags } from '../lib/taste'
@@ -30,9 +30,40 @@ export function MePage() {
   const repoState = useRepoState()
 
   const [items, setItems] = useState<FoodItem[] | null>(null)
-  useEffect(() => {
+  const [myItems, setMyItems] = useState<FoodItem[] | null>(null)
+  const [myItemsError, setMyItemsError] = useState<string | null>(null)
+
+  const loadAll = () => {
     repo.listItems().then(setItems).catch(() => setItems([]))
-  }, [])
+    if (repo.mode === 'remote') {
+      repo
+        .listMyItems()
+        .then((list) => {
+          setMyItems(list)
+          setMyItemsError(null)
+        })
+        .catch((e: unknown) => {
+          setMyItems([])
+          setMyItemsError(e instanceof Error ? e.message : '读取我的云端投稿失败')
+        })
+    } else {
+      // 本地模式：listMyItems 返回本机草稿，与下面的草稿分区一致，这里不重复展示
+      setMyItems([])
+    }
+  }
+
+  useEffect(() => {
+    loadAll()
+    const onChange = () => loadAll()
+    window.addEventListener(DATA_CHANGED_EVENT, onChange)
+    const onVisible = () => document.visibilityState === 'visible' && loadAll()
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener(DATA_CHANGED_EVENT, onChange)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repoState])
 
   const favItems = (items ?? []).filter((i) => favorites.ids.includes(i.id))
   const drafts = (items ?? []).filter((i) => i.status === 'local-draft')
@@ -112,25 +143,85 @@ export function MePage() {
         </Notice>
       )}
 
+      {/* 我的云端投稿 */}
+      {repoState === 'online' && (
+        <>
+          <div className="section-title">
+            <h2>我的云端投稿</h2>
+            <span className="section-title__aside">{myItems?.length ?? 0} 条 · 其他手机可见</span>
+          </div>
+          {myItems === null ? (
+            <Spinner />
+          ) : myItemsError ? (
+            <Notice tone="red">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div>{myItemsError}</div>
+                <button type="button" className="btn btn--soft" style={{ alignSelf: 'flex-start' }} onClick={loadAll}>
+                  重试
+                </button>
+              </div>
+            </Notice>
+          ) : myItems.length === 0 ? (
+            <EmptyState
+              art="📤"
+              title="还没有云端投稿"
+              action={
+                <button type="button" className="btn btn--red" onClick={() => navigate('/publish')}>
+                  <Plus size={16} /> 发布第一条推荐
+                </button>
+              }
+            >
+              发布后所有手机都能看到，也会出现在这里。
+            </EmptyState>
+          ) : (
+            <div className="stack">
+              {myItems.map((d) => (
+                <button key={d.id} type="button" className="ticket" onClick={() => navigate(`/item/${d.id}`)}>
+                  <div className="ticket__body">
+                    <div className="ticket__name">{d.name}</div>
+                    <div className="ticket__venue">{d.venue}</div>
+                    <div className="ticket__tags" style={{ marginTop: 6 }}>
+                      <Stamp>已共享</Stamp>
+                      {d.ratingCount > 0 && d.ratingAvg != null && (
+                        <span className="tag" style={{ color: 'var(--green)' }}>
+                          {d.ratingAvg.toFixed(1)} 分 · {d.ratingCount} 人评价
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="ticket__price-col">
+                    <div className="price"><span className="price__sym">¥</span><span className="price__num">{d.price}</span></div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
       {/* 本机草稿 */}
       <div className="section-title">
-        <h2>我的投稿 / 本机草稿</h2>
+        <h2>{repoState === 'online' ? '本机草稿（未上传）' : '我的投稿 / 本机草稿'}</h2>
         <span className="section-title__aside">{drafts.length} 条</span>
       </div>
       {items === null ? (
         <Spinner />
       ) : drafts.length === 0 ? (
-        <EmptyState
-          art="📝"
-          title="还没有投稿"
-          action={
-            <button type="button" className="btn btn--red" onClick={() => navigate('/publish')}>
-              <Plus size={16} /> 发布第一条推荐
-            </button>
-          }
-        >
-          一道食堂菜、一杯饮品都能投，没有商家门槛。
-        </EmptyState>
+        repoState === 'online' ? (
+          <p className="tiny faint" style={{ padding: '0 4px' }}>没有本机草稿；你的投稿都已在云端共享。</p>
+        ) : (
+          <EmptyState
+            art="📝"
+            title="还没有投稿"
+            action={
+              <button type="button" className="btn btn--red" onClick={() => navigate('/publish')}>
+                <Plus size={16} /> 发布第一条推荐
+              </button>
+            }
+          >
+            一道食堂菜、一杯饮品都能投，没有商家门槛。
+          </EmptyState>
+        )
       ) : (
         <div className="stack">
           {drafts.map((d) => (

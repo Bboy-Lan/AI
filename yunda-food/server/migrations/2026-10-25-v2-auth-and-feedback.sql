@@ -1,12 +1,4 @@
 -- ============================================================
--- 增量迁移 v2（2026-10-25）
--- 适用：已经执行过 v1 初版脚本的项目。内容与 server/supabase-schema.sql
--- 等价（该全量脚本同样可重复执行），跑其中任意一个即可，不要两个都跑。
--- 变更：匿名登录鉴权（authenticated）、auth.uid() 归属、触发器聚合、
---       投稿/反馈 RPC、列级最小授权、Storage 仅本人目录上传、反馈表。
--- ============================================================
-
--- ============================================================
 -- 云大饭搭子 · Supabase 初始化脚本（v2 · 2026-10-25）
 -- 用法：Supabase 控制台 → SQL Editor → New query → 粘贴本文件 → Run
 -- 本脚本可重复执行，不会删除或清空已有数据。
@@ -301,6 +293,50 @@ $$;
 -- 旧版可被任意身份冒写的 RPC：立即移除
 drop function if exists public.submit_review(uuid, text, text, int, text, text);
 
+-- ---------- 只读 RPC：在服务端按 auth.uid() 过滤，不向客户端暴露身份列 ----------
+-- 返回当前登录身份发布的投稿（白名单字段）
+create or replace function public.my_food_items()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_uid uuid := auth.uid();
+begin
+  if v_uid is null then return '[]'::jsonb; end if;
+  return coalesce((
+    select jsonb_agg(to_jsonb(x) - 'owner' - 'lat' - 'lng')
+    from (
+      select * from public.food_items
+       where owner = v_uid and status = 'published'
+       order by submitted_at desc
+    ) x
+  ), '[]'::jsonb);
+end;
+$$;
+
+-- 返回当前登录身份对某条投稿的评价（白名单字段）；没有则 null
+create or replace function public.my_review(p_item_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_uid uuid := auth.uid(); v_row public.reviews;
+begin
+  if v_uid is null then return null; end if;
+  select * into v_row from public.reviews
+   where item_id = p_item_id and user_id = v_uid
+   limit 1;
+  if not found then return null; end if;
+  return jsonb_build_object(
+    'id', v_row.id, 'item_id', v_row.item_id,
+    'nickname', v_row.nickname, 'rating', v_row.rating,
+    'text', v_row.text, 'ate_date', v_row.ate_date, 'created_at', v_row.created_at
+  );
+end;
+$$;
+
 -- 函数执行权限：默认不给 public，按角色最小授权
 revoke all on function public.submit_food_item(text,text,text,text,text,text,numeric,smallint,text,text,text,text[],text,text,text,text,text,boolean,text) from public;
 revoke all on function public.submit_review(uuid, text, int, text, text) from public;
@@ -310,6 +346,8 @@ revoke all on function public.recompute_item_ratings() from public;
 grant execute on function public.submit_food_item(text,text,text,text,text,text,numeric,smallint,text,text,text,text[],text,text,text,text,text,boolean,text) to authenticated;
 grant execute on function public.submit_review(uuid, text, int, text, text) to authenticated;
 grant execute on function public.submit_feedback(uuid, text, numeric, text) to anon, authenticated;
+grant execute on function public.my_food_items() to authenticated;
+grant execute on function public.my_review(uuid) to authenticated;
 
 -- ============================================================
 -- 行级安全

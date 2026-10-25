@@ -26,9 +26,15 @@ export interface FoodRepository {
   /** 列出云端投稿 + 明确标注的示例；云端故障时抛 RepoError */
   listItems(): Promise<FoodItem[]>
   getItem(id: string): Promise<FoodItem | null>
+  /** 当前匿名身份发布的云端投稿（无会话/本地模式返回空） */
+  listMyItems(): Promise<FoodItem[]>
+  /** 投稿数据可能变化（发布成功、评分后）时调用，使缓存失效 */
+  invalidateItems(): void
   submit(input: SubmissionInput): Promise<SubmissionResult>
   listReviews(itemId: string): Promise<Review[]>
   addReview(review: Omit<Review, 'id' | 'createdAt'>): Promise<Review>
+  /** 当前登录身份对该投稿的评价（用于“修改评分”预填），没有则 null */
+  getOwnReview(itemId: string): Promise<Review | null>
   /** 当前登录身份对该投稿是否已评过分 */
   hasOwnRating(itemId: string): Promise<boolean>
   submitFeedback(input: FeedbackInput): Promise<FeedbackResult>
@@ -58,4 +64,11 @@ export function useRepoState(): RepoState {
     () => repo.getState(),
     () => 'local' as RepoState,
   )
+}
+
+// 全局数据变更事件：投稿成功、评分提交后派发；列表/我的页监听后重新拉取
+export const DATA_CHANGED_EVENT = 'yffd:data-changed'
+export function notifyDataChanged(detail: string = 'items', dropCache = true) {
+  if (dropCache) repo.invalidateItems()
+  window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT, { detail }))
 }
