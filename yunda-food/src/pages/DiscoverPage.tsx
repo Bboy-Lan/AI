@@ -74,17 +74,9 @@ export function DiscoverPage() {
         .catch(() => undefined)
     }
     window.addEventListener(DATA_CHANGED_EVENT, reload)
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') {
-        repo.invalidateItems()
-        reload()
-      }
-    }
-    document.addEventListener('visibilitychange', onVisible)
     return () => {
       alive = false
       window.removeEventListener(DATA_CHANGED_EVENT, reload)
-      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [])
 

@@ -13,7 +13,7 @@ import {
   type FoodFilters,
   type MatchResult,
 } from '../lib/match'
-import { repo } from '../lib/repo'
+import { DATA_CHANGED_EVENT, repo } from '../lib/repo'
 import { useProfile } from '../lib/profile'
 import { Chip, cn, EmptyState, FoodImage, Notice, Spinner, Stamp } from '../components/ui'
 import { BudgetControl } from '../components/FiltersSheet'
@@ -46,17 +46,12 @@ export function BlindBoxPage() {
 
   useEffect(() => {
     let alive = true
-    repo
-      .listItems()
-      .then((list) => {
-        if (alive) setItems(list)
-      })
-      .catch(() => {
-        // 云端故障：不空转 loading，按空候选处理（发现页有显式故障横幅）
-        if (alive) setItems([])
-      })
+    const load = () => repo.listItems().then((list) => alive && setItems(list)).catch(() => alive && setItems([]))
+    load()
+    window.addEventListener(DATA_CHANGED_EVENT, load)
     return () => {
       alive = false
+      window.removeEventListener(DATA_CHANGED_EVENT, load)
       if (timer.current) window.clearTimeout(timer.current)
     }
   }, [])

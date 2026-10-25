@@ -119,6 +119,7 @@ export class SupabaseRepo implements FoodRepository {
   private checkedOnce = false
   private remoteCache: FoodItem[] | null = null
   private inflightList: Promise<FoodItem[]> | null = null
+  private requestVersion = 0
 
   constructor(url: string, anonKey: string) {
     this.db = createClient(url, anonKey, {
@@ -195,7 +196,7 @@ export class SupabaseRepo implements FoodRepository {
     this.inflightList = null
   }
 
-  private async fetchRemote(): Promise<FoodItem[]> {
+  private async fetchRemote(version: number): Promise<FoodItem[]> {
     const { data, error } = await this.db
       .from('food_items')
       .select(ITEM_COLUMNS)
@@ -203,25 +204,32 @@ export class SupabaseRepo implements FoodRepository {
       .order('submitted_at', { ascending: false })
     if (error) {
       const re = toRepoError('读取投稿', error)
-      this.setState('offline', re.message)
+      if (version === this.requestVersion) this.setState('offline', re.message)
       throw re
     }
-    this.setState('online')
     const remote = (data ?? []).map((r) => mapItem(r as Row))
-    this.remoteCache = remote
+    if (version === this.requestVersion) {
+      this.setState('online')
+      this.remoteCache = remote
+    }
     return remote
   }
 
   async listItems(): Promise<FoodItem[]> {
     if (this.remoteCache) return [...this.remoteCache, ...SAMPLE_ITEMS]
     if (this.inflightList) return this.inflightList.then((remote) => [...remote, ...SAMPLE_ITEMS])
-    this.inflightList = this.fetchRemote()
+    const request = this.fetchRemote(++this.requestVersion)
+    this.inflightList = request
     try {
-      const remote = await this.inflightList
+      const remote = await request
       return [...remote, ...SAMPLE_ITEMS]
     } finally {
-      this.inflightList = null
+      if (this.inflightList === request) this.inflightList = null
     }
+  }
+  async refreshItems(): Promise<FoodItem[]> {
+    const remote = await this.fetchRemote(++this.requestVersion)
+    return [...remote, ...SAMPLE_ITEMS]
   }
 
   async listMyItems(): Promise<FoodItem[]> {

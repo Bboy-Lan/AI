@@ -77,6 +77,7 @@ export class LocalRepo implements FoodRepository {
     const drafts = this.readDrafts()
     return [...drafts, ...SAMPLE_ITEMS]
   }
+  async refreshItems(): Promise<FoodItem[]> { return this.listItems() }
 
   async getItem(id: string): Promise<FoodItem | null> {
     const all = await this.listItems()

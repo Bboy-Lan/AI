@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import type {
   FeedbackInput,
   FeedbackResult,
@@ -25,6 +25,8 @@ export interface FoodRepository {
   checkConnection(): Promise<boolean>
   /** 列出云端投稿 + 明确标注的示例；云端故障时抛 RepoError */
   listItems(): Promise<FoodItem[]>
+  /** 绕过列表缓存，从云端拉取最新投稿与聚合评分。 */
+  refreshItems(): Promise<FoodItem[]>
   getItem(id: string): Promise<FoodItem | null>
   /** 当前匿名身份发布的云端投稿（无会话/本地模式返回空） */
   listMyItems(): Promise<FoodItem[]>
@@ -71,4 +73,64 @@ export const DATA_CHANGED_EVENT = 'yffd:data-changed'
 export function notifyDataChanged(detail: string = 'items', dropCache = true) {
   if (dropCache) repo.invalidateItems()
   window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT, { detail }))
+}
+
+export interface RemoteSyncState { syncing: boolean; lastSuccessAt: number | null; error: string | null }
+const SYNC_INTERVAL = 5_000
+let syncState: RemoteSyncState = { syncing: false, lastSuccessAt: null, error: null }
+const syncListeners = new Set<() => void>()
+let syncTimer: number | null = null
+let syncUsers = 0
+let syncInFlight: Promise<void> | null = null
+let failures = 0
+const emitSync = () => syncListeners.forEach((listener) => listener())
+const setSync = (next: RemoteSyncState) => { syncState = next; emitSync() }
+const scheduleSync = (delay: number) => {
+  if (syncTimer != null) window.clearTimeout(syncTimer)
+  if (syncUsers > 0 && repo.mode === 'remote' && !document.hidden) {
+    syncTimer = window.setTimeout(() => void refreshRemoteData(), delay)
+  }
+}
+export function refreshRemoteData(): Promise<void> {
+  if (repo.mode !== 'remote' || document.hidden) return Promise.resolve()
+  if (syncInFlight) return syncInFlight
+  setSync({ ...syncState, syncing: true, error: null })
+  syncInFlight = repo.refreshItems()
+    .then(() => {
+      failures = 0
+      setSync({ syncing: false, lastSuccessAt: Date.now(), error: null })
+      notifyDataChanged('remote-sync', false)
+    })
+    .catch((error: unknown) => {
+      failures += 1
+      setSync({ ...syncState, syncing: false, error: error instanceof Error ? error.message : '暂未更新' })
+    })
+    .finally(() => {
+      syncInFlight = null
+      scheduleSync(Math.min(SYNC_INTERVAL * 2 ** failures, 30_000))
+    })
+  return syncInFlight
+}
+const onVisibility = () => { if (document.visibilityState === 'visible') void refreshRemoteData() }
+const onOnline = () => void refreshRemoteData()
+export function useRemoteSync(): RemoteSyncState {
+  useEffect(() => {
+    if (repo.mode !== 'remote') return
+    syncUsers += 1
+    if (syncUsers === 1) {
+      document.addEventListener('visibilitychange', onVisibility)
+      window.addEventListener('online', onOnline)
+      scheduleSync(SYNC_INTERVAL)
+    }
+    return () => {
+      syncUsers -= 1
+      if (syncUsers === 0) {
+        if (syncTimer != null) window.clearTimeout(syncTimer)
+        syncTimer = null
+        document.removeEventListener('visibilitychange', onVisibility)
+        window.removeEventListener('online', onOnline)
+      }
+    }
+  }, [])
+  return useSyncExternalStore((cb) => { syncListeners.add(cb); return () => syncListeners.delete(cb) }, () => syncState, () => syncState)
 }

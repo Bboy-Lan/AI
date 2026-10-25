@@ -24,7 +24,7 @@ import {
   SWEETSALTY_LABEL,
 } from '../data/campus'
 import { priceBasisLabel } from '../lib/match'
-import { repo, useRepoState, notifyDataChanged } from '../lib/repo'
+import { DATA_CHANGED_EVENT, repo, useRepoState, notifyDataChanged } from '../lib/repo'
 import { useFavorites } from '../lib/useFavorites'
 import { EmptyState, FoodImage, Notice, Sheet, Spinner, Stamp, Stars } from '../components/ui'
 
@@ -56,10 +56,12 @@ export function DetailPage() {
   const [rating, setRating] = useState(0)
   const [text, setText] = useState('')
 
-  const loadAll = (itemId: string) => {
+  const loadAll = (itemId: string, background = false) => {
     let alive = true
-    setItemState({ status: 'loading' })
-    setReviewsState({ status: 'loading' })
+    if (!background) {
+      setItemState({ status: 'loading' })
+      setReviewsState({ status: 'loading' })
+    }
     repo
       .getItem(itemId)
       .then((it) => alive && setItemState({ status: 'ok', data: it }))
@@ -85,7 +87,10 @@ export function DetailPage() {
 
   useEffect(() => {
     if (!id) return
-    return loadAll(id)
+    let dispose = loadAll(id)
+    const refresh = () => { dispose(); dispose = loadAll(id, true) }
+    window.addEventListener(DATA_CHANGED_EVENT, refresh)
+    return () => { dispose(); window.removeEventListener(DATA_CHANGED_EVENT, refresh) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 

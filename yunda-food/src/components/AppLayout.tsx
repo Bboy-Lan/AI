@@ -1,17 +1,24 @@
 import { useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Ticket, UserRound, UtensilsCrossed, Dices } from 'lucide-react'
+import { Ticket, UserRound, UtensilsCrossed, Dices, RotateCw } from 'lucide-react'
 import { useProfile } from '../lib/profile'
+import { refreshRemoteData, repo, useRemoteSync } from '../lib/repo'
 import { Onboarding } from './Onboarding'
 
 export function AppLayout() {
   const { needsOnboarding } = useProfile()
   const [editing, setEditing] = useState(false)
   const navigate = useNavigate()
+  const sync = useRemoteSync()
 
   return (
     <div className="app-frame">
       <Outlet context={{ openProfileEditor: () => setEditing(true) }} />
+      {repo.mode === 'remote' && (
+        <button type="button" className="btn btn--ghost" style={{ position: 'fixed', right: 12, top: 8, zIndex: 5, fontSize: 11 }} onClick={() => void refreshRemoteData()}>
+          <RotateCw size={13} className={sync.syncing ? 'spin' : ''} /> {sync.syncing ? '同步中' : sync.lastSuccessAt ? `已同步 ${new Date(sync.lastSuccessAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '刷新'}
+        </button>
+      )}
 
       <nav className="bottom-nav" aria-label="主导航">
         <NavTab to="/" icon={<UtensilsCrossed size={19} />} label="找吃的" end />
