@@ -17,6 +17,16 @@ npm run lint         # oxlint，当前 0 error
 公网演示（比赛要求“他人手机可操作”）需要部署，推荐 `npm run build` 后把 `dist/`
 发到任意静态托管（Vercel / Netlify / Cloudflare Pages），并按下文配置 Supabase。
 
+**当前公网演示地址（GitHub Pages）：<https://bboy-lan.github.io/AI/>**
+
+重新部署到该 Pages（需要对 Bboy-Lan/AI 的推送权限）：
+
+```powershell
+npm run build:pages          # 以 base=/AI/ 产出 dist/
+# 然后把 dist/ 内容强制推送到仓库 gh-pages 分支根目录
+```
+
+
 ## 本轮已实现
 
 - **首访“先认识你的胃”**：默认云大呈贡、可改校区；家乡可选；辣度/咸甜/面米/油重点选；
