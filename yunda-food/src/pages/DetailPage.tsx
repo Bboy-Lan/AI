@@ -3,10 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   CalendarDays,
+  Flag,
   Heart,
   MapPin,
   MapPinned,
   PenLine,
+  RotateCw,
   Send,
   Ticket,
 } from 'lucide-react'
@@ -22,24 +24,29 @@ import {
   SWEETSALTY_LABEL,
 } from '../data/campus'
 import { priceBasisLabel } from '../lib/match'
-import { repo } from '../lib/repo'
+import { repo, useRepoState } from '../lib/repo'
 import { useFavorites } from '../lib/useFavorites'
-import { EmptyState, FoodImage, Notice, Spinner, Stamp, Stars } from '../components/ui'
+import { EmptyState, FoodImage, Notice, Sheet, Spinner, Stamp, Stars } from '../components/ui'
 
 function monthNow(): string {
   return new Date().toISOString().slice(0, 7)
 }
 
+type LoadState<T> = { status: 'loading' } | { status: 'ok'; data: T } | { status: 'error'; message: string }
+
 export function DetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const favorites = useFavorites()
+  const repoState = useRepoState()
 
-  const [item, setItem] = useState<FoodItem | null | undefined>(undefined)
-  const [reviews, setReviews] = useState<Review[]>([])
+  const [itemState, setItemState] = useState<LoadState<FoodItem | null>>({ status: 'loading' })
+  const [reviewsState, setReviewsState] = useState<LoadState<Review[]>>({ status: 'loading' })
   const [alreadyRated, setAlreadyRated] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [reviewDone, setReviewDone] = useState(false)
+  const [reviewError, setReviewError] = useState<string | null>(null)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
 
   // 评论表单
   const [ate, setAte] = useState(false)
@@ -48,26 +55,44 @@ export function DetailPage() {
   const [rating, setRating] = useState(0)
   const [text, setText] = useState('')
 
-  useEffect(() => {
-    if (!id) return
+  const loadAll = (itemId: string) => {
     let alive = true
-    void Promise.all([repo.getItem(id), repo.listReviews(id), repo.hasOwnRating(id)]).then(
-      ([it, rs, own]) => {
-        if (!alive) return
-        setItem(it)
-        setReviews(rs)
-        setAlreadyRated(own)
-      },
-    )
+    setItemState({ status: 'loading' })
+    setReviewsState({ status: 'loading' })
+    repo
+      .getItem(itemId)
+      .then((it) => alive && setItemState({ status: 'ok', data: it }))
+      .catch((e: unknown) =>
+        alive &&
+        setItemState({ status: 'error', message: e instanceof Error ? e.message : '详情读取失败' }),
+      )
+    repo
+      .listReviews(itemId)
+      .then((rs) => alive && setReviewsState({ status: 'ok', data: rs }))
+      .catch((e: unknown) =>
+        alive &&
+        setReviewsState({ status: 'error', message: e instanceof Error ? e.message : '评论读取失败' }),
+      )
+    repo
+      .hasOwnRating(itemId)
+      .then((own) => alive && setAlreadyRated(own))
+      .catch(() => undefined)
     return () => {
       alive = false
     }
+  }
+
+  useEffect(() => {
+    if (!id) return
+    return loadAll(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   const submitReview = async (e: FormEvent) => {
     e.preventDefault()
     if (!id || !ate || !ateDate || !rating || !nickname.trim() || !text.trim()) return
     setSubmitting(true)
+    setReviewError(null)
     try {
       const saved = await repo.addReview({
         itemId: id,
@@ -76,15 +101,61 @@ export function DetailPage() {
         text: text.trim().slice(0, 200),
         ateDate,
       })
-      setReviews((prev) => [saved, ...prev.filter((r) => r.id !== saved.id)])
+      setReviewsState((prev) =>
+        prev.status === 'ok'
+          ? { status: 'ok', data: [saved, ...prev.data.filter((r) => r.id !== saved.id)] }
+          : { status: 'ok', data: [saved] },
+      )
       setAlreadyRated(true)
       setReviewDone(true)
+      // 刷新投稿上的聚合均分与人数
+      try {
+        const fresh = await repo.getItem(id)
+        if (fresh) setItemState({ status: 'ok', data: fresh })
+      } catch {
+        /* 聚合数字刷新失败不阻断评论成功提示 */
+      }
+    } catch (err) {
+      setReviewError(err instanceof Error ? err.message : '评论提交失败，请重试')
     } finally {
       setSubmitting(false)
     }
   }
 
-  if (item === undefined) return <div className="page"><Spinner /></div>
+  if (itemState.status === 'loading') {
+    return (
+      <div className="page">
+        <Spinner />
+      </div>
+    )
+  }
+  if (itemState.status === 'error') {
+    return (
+      <div className="page">
+        <div className="topbar" style={{ position: 'static', padding: '8px 0' }}>
+          <button type="button" className="icon-btn" onClick={() => navigate(-1)} aria-label="返回">
+            <ArrowLeft size={17} />
+          </button>
+          <span className="topbar__title">详情暂时打不开</span>
+        </div>
+        <Notice tone="red">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div>{itemState.message}</div>
+            <button
+              type="button"
+              className="btn btn--soft"
+              style={{ alignSelf: 'flex-start' }}
+              onClick={() => id && loadAll(id)}
+            >
+              <RotateCw size={15} /> 重试
+            </button>
+          </div>
+        </Notice>
+      </div>
+    )
+  }
+
+  const item = itemState.data
   if (item === null) {
     return (
       <div className="page">
@@ -101,6 +172,11 @@ export function DetailPage() {
     )
   }
 
+  const isSample = item.source === 'sample'
+  // 示例内容：云端模式不允许提交“真实评价”；本机示例模式允许本机留言但不会同步
+  const reviewBlocked = isSample && repo.mode === 'remote'
+  const reviews = reviewsState.status === 'ok' ? reviewsState.data : []
+
   return (
     <div className="page" style={{ paddingTop: 0 }}>
       <div className="detail-hero">
@@ -113,7 +189,7 @@ export function DetailPage() {
         <button type="button" className="icon-btn detail-hero__back" onClick={() => navigate(-1)} aria-label="返回">
           <ArrowLeft size={17} />
         </button>
-        {item.source === 'sample' && <Stamp corner>示例数据</Stamp>}
+        {isSample && <Stamp corner>示例数据</Stamp>}
         {item.status === 'local-draft' && (
           <Stamp corner variant="blue">
             本机草稿
@@ -155,6 +231,21 @@ export function DetailPage() {
 
         <p style={{ marginTop: 12, fontSize: 14 }}>{item.description}</p>
 
+        {!isSample && (
+          <div className="row-between mt-12" style={{ justifyContent: 'flex-start', gap: 12 }}>
+            <span className="tiny muted">同学评价</span>
+            {item.ratingCount > 0 && item.ratingAvg != null ? (
+              <>
+                <Stars value={Math.round(item.ratingAvg)} size={15} />
+                <strong style={{ fontSize: 14 }}>{item.ratingAvg.toFixed(1)} 分</strong>
+                <span className="tiny muted">{item.ratingCount} 人吃过并打分</span>
+              </>
+            ) : (
+              <span className="tiny muted">还没有人自报吃过打分，你来第一个</span>
+            )}
+          </div>
+        )}
+
         <div className="btn-row mt-12">
           <button
             type="button"
@@ -176,7 +267,7 @@ export function DetailPage() {
           <div className="kv-list__row">
             <span className="kv-list__k">内容来源</span>
             <span className="kv-list__v">
-              {item.source === 'sample' ? (
+              {isSample ? (
                 <>
                   起始<b>示例数据</b>（店名/价格/照片均未现场核验，仅用于演示流程）
                 </>
@@ -185,7 +276,7 @@ export function DetailPage() {
                   本机草稿：只存在这台设备，尚未进入共享数据库，其他手机看不到
                 </span>
               ) : (
-                '同学投稿'
+                '同学投稿（云端共享，其他手机可见）'
               )}
             </span>
           </div>
@@ -219,17 +310,50 @@ export function DetailPage() {
             </span>
           </div>
         </div>
+        {repoState === 'offline' && (
+          <Notice tone="red">
+            当前云端连接异常，这条记录的评论与最新评分暂时无法同步。
+          </Notice>
+        )}
       </div>
 
       <div className="section-title">
-        <h2>吃过的同学怎么说（{reviews.length}）</h2>
+        <h2>吃过的同学怎么说{reviewsState.status === 'ok' ? `（${reviews.length}）` : ''}</h2>
+        {!isSample && (
+          <button type="button" className="section-title__aside" style={{ background: 'none' }} onClick={() => setFeedbackOpen(true)}>
+            价格纠错 / 举报
+          </button>
+        )}
       </div>
 
-      {alreadyRated ? (
+      {reviewsState.status === 'loading' ? (
+        <Spinner />
+      ) : reviewsState.status === 'error' ? (
+        <Notice tone="red">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div>
+              <b>评论暂时加载失败。</b>
+              {reviewsState.message}
+            </div>
+            <button
+              type="button"
+              className="btn btn--soft"
+              style={{ alignSelf: 'flex-start' }}
+              onClick={() => id && loadAll(id)}
+            >
+              <RotateCw size={15} /> 重试加载评论
+            </button>
+          </div>
+        </Notice>
+      ) : reviewBlocked ? (
+        <Notice tone="yellow">
+          这是起始<b>示例内容</b>，不能对它提交真实云端评价——它不是云大现场投稿。打开同学真实投稿即可自报吃过并评分。
+        </Notice>
+      ) : alreadyRated ? (
         <Notice tone="green">
           {reviewDone
-            ? '已记下你的体验分与评论。同一台浏览器对这条投稿只保留一份评分，再提交会覆盖原来的。'
-            : '你在这台浏览器上已经给它打过分；如需修改，重新提交即可覆盖。'}
+            ? '已记下你的体验分与评论。同一身份对这条投稿只保留一份评分，再提交会覆盖原来的，不会重复计数。'
+            : '你已经给它打过分；如需修改，重新提交即可覆盖，评价人数不会重复增加。'}
         </Notice>
       ) : (
         <form className="info-card stack" onSubmit={submitReview}>
@@ -282,6 +406,16 @@ export function DetailPage() {
                 onChange={(e) => setText(e.target.value)}
                 required
               />
+              {reviewError && (
+                <Notice tone="red">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div>{reviewError}</div>
+                    <button type="button" className="btn btn--soft" style={{ alignSelf: 'flex-start' }} onClick={() => setReviewError(null)}>
+                      知道了，修改后重试
+                    </button>
+                  </div>
+                </Notice>
+              )}
               <button
                 type="submit"
                 className="btn btn--blue btn--block"
@@ -295,24 +429,23 @@ export function DetailPage() {
       )}
 
       <div className="stack mt-12">
-        {reviews.length === 0 ? (
+        {reviewsState.status === 'ok' && reviews.length === 0 && (
           <p className="tiny faint" style={{ padding: '0 4px' }}>
             还没有评论。吃过的话，自报一句，帮后面的同学做决定。
           </p>
-        ) : (
-          reviews.map((r) => (
-            <div className="info-card review-item" key={r.id}>
-              <div className="review-item__head">
-                <span style={{ fontWeight: 700, fontSize: 13.5 }}>
-                  {r.nickname}
-                  <span className="tiny faint"> · 自报 {r.ateDate} 吃过</span>
-                </span>
-                <Stars value={r.rating} size={14} />
-              </div>
-              <p style={{ fontSize: 13.5 }}>{r.text}</p>
-            </div>
-          ))
         )}
+        {reviews.map((r) => (
+          <div className="info-card review-item" key={r.id}>
+            <div className="review-item__head">
+              <span style={{ fontWeight: 700, fontSize: 13.5 }}>
+                {r.nickname}
+                <span className="tiny faint"> · 自报 {r.ateDate} 吃过</span>
+              </span>
+              <Stars value={r.rating} size={14} />
+            </div>
+            <p style={{ fontSize: 13.5 }}>{r.text}</p>
+          </div>
+        ))}
       </div>
 
       <button
@@ -322,6 +455,137 @@ export function DetailPage() {
       >
         <PenLine size={15} /> 我也想推荐一道
       </button>
+
+      <FeedbackSheet
+        open={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
+        itemName={item.name}
+        itemId={item.id}
+        currentPrice={item.price}
+      />
     </div>
+  )
+}
+
+function FeedbackSheet({
+  open,
+  onClose,
+  itemId,
+  itemName,
+  currentPrice,
+}: {
+  open: boolean
+  onClose: () => void
+  itemId: string
+  itemName: string
+  currentPrice: number
+}) {
+  const [type, setType] = useState<'price_correction' | 'report'>('price_correction')
+  const [price, setPrice] = useState(String(currentPrice))
+  const [reason, setReason] = useState('')
+  const [sending, setSending] = useState(false)
+  const [done, setDone] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const submit = async () => {
+    if (!reason.trim() || reason.trim().length < 2) return
+    if (type === 'price_correction' && !(Number(price) > 0 && Number(price) < 1000)) return
+    setSending(true)
+    setError(null)
+    try {
+      await repo.submitFeedback({
+        itemId,
+        type,
+        suggestedPrice: type === 'price_correction' ? Number(price) : null,
+        reason: reason.trim().slice(0, 200),
+      })
+      setDone(true)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '提交失败，请重试')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <Sheet open={open} onClose={onClose} title={`反馈 · ${itemName}`}>
+      {done ? (
+        <div className="stack">
+          <Notice tone="green">
+            已收到，状态为<b>待处理</b>。价格纠错不会自动覆盖原价，项目所有者核实后统一处理。
+          </Notice>
+          <button type="button" className="btn btn--blue btn--block" onClick={onClose}>
+            完成
+          </button>
+        </div>
+      ) : (
+        <div className="stack-lg">
+          <div className="chips-row" style={{ overflow: 'visible' }}>
+            <button
+              type="button"
+              className={`chip${type === 'price_correction' ? ' chip--on' : ''}`}
+              onClick={() => setType('price_correction')}
+            >
+              价格不对
+            </button>
+            <button
+              type="button"
+              className={`chip${type === 'report' ? ' chip--on' : ''}`}
+              onClick={() => setType('report')}
+            >
+              <Flag size={13} /> 举报内容
+            </button>
+          </div>
+
+          {type === 'price_correction' && (
+            <div className="field">
+              <label className="field__label">你最近买到的实际价格（元）</label>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0.5}
+                max={999}
+                step={0.5}
+                className="text-input"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+              />
+              <span className="field__hint">当前记录价 ¥{currentPrice}；新价格标记待核实，不自动覆盖。</span>
+            </div>
+          )}
+
+          <div className="field">
+            <label className="field__label">{type === 'price_correction' ? '补充说明' : '举报理由'} *</label>
+            <textarea
+              className="text-area"
+              maxLength={200}
+              placeholder={
+                type === 'price_correction'
+                  ? '例如：这学期涨到 15 元了，窗口换过位置……'
+                  : '例如：广告、抄袭、信息不实、违法或泄露隐私……'
+              }
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </div>
+
+          {error && <Notice tone="red">{error}</Notice>}
+
+          <div className="btn-row">
+            <button type="button" className="btn" onClick={onClose}>
+              取消
+            </button>
+            <button
+              type="button"
+              className="btn btn--blue"
+              disabled={sending || reason.trim().length < 2}
+              onClick={submit}
+            >
+              {sending ? '提交中…' : '提交待处理'}
+            </button>
+          </div>
+        </div>
+      )}
+    </Sheet>
   )
 }

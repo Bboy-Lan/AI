@@ -98,4 +98,37 @@ export interface SubmissionInput {
 
 export type SubmissionResult =
   | { ok: true; item: FoodItem; savedRemotely: boolean }
-  | { ok: false; savedDraft: boolean; message: string; item?: FoodItem }
+  | { ok: false; savedDraft: boolean; message: string; item?: FoodItem; retryable?: boolean }
+
+// 价格纠错 / 举报：只进待处理队列，不自动改原价
+export interface FeedbackInput {
+  itemId: string
+  type: 'price_correction' | 'report'
+  suggestedPrice?: number | null
+  reason: string
+}
+
+export interface FeedbackResult {
+  ok: true
+}
+
+export type RepoState =
+  | 'local' // 未配置云端：示例 + 本机草稿模式
+  | 'checking' // 已配置，正在做首次连通性检查
+  | 'online' // 云端读写已验证成功过
+  | 'offline' // 已配置但云端请求失败（可读错误信息与重试）
+
+export class RepoError extends Error {
+  code: string
+  retryable: boolean
+  constructor(message: string, code = 'remote_error', retryable = true) {
+    super(message)
+    this.name = 'RepoError'
+    this.code = code
+    this.retryable = retryable
+  }
+}
+
+export function isUuidId(id: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+}

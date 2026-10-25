@@ -58,13 +58,54 @@ npm run build:pages          # 以 base=/AI/ 产出 dist/
 - 统一数据模型 `src/types.ts` 与访问层 `src/lib/repo.ts`，两个实现：
   - `LocalRepo`（默认，无环境变量）：示例数据 + localStorage 草稿/评价。
   - `SupabaseRepo`：配置 `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` 后自动启用，
-    投稿/图片/评论服务端持久化，另一部手机可见。
-- localStorage 仅存：口味画像、收藏、本机草稿、本机评论/浏览器 ID。
-- 启用共享数据库（唯一需要的外部配置，约 3 分钟）：
-  1. supabase.com 免费建项目；
-  2. SQL Editor 执行 [`server/supabase-schema.sql`](./server/supabase-schema.sql)
-     （建表、评论去重 RPC、匿名 RLS、公开图片桶 food-photos）；
-  3. 复制 `.env.example` 为 `.env.local` 填入 Project URL 与 anon key，重启 dev。
+    状态机 `checking / online / offline`；云端读失败显式报错并提供重试，
+    示例内容可继续浏览但不会掩盖“真实投稿读不到”。
+- localStorage 仅存：口味画像、收藏、本机草稿、本机评论；Supabase 匿名会话也由 SDK 本地持久化。
+
+### 云端安全模型（v2，2026-10-25）
+
+- 浏览投稿/评论/图片：未登录（anon）可读白名单列；owner 等内部字段不下发。
+- 投稿与评分：首次操作自动 **Anonymous Sign-In**（无注册/邮箱/手机号/登录表单），
+  数据库角色为 authenticated；会话本地复用，不会重复创建匿名用户。
+- 所有写入只走 SECURITY DEFINER RPC（`submit_food_item` / `submit_review` /
+  `submit_feedback`），固定 `search_path`；表本身不对任何访客开放写入。
+- 评价归属由服务端 `auth.uid()` 决定，客户端无法传入或伪造身份；同一身份对一条投稿仅一份评价，
+  更新评分覆盖旧记录、评价人数不重复增加；人数与均分由数据库触发器聚合，客户端不可写。
+- 图片上传到 Storage 的 `<本人uid>/` 目录，RLS 校验路径与 MIME/扩展名，
+  桶限制 jpg/png/webp、≤8MB；数据库保存公开 URL，不存 blob/本机路径。
+- 价格纠错与举报进 `feedback` 待处理队列，不自动覆盖原价、不给访客删除/管理权。
+- service_role / secret key 不进入任何 `VITE_` 变量。
+
+### 启用共享数据库（唯一需要的外部配置）
+
+1. 打开 <https://supabase.com/dashboard>，创建或选择项目（Project URL 在
+   Project Settings → API；本地区域任选，免费档足够演示）。
+2. **Authentication → Sign In / Providers → 打开 Anonymous 开关** 并 Save。
+3. SQL Editor → New query，粘贴执行 [`server/supabase-schema.sql`](./server/supabase-schema.sql)
+   （可重复执行不清数据；已执行过 v1 可只跑 `server/migrations/2026-10-25-v2-auth-and-feedback.sql`）。
+4. 复制 `.env.example` 为 `.env.local`，填 Project URL 与 anon/publishable key（变量名仍为
+   `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`），重启 `npm run dev`。
+5. “我的”页出现绿色“已接通共享数据库”即成功。
+
+### 项目所有者处理反馈（最小操作，无需管理后台）
+
+在 Supabase SQL Editor 查看待处理队列：
+
+```sql
+select f.*, i.name from public.feedback f
+join public.food_items i on i.id = f.item_id
+where f.status = 'pending' order by f.created_at desc;
+```
+
+核实价格后手工更新（涨价才改，并更新日期）：
+
+```sql
+update public.food_items set price = 15, price_updated_at = current_date where id = '对应uuid';
+update public.feedback set status = 'resolved' where id = '对应uuid';
+-- 无效反馈：update public.feedback set status = 'dismissed' where id = '对应uuid';
+-- 需要下架违规投稿：update public.food_items set status = 'hidden' where id = '对应uuid';
+```
+
 
 ## 未做 / 边界（与 PRD 一致）
 

@@ -1,10 +1,14 @@
 import type {
   AuthorInfo,
+  FeedbackInput,
+  FeedbackResult,
   FoodItem,
+  RepoState,
   Review,
   SubmissionInput,
   SubmissionResult,
 } from '../types'
+import { RepoError } from '../types'
 import { SAMPLE_ITEMS } from '../data/seed'
 import type { FoodRepository } from './repo'
 import { KEYS, readJSON, writeJSON } from './storage'
@@ -51,7 +55,19 @@ function toItem(input: SubmissionInput, id: string, status: FoodItem['status'], 
 // 本机草稿在任何界面都必须显示“仅本机可见”，不得伪装成发布成功。
 export class LocalRepo implements FoodRepository {
   readonly mode = 'local' as const
-  readonly connected = false
+
+  getState(): RepoState {
+    return 'local'
+  }
+  getLastError(): string | null {
+    return null
+  }
+  subscribe(): () => void {
+    return () => {}
+  }
+  async checkConnection(): Promise<boolean> {
+    return true
+  }
 
   private readDrafts(): FoodItem[] {
     return readJSON<FoodItem[]>(KEYS.drafts, [])
@@ -68,8 +84,8 @@ export class LocalRepo implements FoodRepository {
   }
 
   async submit(input: SubmissionInput): Promise<SubmissionResult> {
-    const drafts = this.readDrafts()
     const item = toItem(input, uid('local'), 'local-draft', new Date().toISOString())
+    const drafts = this.readDrafts()
     drafts.unshift(item)
     writeJSON(KEYS.drafts, drafts)
     return {
@@ -77,6 +93,7 @@ export class LocalRepo implements FoodRepository {
       savedDraft: true,
       item,
       message: '已保存在本机草稿。当前还没接通共享数据库，其他手机暂时看不到它。',
+      retryable: false,
     }
   }
 
@@ -84,9 +101,9 @@ export class LocalRepo implements FoodRepository {
     return readJSON<Review[]>(KEYS.reviews, [])
   }
 
-  async listReviews(itemId: string): Promise<Review[]> {
+  async listReviews(_itemId: string): Promise<Review[]> {
     return this.readReviews()
-      .filter((r) => r.itemId === itemId)
+      .filter((r) => r.itemId === _itemId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   }
 
@@ -113,5 +130,10 @@ export class LocalRepo implements FoodRepository {
     own[input.itemId] = saved
     writeJSON(KEYS.ownRatings, own)
     return saved
+  }
+
+  async submitFeedback(_input: FeedbackInput): Promise<FeedbackResult> {
+    // 本地模式没有云端待处理队列：明确报错，不假成功
+    throw new RepoError('当前是示例模式，还没接通共享数据库，反馈无法送达。配置云端后即可提交。', 'local_mode', false)
   }
 }

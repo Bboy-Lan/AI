@@ -46,7 +46,15 @@ export function BlindBoxPage() {
 
   useEffect(() => {
     let alive = true
-    repo.listItems().then((list) => alive && setItems(list))
+    repo
+      .listItems()
+      .then((list) => {
+        if (alive) setItems(list)
+      })
+      .catch(() => {
+        // 云端故障：不空转 loading，按空候选处理（发现页有显式故障横幅）
+        if (alive) setItems([])
+      })
     return () => {
       alive = false
       if (timer.current) window.clearTimeout(timer.current)

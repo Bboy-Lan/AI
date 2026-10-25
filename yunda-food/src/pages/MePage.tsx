@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import type { FoodItem } from '../types'
 import { campusName } from '../data/campus'
-import { repo } from '../lib/repo'
+import { repo, useRepoState } from '../lib/repo'
 import { useFavorites } from '../lib/useFavorites'
 import { useProfile } from '../lib/profile'
 import { profileTags } from '../lib/taste'
@@ -27,10 +27,11 @@ export function MePage() {
   const { profile } = useProfile()
   const favorites = useFavorites()
   const { openProfileEditor } = useOutletContext<LayoutContext>()
+  const repoState = useRepoState()
 
   const [items, setItems] = useState<FoodItem[] | null>(null)
   useEffect(() => {
-    void repo.listItems().then(setItems)
+    repo.listItems().then(setItems).catch(() => setItems([]))
   }, [])
 
   const favItems = (items ?? []).filter((i) => favorites.ids.includes(i.id))
@@ -77,15 +78,8 @@ export function MePage() {
 
       {/* 后端状态 */}
       <div className="section-title"><h2>数据状态</h2></div>
-      <Notice tone={repo.connected ? 'green' : 'yellow'}>
-        {repo.connected ? (
-          <span style={{ display: 'flex', gap: 8 }}>
-            <Cloud size={17} style={{ flex: 'none' }} />
-            <span>
-              <b>已接通共享数据库</b>：投稿、图片、评论云端保存，其他手机可见。
-            </span>
-          </span>
-        ) : (
+      {repoState === 'local' && (
+        <Notice tone="yellow">
           <span style={{ display: 'flex', gap: 8 }}>
             <CloudOff size={17} style={{ flex: 'none' }} />
             <span>
@@ -93,8 +87,30 @@ export function MePage() {
               上线只需项目说明里的一个配置动作（Supabase 免费项目 + .env.local）。
             </span>
           </span>
-        )}
-      </Notice>
+        </Notice>
+      )}
+      {repoState === 'online' && (
+        <Notice tone="green">
+          <span style={{ display: 'flex', gap: 8 }}>
+            <Cloud size={17} style={{ flex: 'none' }} />
+            <span>
+              <b>已接通共享数据库</b>：投稿、图片、评论云端保存，其他手机可见。
+            </span>
+          </span>
+        </Notice>
+      )}
+      {repoState === 'checking' && <Notice tone="blue">正在连接共享数据库……</Notice>}
+      {repoState === 'offline' && (
+        <Notice tone="red">
+          <span style={{ display: 'flex', gap: 8 }}>
+            <CloudOff size={17} style={{ flex: 'none' }} />
+            <span>
+              <b>云端连接异常</b>：{repo.getLastError() ?? '暂时无法读取共享内容'}
+              。本机口味与收藏仍可用；请检查网络或数据库配置后重新打开页面。
+            </span>
+          </span>
+        </Notice>
+      )}
 
       {/* 本机草稿 */}
       <div className="section-title">

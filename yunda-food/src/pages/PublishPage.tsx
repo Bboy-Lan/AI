@@ -1,6 +1,6 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, CheckCircle2, CloudOff, ImagePlus, Loader2, Ticket } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, CloudOff, ImagePlus, Loader2, RotateCw, Ticket } from 'lucide-react'
 import type { Category, FoodItem, OilLevel, PriceMode, SpicyLevel, Staple, SubmissionInput, SweetSalty } from '../types'
 import {
   AREAS,
@@ -11,7 +11,7 @@ import {
   STAPLE_LABEL,
   SWEETSALTY_LABEL,
 } from '../data/campus'
-import { repo } from '../lib/repo'
+import { repo, useRepoState } from '../lib/repo'
 import { useProfile } from '../lib/profile'
 import { compressImage, ImagePickError, MAX_SOURCE_BYTES } from '../lib/imageProcess'
 import { Chip, Notice, Seg, Stamp } from '../components/ui'
@@ -25,10 +25,12 @@ type Phase = 'form' | 'sending' | 'remote-ok' | 'local-draft' | 'error'
 export function PublishPage() {
   const navigate = useNavigate()
   const { profile, updateProfile } = useProfile()
+  const repoState = useRepoState()
 
   const [phase, setPhase] = useState<Phase>('form')
   const [savedItem, setSavedItem] = useState<FoodItem | null>(null)
   const [message, setMessage] = useState('')
+  const inFlight = useRef(false)
 
   // 表单
   const [name, setName] = useState('')
@@ -79,7 +81,8 @@ export function PublishPage() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!valid || !image) return
+    if (!valid || !image || inFlight.current) return
+    inFlight.current = true
     if (campusId !== 'ynu-chenggong') {
       updateProfile({ campusId })
     }
@@ -123,6 +126,7 @@ export function PublishPage() {
       setMessage(res.message)
       setPhase('error')
     }
+    inFlight.current = false
   }
 
   if (phase === 'remote-ok' && savedItem) {
@@ -198,9 +202,15 @@ export function PublishPage() {
     <div className="page">
       <Header onBack={() => navigate(-1)} />
 
-      <Notice tone={repo.connected ? 'green' : 'yellow'}>
-        {repo.connected ? (
+      <Notice tone={repoState === 'online' ? 'green' : repoState === 'offline' ? 'red' : 'yellow'}>
+        {repoState === 'online' ? (
           <>已接通共享数据库：投稿与图片会真实保存，其他手机可见。</>
+        ) : repoState === 'checking' ? (
+          <>正在连接共享数据库……连接成功后投稿会直接云端共享。</>
+        ) : repoState === 'offline' ? (
+          <>
+            <b>云端当前连不上</b>：{repo.getLastError() ?? '请检查网络或数据库配置'}。提交会失败并提示重试，不会假装发布成功。
+          </>
         ) : (
           <>
             当前是<b>示例模式</b>：提交后只存本机草稿并明确标注，不会假报“发布成功”。接通云端只需页面底部说明的一个配置动作。
@@ -463,7 +473,24 @@ export function PublishPage() {
           </p>
         </section>
 
-        {phase === 'error' && <Notice tone="red">{message}</Notice>}
+        {phase === 'error' && (
+          <Notice tone="red">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div>
+                <b>没有发布成功。</b>
+                {message}
+              </div>
+              <button
+                type="button"
+                className="btn btn--soft"
+                style={{ alignSelf: 'flex-start' }}
+                onClick={() => setPhase('form')}
+              >
+                <RotateCw size={15} /> 保留内容，重试提交
+              </button>
+            </div>
+          </Notice>
+        )}
 
         <button type="submit" className="btn btn--red btn--lg btn--block" disabled={!valid || phase === 'sending'}>
           {phase === 'sending' ? (

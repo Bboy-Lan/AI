@@ -3,8 +3,9 @@ import { MapPin, Search, SlidersHorizontal, X, Ticket, Plus } from 'lucide-react
 import { useNavigate } from 'react-router-dom'
 import type { Category, FoodItem } from '../types'
 import { CAMPUSES, campusName } from '../data/campus'
+import { SAMPLE_ITEMS } from '../data/seed'
 import { defaultFilters, rankItems, type FoodFilters } from '../lib/match'
-import { repo } from '../lib/repo'
+import { repo, useRepoState } from '../lib/repo'
 import { useProfile } from '../lib/profile'
 import { useFavorites } from '../lib/useFavorites'
 import { HERO_IMAGE } from '../lib/images'
@@ -23,8 +24,11 @@ export function DiscoverPage() {
   const navigate = useNavigate()
   const { profile, updateProfile } = useProfile()
   const favorites = useFavorites()
+  const repoState = useRepoState()
 
   const [items, setItems] = useState<FoodItem[] | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
   const [filters, setFilters] = useState<FoodFilters>(() => ({
     ...defaultFilters(profile.campusId),
     budget: {
@@ -39,13 +43,24 @@ export function DiscoverPage() {
 
   useEffect(() => {
     let alive = true
-    repo.listItems().then((list) => {
-      if (alive) setItems(list)
-    })
+    setItems(null)
+    setLoadError(null)
+    repo
+      .listItems()
+      .then((list) => {
+        if (alive) setItems(list)
+      })
+      .catch((e: unknown) => {
+        if (!alive) return
+        const message = e instanceof Error ? e.message : '云端读取失败'
+        setLoadError(message)
+        // 云端故障时仍可浏览明确标注的示例，但绝不让示例掩盖“真实投稿读不到”
+        setItems(SAMPLE_ITEMS)
+      })
     return () => {
       alive = false
     }
-  }, [])
+  }, [reloadKey])
 
   // 校区跟随“我的口味/首访”设置
   useEffect(() => {
@@ -99,7 +114,28 @@ export function DiscoverPage() {
         </div>
       </section>
 
-      {/* 校区切换 */}
+      {repoState === 'offline' && loadError && (
+        <Notice tone="red">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div>
+              <b>暂时读不到云端真实投稿。</b>
+              {loadError}
+            </div>
+            <div>下面仅展示标注「示例」的起始内容，真实同学投稿当前无法读取。</div>
+            <button
+              type="button"
+              className="btn btn--soft"
+              style={{ alignSelf: 'flex-start' }}
+              onClick={() => setReloadKey((k) => k + 1)}
+            >
+              重新连接
+            </button>
+          </div>
+        </Notice>
+      )}
+      {repoState === 'checking' && (
+        <Notice tone="blue">正在连接共享数据库，稍等就能看到同学的真实投稿……</Notice>
+      )}
       <div className="row-between" style={{ marginBottom: 10 }}>
         <select
           className="select-input"
