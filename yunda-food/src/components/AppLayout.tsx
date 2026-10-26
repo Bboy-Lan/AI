@@ -39,7 +39,7 @@ export function AppLayout() {
         发布推荐
       </button>
 
-      {needsOnboarding && <Onboarding mode="gate" />}
+      {needsOnboarding && location.pathname !== '/admin' && <Onboarding mode="gate" />}
       {editing && <Onboarding mode="edit" onClose={() => setEditing(false)} />}
     </div>
   )

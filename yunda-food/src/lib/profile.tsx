@@ -19,7 +19,7 @@ export const DEFAULT_PROFILE: TasteProfile = {
 interface ProfileContextValue {
   profile: TasteProfile
   needsOnboarding: boolean
-  /** 吃货 ID 和家乡完成后即可进入；skipped 仅表示口味尚未补充。 */
+  /** 仅首次没有资料时进入引导；已保存的旧资料必须保持可访问。 */
   saveProfile: (next: Omit<TasteProfile, 'saved' | 'savedAt'> & { skipped?: boolean }) => void
   /** 从“我的”页修改时，保留已完成状态 */
   updateProfile: (patch: Partial<TasteProfile>) => void
@@ -59,7 +59,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ProfileContextValue>(
     () => ({
       profile,
-      needsOnboarding: !profile.saved || !profile.foodieId?.trim() || !profile.hometown?.trim(),
+      needsOnboarding: !profile.saved,
       saveProfile,
       updateProfile,
     }),
