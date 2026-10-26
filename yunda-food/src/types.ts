@@ -147,7 +147,14 @@ export interface SubmissionInput {
   flavors: string[]
   description: string
   image?: string | null // 远程 URL 或本地 dataURL（local 草稿）
+  /** 投稿人主动记录的菜品大致位置；不保存浏览者当前位置。 */
+  latitude?: number | null
+  longitude?: number | null
   author: AuthorInfo
+}
+
+export interface UpdateSubmissionInput extends Omit<SubmissionInput, 'author'> {
+  id: string
 }
 
 export type SubmissionResult =

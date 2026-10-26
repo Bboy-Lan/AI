@@ -95,14 +95,14 @@ on conflict (user_id) do nothing;
 
 要启用管理员的评论审核、吃货 ID/用户内容限制、社区匿名人数概览，以及“已认证管理员授权另一浏览器身份”，还需要执行 [`v3.4 二次审核迁移`](./server/migrations/2026-10-26-v3.4-admin-moderation.sql)。它不会删除用户、投稿或评论：隐藏评论会从公开列表、评分聚合和地点核验中排除；恢复后重新计入。匿名会话按浏览器存储，因此同一电脑的 Edge、内置浏览器和无痕窗口本来就是不同身份；只能由已确认管理员在管理台明确授权另一个已初始化浏览器的 UUID，不能自动合并。
 
-最后执行 [`v3.5 示例审核`](./server/migrations/2026-10-26-v3.5-sample-moderation.sql)、[`v3.6 旧版物理删除`](./server/migrations/2026-10-26-v3.6-admin-hard-delete.sql)、[`v3.7 审核闭环`](./server/migrations/2026-10-26-v3.7-moderation-lifecycle-closure.sql) 与 **[`v3.8 昆明地点范围`](./server/migrations/2026-10-26-v3.8-kunming-location-scope.sql)**。v3.8 是当前必须执行的最新迁移：它统一既有昆明内容为“昆明市”，并阻止绕过前端写入非昆明地点。v3.7 让投稿/评论作者收到仅自己可见的处理说明，阻断“下架父投稿但仍公开读取评论”，限制被处理身份的图片上传，并停用旧版前台物理删除 RPC。因为现有图片桶仍为公开读取，常规治理只使用“下架 / 恢复”；不要再把 v3.6 的数据库行删除当作“图片已彻底删除”。
+最后执行 [`v3.5 示例审核`](./server/migrations/2026-10-26-v3.5-sample-moderation.sql)、[`v3.6 旧版物理删除`](./server/migrations/2026-10-26-v3.6-admin-hard-delete.sql)、[`v3.7 审核闭环`](./server/migrations/2026-10-26-v3.7-moderation-lifecycle-closure.sql)、[`v3.8 昆明地点范围`](./server/migrations/2026-10-26-v3.8-kunming-location-scope.sql) 与 **[`v3.9 位置与作者编辑`](./server/migrations/2026-10-26-v3.9-location-and-author-edit.sql)**。v3.9 让作者保存菜品大致坐标、按当前位置和距离滑条筛选，并且只能补充/更正自己的投稿；编辑不会改变下架状态、评分或归属。v3.7 让投稿/评论作者收到仅自己可见的处理说明，阻断“下架父投稿但仍公开读取评论”，限制被处理身份的图片上传，并停用旧版前台物理删除 RPC。因为现有图片桶仍为公开读取，常规治理只使用“下架 / 恢复”；不要再把 v3.6 的数据库行删除当作“图片已彻底删除”。
 
 ### 启用共享数据库（唯一需要的外部配置）
 
 1. 打开 <https://supabase.com/dashboard>，创建或选择项目（Project URL 在
    Project Settings → API；本地区域任选，免费档足够演示）。
 2. **Authentication → Sign In / Providers → 打开 Anonymous 开关** 并 Save。
-3. 新项目先执行 [`server/supabase-schema.sql`](./server/supabase-schema.sql)，再按文件名顺序执行所有 `server/migrations/`；已有项目只执行尚未执行的后续迁移。**不要在已升级 v3.8 的项目中单独重跑旧 schema 文件**，它会覆盖较新的 RPC/策略定义；如需重建，请从 schema 开始按完整顺序重放。
+3. 新项目先执行 [`server/supabase-schema.sql`](./server/supabase-schema.sql)，再按文件名顺序执行所有 `server/migrations/`；已有项目只执行尚未执行的后续迁移。**不要在已升级 v3.9 的项目中单独重跑旧 schema 文件**，它会覆盖较新的 RPC/策略定义；如需重建，请从 schema 开始按完整顺序重放。
 4. 复制 `.env.example` 为 `.env.local`，填 Project URL 与 anon/publishable key（变量名仍为
    `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`），重启 `npm run dev`。
 5. “我的”页出现绿色“已接通共享数据库”即成功。

@@ -12,6 +12,7 @@ import type {
   Review,
   SubmissionInput,
   SubmissionResult,
+  UpdateSubmissionInput,
 } from '../types'
 import { LocalRepo } from './localRepo'
 import { SupabaseRepo } from './supabaseRepo'
@@ -38,6 +39,8 @@ export interface FoodRepository {
   /** 投稿数据可能变化（发布成功、评分后）时调用，使缓存失效 */
   invalidateItems(): void
   submit(input: SubmissionInput): Promise<SubmissionResult>
+  /** 作者仅能补充或更正自己发布的投稿。 */
+  updateMyItem(input: UpdateSubmissionInput): Promise<FoodItem>
   listReviews(itemId: string): Promise<Review[]>
   addReview(review: Omit<Review, 'id' | 'createdAt'>): Promise<Review>
   /** 当前登录身份对该投稿的评价（用于“修改评分”预填），没有则 null */

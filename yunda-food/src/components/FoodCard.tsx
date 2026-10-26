@@ -56,7 +56,7 @@ export function FoodCard({
         </div>
         <div className="ticket__venue">
           <MapPin size={12} style={{ flex: 'none' }} />
-          <span>{item.venue}</span>
+          <span>{item.venue}{result.distanceKm != null ? ` · 约 ${result.distanceKm < 1 ? Math.round(result.distanceKm * 1000) + ' m' : result.distanceKm.toFixed(1) + ' km'}` : ''}</span>
         </div>
         <div className="ticket__tags">
           <span className="badge badge--blue">{areaName(item.areaId)}</span>

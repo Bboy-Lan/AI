@@ -67,6 +67,7 @@ export interface MatchResult {
   item: FoodItem
   score: number
   reasons: string[]
+  distanceKm?: number
 }
 
 function perPersonCap(b: BudgetFilter): number | null {

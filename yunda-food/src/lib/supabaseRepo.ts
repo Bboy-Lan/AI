@@ -14,6 +14,7 @@ import type {
   Review,
   SubmissionInput,
   SubmissionResult,
+  UpdateSubmissionInput,
 } from '../types'
 import { RepoError, isUuidId } from '../types'
 import { SAMPLE_ITEMS } from '../data/seed'
@@ -97,6 +98,9 @@ function toRepoError(where: string, err: unknown): RepoErrorType {
   }
   if (message === 'location_outside_kunming' || /location_outside_kunming/i.test(message)) {
     return new RepoError('投稿地点仅支持昆明市内的预设地点，请重新选择。', 'location_outside_kunming', false)
+  }
+  if (/update_my_food_item_v3/i.test(message)) {
+    return new RepoError('云端尚未启用投稿补充功能，请先执行 v3.9 位置与作者编辑迁移。', 'rpc_missing', false)
   }
 
   // 资源没建 / schema 没更新
@@ -380,8 +384,8 @@ export class SupabaseRepo implements FoodRepository {
         p_description: input.description,
         p_image: uploaded?.url ?? '',
         p_place_id: null,
-        p_lat: null,
-        p_lng: null,
+        p_lat: input.latitude ?? null,
+        p_lng: input.longitude ?? null,
         p_address_summary: null,
       })
       if (error) throw toRepoError('投稿保存', error)
@@ -405,6 +409,35 @@ export class SupabaseRepo implements FoodRepository {
         retryable: re.retryable,
       }
     }
+  }
+
+  async updateMyItem(input: UpdateSubmissionInput): Promise<FoodItem> {
+    if (!isUuidId(input.id)) throw new RepoError('该内容不是可编辑的云端投稿。', 'not_remote_item', false)
+    const session = await this.ensureSession()
+    const uploaded = input.image ? await this.uploadImage(session.user.id, input.image) : null
+    const { data, error } = await this.db.rpc('update_my_food_item_v3', {
+      p_item_id: input.id,
+      p_name: input.name,
+      p_category: input.category,
+      p_venue: input.venue,
+      p_area_id: input.areaId,
+      p_price_mode: input.priceMode,
+      p_price: input.price,
+      p_spicy: input.spicy,
+      p_sweet_salty: input.sweetSalty,
+      p_oil: input.oil,
+      p_staple: input.staple ?? '',
+      p_flavors: input.flavors,
+      p_description: input.description,
+      p_image: uploaded?.url ?? null,
+      p_lat: input.latitude ?? null,
+      p_lng: input.longitude ?? null,
+    })
+    if (error) throw toRepoError('更新投稿', error)
+    const item = mapItem((data ?? {}) as Row)
+    if (!item.id) throw new RepoError('更新后未取得投稿，请刷新后确认。', 'no_return')
+    this.remoteCache = (this.remoteCache ?? []).map((cached) => cached.id === item.id ? item : cached)
+    return item
   }
 
   async listReviews(itemId: string): Promise<Review[]> {

@@ -9,6 +9,7 @@ import type {
   Review,
   SubmissionInput,
   SubmissionResult,
+  UpdateSubmissionInput,
 } from '../types'
 import { RepoError } from '../types'
 import { SAMPLE_ITEMS } from '../data/seed'
@@ -49,8 +50,8 @@ function toItem(input: SubmissionInput, id: string, status: FoodItem['status'], 
     } satisfies AuthorInfo,
     ratingCount: 0,
     ratingAvg: null,
-    latitude: null,
-    longitude: null,
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
   }
 }
 
@@ -108,6 +109,25 @@ export class LocalRepo implements FoodRepository {
       message: '已保存在本机草稿。当前还没接通共享数据库，其他手机暂时看不到它。',
       retryable: false,
     }
+  }
+
+  async updateMyItem(input: UpdateSubmissionInput): Promise<FoodItem> {
+    const drafts = this.readDrafts()
+    const index = drafts.findIndex((item) => item.id === input.id)
+    if (index < 0) throw new RepoError('只能编辑当前浏览器保存的本机草稿。', 'item_not_found', false)
+    const previous = drafts[index]
+    const item: FoodItem = {
+      ...previous,
+      ...input,
+      image: input.image ?? previous.image,
+      latitude: input.latitude ?? previous.latitude ?? null,
+      longitude: input.longitude ?? previous.longitude ?? null,
+      priceUpdatedAt: input.price !== previous.price ? new Date().toISOString().slice(0, 10) : previous.priceUpdatedAt,
+      author: previous.author,
+    }
+    drafts[index] = item
+    writeJSON(KEYS.drafts, drafts)
+    return item
   }
 
   private readReviews(): Review[] {

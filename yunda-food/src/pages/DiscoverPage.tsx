@@ -104,8 +104,12 @@ export function DiscoverPage() {
       const ranked = items ? rankItems(items, effective, profile).filter((r) => r.item.status !== 'hidden') : []
       if (!position) return ranked
       return ranked
-        .filter((r) => r.item.latitude != null && r.item.longitude != null && distanceKm(position, r.item.latitude, r.item.longitude) <= nearRadius)
-        .sort((a, b) => distanceKm(position, a.item.latitude!, a.item.longitude!) - distanceKm(position, b.item.latitude!, b.item.longitude!))
+        .flatMap((r) => {
+          if (r.item.latitude == null || r.item.longitude == null) return []
+          const distance = distanceKm(position, r.item.latitude, r.item.longitude)
+          return distance <= nearRadius ? [{ ...r, distanceKm: distance }] : []
+        })
+        .sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity))
     },
     [items, effective, profile, position, nearRadius],
   )
@@ -227,11 +231,13 @@ export function DiscoverPage() {
 
       <div className="info-card stack" style={{ marginBottom: 12 }}>
         <div className="row-between"><strong>附近推荐</strong><span className="tiny faint">仅主动授权后定位</span></div>
-        <div className="chips-row" style={{ overflow: 'visible' }}>
-          {[1, 3, 5, 10].map((km) => <Chip key={km} active={nearRadius === km} onClick={() => setNearRadius(km)}>{km} km</Chip>)}
-          <button type="button" className="btn btn--soft" onClick={requestLocation}><Navigation size={14} /> 使用当前位置</button>
-          {position && <button type="button" className="btn btn--ghost" onClick={() => { setPosition(null); setLocationNotice('已退出附近排序，继续按地点/校区浏览。') }}>退出附近</button>}
-        </div>
+        <button type="button" className="btn btn--soft" onClick={requestLocation}><Navigation size={14} /> 使用当前位置</button>
+        <label className="field" style={{ opacity: position ? 1 : 0.55 }}>
+          <span className="field__label">匹配范围：{position ? `${nearRadius.toFixed(1)} km` : '请先定位'}</span>
+          <input type="range" min="0.5" max="10" step="0.5" value={nearRadius} disabled={!position} onChange={(event) => setNearRadius(Number(event.target.value))} aria-label="附近匹配范围，单位千米" />
+          <span className="field__hint">拖动滑条调整范围；没有记录大致位置的投稿不会被当作“附近”。</span>
+        </label>
+        {position && <button type="button" className="btn btn--ghost" onClick={() => { setPosition(null); setLocationNotice('已退出附近排序，继续按地点/校区浏览。') }}>退出附近</button>}
         {locationNotice && <span className="tiny faint">{locationNotice}</span>}
       </div>
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, CheckCircle2, CloudOff, ImagePlus, Loader2, RotateCw, Ticket } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, CloudOff, ImagePlus, Loader2, Navigation, RotateCw, Ticket } from 'lucide-react'
 import type { Category, FoodItem, MyProfileStatus, OilLevel, PriceMode, SpicyLevel, Staple, SubmissionInput, SweetSalty } from '../types'
 import {
   AREAS,
@@ -49,6 +49,8 @@ export function PublishPage() {
   const [imgError, setImgError] = useState('')
   const [ate, setAte] = useState(true)
   const [ateDate, setAteDate] = useState(monthNow())
+  const [placeCoords, setPlaceCoords] = useState<{ latitude: number; longitude: number } | null>(null)
+  const [placeNotice, setPlaceNotice] = useState<string | null>(null)
 
   const areas = useMemo(() => AREAS, [])
 
@@ -69,6 +71,21 @@ export function PublishPage() {
       setImage(null)
       setImgError(e instanceof ImagePickError ? e.message : '图片处理失败')
     }
+  }
+
+  const recordPlaceLocation = () => {
+    if (!navigator.geolocation || !window.isSecureContext) {
+      setPlaceNotice('当前环境无法定位；仍可按文字地点投稿，但不会进入附近推荐。')
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setPlaceCoords({ latitude: position.coords.latitude, longitude: position.coords.longitude })
+        setPlaceNotice('已记录菜品大致位置，只用于附近匹配，不记录你的实时轨迹。')
+      },
+      () => setPlaceNotice('暂时无法记录位置；你仍可继续投稿。'),
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
+    )
   }
 
   const valid =
@@ -104,6 +121,8 @@ export function PublishPage() {
         .slice(0, 6),
       description: description.trim().slice(0, 200),
       image,
+      latitude: placeCoords?.latitude ?? null,
+      longitude: placeCoords?.longitude ?? null,
       author: {
         nickname: profile.foodieId!.trim(),
         hometown: profile.hometown ?? null,
@@ -270,6 +289,13 @@ export function PublishPage() {
               {areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
             <span className="field__hint">仅支持昆明市内地点；没有坐标的内容不会进入“附近”排序。</span>
+          </div>
+
+          <div className="field">
+            <label className="field__label">菜品大致位置（推荐）</label>
+            <button type="button" className="btn btn--soft" onClick={recordPlaceLocation}><Navigation size={14} />{placeCoords ? '重新记录当前位置' : '在菜品附近记录当前位置'}</button>
+            <span className="field__hint">建议到店附近再记录；只保存这条菜品的大致坐标，浏览者位置不会保存。</span>
+            {placeNotice && <span className="field__hint">{placeNotice}</span>}
           </div>
 
           <div className="field">

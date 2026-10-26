@@ -201,7 +201,8 @@ export function MePage() {
             <>
               <div className={`stack${myItemsExpanded ? ' my-items-scroll' : ''}`}>
               {myItems.slice(0, myItemsExpanded ? myItems.length : 3).map((d) => (
-                <button key={d.id} type="button" className="ticket" disabled={d.status === 'hidden'} onClick={() => d.status !== 'hidden' && navigate(`/item/${d.id}`)}>
+                <article key={d.id} className="ticket">
+                  <button type="button" className="ticket__body" disabled={d.status === 'hidden'} onClick={() => d.status !== 'hidden' && navigate(`/item/${d.id}`)}>
                   <div className="ticket__body">
                     <div className="ticket__name">{d.name}</div>
                     <div className="ticket__venue">{d.venue}</div>
@@ -215,10 +216,12 @@ export function MePage() {
                     </div>
                     {d.status === 'hidden' && <p className="tiny" style={{ color: 'var(--red-deep)' }}>处理说明：{d.hiddenReason ?? '内容暂不可公开'}</p>}
                   </div>
+                  </button>
                   <div className="ticket__price-col">
                     <div className="price"><span className="price__sym">¥</span><span className="price__num">{d.price}</span></div>
+                    <button type="button" className="btn btn--soft tiny" onClick={() => navigate(`/my-items/${d.id}/edit`)}><PencilLine size={13} />补充/编辑</button>
                   </div>
-                </button>
+                </article>
               ))}
               </div>
               {myItems.length > 3 && <button type="button" className="btn btn--soft my-items-toggle" onClick={() => setMyItemsExpanded((expanded) => !expanded)}>{myItemsExpanded ? '收起我的投稿' : `展开全部 ${myItems.length} 条`}</button>}
