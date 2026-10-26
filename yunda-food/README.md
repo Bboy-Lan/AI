@@ -29,12 +29,12 @@ npm run build:pages          # 以 base=/AI/ 产出 dist/
 
 ## 本轮已实现
 
-- **首访“先认识你的胃”**：默认云大呈贡、可改校区；家乡可选；辣度/咸甜/面米/油重点选；
-  “按我的口味找”与“先逛逛（中性口味）”；localStorage 持久化，“我的”里可随时修改。
+- **首访“先认识你的饭搭子身份”**：默认昆明市；必须如实填写吃货 ID 与户籍/家乡地点（如“昭通镇雄”），才能进入；
+  辣度/咸甜/面米/油重和预算都可稍后在“我的”补充。家乡用于同乡投稿推荐，不要求精确住址。
 - **找吃的**：关键词搜索；区域（知味堂/余味堂/仕林街/南都）、正餐/小吃/饮品、预算
-  （快捷金额+自定义、人均/总额）、“完全不要辣”硬过滤、“家乡味线索”开关；
+  （快捷金额+自定义、人均/总额）、“完全不要辣”硬过滤、“同乡投稿”筛选；
   饭票卡片显示照片、价格口径、具体位置和**具体匹配理由**；无坐标不显示距离。
-- **盲盒**：人数、人均/总额、类别、区域、辣度、家乡条件 → 仅从合格候选等概率随机；
+- **盲盒**：人数、人均/总额、类别、区域、辣度、同乡投稿条件 → 仅从合格候选等概率随机；
   饭票翻牌动效、再抽（避开上一个结果）、看详情；候选为空给具体调整建议，不编造；
   价格算法板明示口径：单份按每人一份、人均按店内人均，多人估价=每人价×人数。
 - **详情**：基础资料、口味标签、来源/示例状态、价格记录日期、无坐标声明；
@@ -48,7 +48,7 @@ npm run build:pages          # 以 base=/AI/ 产出 dist/
   票券撕口卡片、印章、翻牌动效；底部仅“找吃的/开盲盒/我的”+独立红色“发布推荐”。
   390px 与 320px 宽下均无横向溢出（已用浏览器实测）。
 - **起始内容**：17 条云大呈贡示例（正餐10/小吃4/饮品3，区域覆盖4个片区、
-  价格5–22元、多种口味与家乡风味），全部打“示例”印章；17 张配图+1 张首屏图均为
+  价格5–22元、多种口味），全部打“示例”印章；17 张配图+1 张首屏图均为
   AI 生成的示意图（`public/samples/`），非云大实拍；加载失败有饭票样式兜底。
 
 ## 数据与架构
@@ -76,13 +76,33 @@ npm run build:pages          # 以 base=/AI/ 产出 dist/
 - 价格纠错与举报进 `feedback` 待处理队列，不自动覆盖原价、不给访客删除/管理权。
 - service_role / secret key 不进入任何 `VITE_` 变量。
 
+### v3 可信身份、地点与审核迁移（2026-10-26）
+
+本轮前端已兼容旧库的只读浏览；要启用吃货 ID、地点核验、跨设备想吃榜、软下架和管理员权限，
+项目所有者需要在 Supabase SQL Editor **一次性执行**
+[`server/migrations/2026-10-26-v3-trust-location-moderation.sql`](./server/migrations/2026-10-26-v3-trust-location-moderation.sql)。
+它只新增表/字段/RPC/策略，不删除既有投稿、图片或评论。执行前不要向前端暴露 service_role；地图服务仍未接入，任何没有坐标的投稿都只按地点显示、不会伪造距离。若曾执行过早期 v3/v3.1 文件，请再执行一次 [v3.2 修复](./server/migrations/2026-10-26-v3.2-safe-foodie-id.sql)；它修正中文吃货 ID 的 PostgreSQL 正则兼容性并刷新 RPC 缓存。
+
+管理员内容管理台还需要执行 [`v3.3 管理台迁移`](./server/migrations/2026-10-26-v3.3-admin-console.sql)。执行后，先在应用的 `/#/admin` 页面完成一次吃货 ID 设置并复制“当前匿名设备 ID”，再由项目所有者在 SQL Editor 手工登记该设备：
+
+```sql
+insert into public.admin_users (user_id)
+values ('从 /#/admin 复制的 UUID')
+on conflict (user_id) do nothing;
+```
+
+这是唯一的提权步骤；前端 URL、按钮或传入的 userId 均不能成为管理员。登记完成后重新打开 `/#/admin`，即可查看在架/已下架投稿、填写原因下架和恢复上架。
+
+要启用管理员的评论审核、吃货 ID/用户内容限制、社区匿名人数概览，以及“已认证管理员授权另一浏览器身份”，还需要执行 [`v3.4 二次审核迁移`](./server/migrations/2026-10-26-v3.4-admin-moderation.sql)。它不会删除用户、投稿或评论：隐藏评论会从公开列表、评分聚合和地点核验中排除；恢复后重新计入。匿名会话按浏览器存储，因此同一电脑的 Edge、内置浏览器和无痕窗口本来就是不同身份；只能由已确认管理员在管理台明确授权另一个已初始化浏览器的 UUID，不能自动合并。
+
+最后执行 [`v3.5 示例审核`](./server/migrations/2026-10-26-v3.5-sample-moderation.sql)、[`v3.6 旧版物理删除`](./server/migrations/2026-10-26-v3.6-admin-hard-delete.sql)、[`v3.7 审核闭环`](./server/migrations/2026-10-26-v3.7-moderation-lifecycle-closure.sql) 与 **[`v3.8 昆明地点范围`](./server/migrations/2026-10-26-v3.8-kunming-location-scope.sql)**。v3.8 是当前必须执行的最新迁移：它统一既有昆明内容为“昆明市”，并阻止绕过前端写入非昆明地点。v3.7 让投稿/评论作者收到仅自己可见的处理说明，阻断“下架父投稿但仍公开读取评论”，限制被处理身份的图片上传，并停用旧版前台物理删除 RPC。因为现有图片桶仍为公开读取，常规治理只使用“下架 / 恢复”；不要再把 v3.6 的数据库行删除当作“图片已彻底删除”。
+
 ### 启用共享数据库（唯一需要的外部配置）
 
 1. 打开 <https://supabase.com/dashboard>，创建或选择项目（Project URL 在
    Project Settings → API；本地区域任选，免费档足够演示）。
 2. **Authentication → Sign In / Providers → 打开 Anonymous 开关** 并 Save。
-3. SQL Editor → New query，粘贴执行 [`server/supabase-schema.sql`](./server/supabase-schema.sql)
-   （可重复执行不清数据；已执行过 v1 可只跑 `server/migrations/2026-10-25-v2-auth-and-feedback.sql`）。
+3. 新项目先执行 [`server/supabase-schema.sql`](./server/supabase-schema.sql)，再按文件名顺序执行所有 `server/migrations/`；已有项目只执行尚未执行的后续迁移。**不要在已升级 v3.8 的项目中单独重跑旧 schema 文件**，它会覆盖较新的 RPC/策略定义；如需重建，请从 schema 开始按完整顺序重放。
 4. 复制 `.env.example` 为 `.env.local`，填 Project URL 与 anon/publishable key（变量名仍为
    `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`），重启 `npm run dev`。
 5. “我的”页出现绿色“已接通共享数据库”即成功。
@@ -103,7 +123,7 @@ where f.status = 'pending' order by f.created_at desc;
 update public.food_items set price = 15, price_updated_at = current_date where id = '对应uuid';
 update public.feedback set status = 'resolved' where id = '对应uuid';
 -- 无效反馈：update public.feedback set status = 'dismissed' where id = '对应uuid';
--- 需要下架违规投稿：update public.food_items set status = 'hidden' where id = '对应uuid';
+-- 需要下架违规投稿：请使用 /#/admin 填写原因，不要直接改表。
 ```
 
 

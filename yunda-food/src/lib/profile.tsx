@@ -1,11 +1,12 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import type { TasteProfile } from '../types'
 import { KEYS, readJSON, writeJSON } from './storage'
+import { DEFAULT_CITY_ID } from '../data/campus'
 
 export const DEFAULT_PROFILE: TasteProfile = {
   saved: false,
   skipped: false,
-  campusId: 'ynu-chenggong',
+  campusId: DEFAULT_CITY_ID,
   hometown: null,
   spicy: 'any',
   sweetSalty: 'any',
@@ -18,7 +19,7 @@ export const DEFAULT_PROFILE: TasteProfile = {
 interface ProfileContextValue {
   profile: TasteProfile
   needsOnboarding: boolean
-  /** 保存明确选择；或用 skipped 记录“先逛逛”（中性口味） */
+  /** 吃货 ID 和家乡完成后即可进入；skipped 仅表示口味尚未补充。 */
   saveProfile: (next: Omit<TasteProfile, 'saved' | 'savedAt'> & { skipped?: boolean }) => void
   /** 从“我的”页修改时，保留已完成状态 */
   updateProfile: (patch: Partial<TasteProfile>) => void
@@ -27,9 +28,11 @@ interface ProfileContextValue {
 const ProfileContext = createContext<ProfileContextValue | null>(null)
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfile] = useState<TasteProfile>(() =>
-    readJSON<TasteProfile>(KEYS.profile, DEFAULT_PROFILE),
-  )
+  const [profile, setProfile] = useState<TasteProfile>(() => {
+    const saved = readJSON<TasteProfile>(KEYS.profile, DEFAULT_PROFILE)
+    const campusId = saved.campusId === 'kunming' ? saved.campusId : DEFAULT_CITY_ID
+    return { ...saved, campusId }
+  })
 
   const saveProfile = useCallback<ProfileContextValue['saveProfile']>(
     (next) => {
@@ -56,7 +59,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ProfileContextValue>(
     () => ({
       profile,
-      needsOnboarding: !profile.saved,
+      needsOnboarding: !profile.saved || !profile.foodieId?.trim() || !profile.hometown?.trim(),
       saveProfile,
       updateProfile,
     }),

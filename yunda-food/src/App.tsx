@@ -6,6 +6,7 @@ import { BlindBoxPage } from './pages/BlindBoxPage'
 import { MePage } from './pages/MePage'
 import { DetailPage } from './pages/DetailPage'
 import { PublishPage } from './pages/PublishPage'
+import { AdminPage } from './pages/AdminPage'
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
             <Route path="/me" element={<MePage />} />
             <Route path="/item/:id" element={<DetailPage />} />
             <Route path="/publish" element={<PublishPage />} />
+            <Route path="/admin" element={<AdminPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

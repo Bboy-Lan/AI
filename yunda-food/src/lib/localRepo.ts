@@ -3,6 +3,8 @@ import type {
   FeedbackInput,
   FeedbackResult,
   FoodItem,
+  MyProfileStatus,
+  MyReview,
   RepoState,
   Review,
   SubmissionInput,
@@ -32,7 +34,7 @@ function toItem(input: SubmissionInput, id: string, status: FoodItem['status'], 
     oil: input.oil,
     staple: input.staple,
     flavors: input.flavors,
-    cuisine: input.cuisine ?? null,
+    cuisine: null,
     description: input.description,
     image: input.image ?? null,
     source: 'user',
@@ -47,7 +49,8 @@ function toItem(input: SubmissionInput, id: string, status: FoodItem['status'], 
     } satisfies AuthorInfo,
     ratingCount: 0,
     ratingAvg: null,
-    hasCoords: false,
+    latitude: null,
+    longitude: null,
   }
 }
 
@@ -122,9 +125,10 @@ export class LocalRepo implements FoodRepository {
     return Boolean(map[itemId])
   }
 
-  async getOwnReview(itemId: string): Promise<Review | null> {
+  async getOwnReview(itemId: string): Promise<MyReview | null> {
     const map = readJSON<Record<string, Review>>(KEYS.ownRatings, {})
-    return map[itemId] ?? null
+    const review = map[itemId]
+    return review ? { ...review, moderationStatus: 'published', itemStatus: 'published' } : null
   }
 
   async addReview(input: Omit<Review, 'id' | 'createdAt'>): Promise<Review> {
@@ -151,4 +155,35 @@ export class LocalRepo implements FoodRepository {
     // 本地模式没有云端待处理队列：明确报错，不假成功
     throw new RepoError('当前是示例模式，还没接通共享数据库，反馈无法送达。配置云端后即可提交。', 'local_mode', false)
   }
+
+  async saveIdentity(): Promise<void> {
+    // 本地模式只会由 ProfileProvider 保存本机偏好，不能伪装成云端身份。
+  }
+  async listFavoriteIds(): Promise<string[]> { return readJSON<string[]>(KEYS.favorites, []) }
+  async toggleFavorite(itemId: string): Promise<boolean> {
+    const ids = await this.listFavoriteIds()
+    const next = ids.includes(itemId) ? ids.filter((id) => id !== itemId) : [...ids, itemId]
+    writeJSON(KEYS.favorites, next)
+    return next.includes(itemId)
+  }
+  async listMyReviews(): Promise<MyReview[]> {
+    return this.readReviews().map((review) => ({ ...review, moderationStatus: 'published', itemStatus: 'published' }))
+  }
+  async getMyProfileStatus(): Promise<MyProfileStatus> { return { restricted: false } }
+  async isAdmin(): Promise<boolean> { return false }
+  async getCurrentUserId(): Promise<string | null> { return null }
+  async listAdminItems(): Promise<FoodItem[]> {
+    throw new RepoError('内容管理需要接通共享数据库。', 'local_mode', false)
+  }
+  async setItemVisibility(): Promise<void> {
+    throw new RepoError('内容管理需要接通共享数据库。', 'local_mode', false)
+  }
+  async getAdminOverview(): Promise<never> { throw new RepoError('内容管理需要接通共享数据库。', 'local_mode', false) }
+  async listAdminReviews(): Promise<never> { throw new RepoError('内容管理需要接通共享数据库。', 'local_mode', false) }
+  async setReviewVisibility(): Promise<never> { throw new RepoError('内容管理需要接通共享数据库。', 'local_mode', false) }
+  async listAdminProfiles(): Promise<never> { throw new RepoError('内容管理需要接通共享数据库。', 'local_mode', false) }
+  async setProfileRestriction(): Promise<never> { throw new RepoError('内容管理需要接通共享数据库。', 'local_mode', false) }
+  async grantAdminDevice(): Promise<never> { throw new RepoError('内容管理需要接通共享数据库。', 'local_mode', false) }
+  async listHiddenSampleIds(): Promise<string[]> { return [] }
+  async setSampleVisibility(): Promise<never> { throw new RepoError('内容管理需要接通共享数据库。', 'local_mode', false) }
 }

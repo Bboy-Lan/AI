@@ -2,7 +2,12 @@ import { useEffect, useSyncExternalStore } from 'react'
 import type {
   FeedbackInput,
   FeedbackResult,
+  AdminOverview,
+  AdminProfile,
+  AdminReview,
   FoodItem,
+  MyProfileStatus,
+  MyReview,
   RepoState,
   Review,
   SubmissionInput,
@@ -36,10 +41,33 @@ export interface FoodRepository {
   listReviews(itemId: string): Promise<Review[]>
   addReview(review: Omit<Review, 'id' | 'createdAt'>): Promise<Review>
   /** 当前登录身份对该投稿的评价（用于“修改评分”预填），没有则 null */
-  getOwnReview(itemId: string): Promise<Review | null>
+  getOwnReview(itemId: string): Promise<MyReview | null>
   /** 当前登录身份对该投稿是否已评过分 */
   hasOwnRating(itemId: string): Promise<boolean>
   submitFeedback(input: FeedbackInput): Promise<FeedbackResult>
+  /** 写入的身份永远由 Supabase auth.uid() 绑定，前端不传 userId。 */
+  saveIdentity(input: { foodieId: string; hometown: string | null; defaultArea: string | null; tastes: Record<string, unknown> }): Promise<void>
+  listFavoriteIds(): Promise<string[]>
+  toggleFavorite(itemId: string): Promise<boolean>
+  listMyReviews(): Promise<MyReview[]>
+  /** 只读当前身份的限制状态与原因；不向其他用户暴露。 */
+  getMyProfileStatus(): Promise<MyProfileStatus>
+  /** 管理员权限始终由服务端 admin_users + auth.uid() 判定。 */
+  isAdmin(): Promise<boolean>
+  /** 仅用于项目所有者将当前匿名设备登记为管理员；不是权限凭据。 */
+  getCurrentUserId(): Promise<string | null>
+  listAdminItems(includeHidden: boolean): Promise<FoodItem[]>
+  setItemVisibility(input: { itemId: string; hidden: boolean; reason?: string }): Promise<void>
+  getAdminOverview(): Promise<AdminOverview>
+  listAdminReviews(includeHidden: boolean): Promise<AdminReview[]>
+  setReviewVisibility(input: { reviewId: string; hidden: boolean; reason?: string }): Promise<void>
+  listAdminProfiles(): Promise<AdminProfile[]>
+  setProfileRestriction(input: { userId: string; restricted: boolean; reason?: string }): Promise<void>
+  /** 已确认的管理员才能为另一独立浏览器会话授予管理权限。 */
+  grantAdminDevice(userId: string): Promise<void>
+  /** 起始示例的云端全局可见性；管理员隐藏后所有客户端共同生效。 */
+  listHiddenSampleIds(): Promise<string[]>
+  setSampleVisibility(input: { sampleId: string; hidden: boolean; reason?: string }): Promise<void>
 }
 
 const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim()

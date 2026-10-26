@@ -6,13 +6,12 @@ import {
   Flag,
   Heart,
   MapPin,
-  MapPinned,
   PenLine,
   RotateCw,
   Send,
   Ticket,
 } from 'lucide-react'
-import type { FoodItem, Review } from '../types'
+import type { FoodItem, MyReview, Review } from '../types'
 import {
   areaName,
   campusName,
@@ -25,7 +24,9 @@ import {
 } from '../data/campus'
 import { priceBasisLabel } from '../lib/match'
 import { DATA_CHANGED_EVENT, repo, useRepoState, notifyDataChanged } from '../lib/repo'
+import { useProfile } from '../lib/profile'
 import { useFavorites } from '../lib/useFavorites'
+import { IdentityBadge } from '../components/IdentityBadge'
 import { EmptyState, FoodImage, Notice, Sheet, Spinner, Stamp, Stars } from '../components/ui'
 
 function monthNow(): string {
@@ -38,11 +39,15 @@ export function DetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const favorites = useFavorites()
+  const { profile } = useProfile()
   const repoState = useRepoState()
 
   const [itemState, setItemState] = useState<LoadState<FoodItem | null>>({ status: 'loading' })
   const [reviewsState, setReviewsState] = useState<LoadState<Review[]>>({ status: 'loading' })
+  const [itemRefreshError, setItemRefreshError] = useState<string | null>(null)
+  const [reviewsRefreshError, setReviewsRefreshError] = useState<string | null>(null)
   const [alreadyRated, setAlreadyRated] = useState(false)
+  const [ownReview, setOwnReview] = useState<MyReview | null>(null)
   const [editingReview, setEditingReview] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [reviewDone, setReviewDone] = useState(false)
@@ -52,7 +57,6 @@ export function DetailPage() {
   // 评论表单
   const [ate, setAte] = useState(false)
   const [ateDate, setAteDate] = useState(monthNow())
-  const [nickname, setNickname] = useState('')
   const [rating, setRating] = useState(0)
   const [text, setText] = useState('')
 
@@ -64,21 +68,25 @@ export function DetailPage() {
     }
     repo
       .getItem(itemId)
-      .then((it) => alive && setItemState({ status: 'ok', data: it }))
+      .then((it) => { if (alive) { setItemState({ status: 'ok', data: it }); setItemRefreshError(null) } })
       .catch((e: unknown) =>
         alive &&
-        setItemState({ status: 'error', message: e instanceof Error ? e.message : '详情读取失败' }),
+        (background ? setItemRefreshError(e instanceof Error ? e.message : '详情暂未更新') : setItemState({ status: 'error', message: e instanceof Error ? e.message : '详情读取失败' })),
       )
     repo
       .listReviews(itemId)
-      .then((rs) => alive && setReviewsState({ status: 'ok', data: rs }))
+      .then((rs) => { if (alive) { setReviewsState({ status: 'ok', data: rs }); setReviewsRefreshError(null) } })
       .catch((e: unknown) =>
         alive &&
-        setReviewsState({ status: 'error', message: e instanceof Error ? e.message : '评论读取失败' }),
+        (background ? setReviewsRefreshError(e instanceof Error ? e.message : '评论暂未更新') : setReviewsState({ status: 'error', message: e instanceof Error ? e.message : '评论读取失败' })),
       )
     repo
-      .hasOwnRating(itemId)
-      .then((own) => alive && setAlreadyRated(own))
+      .getOwnReview(itemId)
+      .then((own) => {
+        if (!alive) return
+        setOwnReview(own)
+        setAlreadyRated(Boolean(own))
+      })
       .catch(() => undefined)
     return () => {
       alive = false
@@ -96,13 +104,13 @@ export function DetailPage() {
 
   const submitReview = async (e: FormEvent) => {
     e.preventDefault()
-    if (!id || !ate || !ateDate || !rating || !nickname.trim() || !text.trim()) return
+    if (!id || !ate || !ateDate || !rating || !profile.foodieId?.trim() || !text.trim()) return
     setSubmitting(true)
     setReviewError(null)
     try {
       const saved = await repo.addReview({
         itemId: id,
-        nickname: nickname.trim().slice(0, 16),
+        nickname: profile.foodieId.trim(),
         rating,
         text: text.trim().slice(0, 200),
         ateDate,
@@ -113,6 +121,7 @@ export function DetailPage() {
           : { status: 'ok', data: [saved] },
       )
       setAlreadyRated(true)
+      setOwnReview({ ...saved, moderationStatus: 'published', itemStatus: 'published' })
       setReviewDone(true)
       setEditingReview(false)
       // 聚合分由触发器更新；失效缓存后重读，并通知其他页面刷新
@@ -140,7 +149,10 @@ export function DetailPage() {
       try {
         const own = await repo.getOwnReview(id)
         if (own) {
-          setNickname(own.nickname)
+          if (own.moderationStatus === 'hidden') {
+            setEditingReview(false)
+            return
+          }
           setRating(own.rating)
           setText(own.text)
           setAteDate(own.ateDate || monthNow())
@@ -256,7 +268,6 @@ export function DetailPage() {
           {item.flavors.map((f) => (
             <span key={f} className="tag">{f}</span>
           ))}
-          {item.cuisine && <span className="badge badge--green">{item.cuisine}</span>}
         </div>
 
         <p style={{ marginTop: 12, fontSize: 14 }}>{item.description}</p>
@@ -291,52 +302,40 @@ export function DetailPage() {
         </div>
       </div>
 
-      <div className="section-title"><h2>来源与状态</h2></div>
+      <div className="section-title"><h2>投稿信息</h2></div>
       <div className="info-card">
+        {itemRefreshError && <Notice tone="yellow">详情暂未更新：{itemRefreshError}</Notice>}
         <div className="kv-list">
-          <div className="kv-list__row">
-            <span className="kv-list__k">内容来源</span>
-            <span className="kv-list__v">
-              {isSample ? (
-                <>
-                  起始<b>示例数据</b>（店名/价格/照片均未现场核验，仅用于演示流程）
-                </>
-              ) : item.status === 'local-draft' ? (
-                <span style={{ color: 'var(--blue-deep)' }}>
-                  本机草稿：只存在这台设备，尚未进入共享数据库，其他手机看不到
-                </span>
-              ) : (
-                '同学投稿（云端共享，其他手机可见）'
-              )}
-            </span>
-          </div>
           <div className="kv-list__row">
             <span className="kv-list__k">投稿人</span>
             <span className="kv-list__v">
-              {item.author?.nickname || '匿名同学'}
-              {item.author?.hometown && ` · 来自${hometownLabel(item.author.hometown)}（自填，未认证）`}
+              <span className="content-author"><IdentityBadge role="member" compact />{item.author?.nickname || '匿名同学'}</span>
             </span>
           </div>
           <div className="kv-list__row">
-            <span className="kv-list__k">亲自吃过</span>
+            <span className="kv-list__k">吃货家乡</span>
+            <span className="kv-list__v">{item.author?.hometown ? hometownLabel(item.author.hometown) : '投稿人未填写'}</span>
+          </div>
+          <div className="kv-list__row">
+            <span className="kv-list__k">资格验证</span>
             <span className="kv-list__v">
-              {item.author?.ate
-                ? `自报吃过${item.author.ateDate ? `（约 ${item.author.ateDate}）` : ''}，非消费认证`
-                : '未自报吃过'}
+              {item.author?.ate ? `投稿人确认亲自吃过${item.author.ateDate ? `（约 ${item.author.ateDate}）` : ''}` : '投稿人未填写亲自吃过'}
             </span>
           </div>
           <div className="kv-list__row">
             <span className="kv-list__k">价格日期</span>
             <span className="kv-list__v" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <CalendarDays size={13} />
-              {item.priceUpdatedAt ?? item.submittedAt.slice(0, 10)} 记录，涨价信息待核实，不自动覆盖
+              {item.priceUpdatedAt ?? item.submittedAt.slice(0, 10)} 更新
             </span>
           </div>
           <div className="kv-list__row">
-            <span className="kv-list__k">位置距离</span>
-            <span className="kv-list__v" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <MapPinned size={13} />
-              暂无坐标，只显示具体片区与窗口，不显示距离
+            <span className="kv-list__k">美食核验</span>
+            <span className="kv-list__v">
+              <span className={item.verification?.status === 'verified' ? 'badge badge--green' : 'badge badge--orange'}>
+                {item.verification?.status === 'verified' ? '已核验' : '待核验'}
+              </span>
+              <span className="tiny faint"> 同学评价：好评 {item.verification?.positive ?? 0} · 差评 {item.verification?.negative ?? 0} · 共 {item.verification?.total ?? 0} 人</span>
             </span>
           </div>
         </div>
@@ -346,6 +345,8 @@ export function DetailPage() {
           </Notice>
         )}
       </div>
+
+      {reviewsRefreshError && <Notice tone="yellow">评论暂未更新：{reviewsRefreshError}</Notice>}
 
       <div className="section-title">
         <h2>吃过的同学怎么说{reviewsState.status === 'ok' ? `（${reviews.length}）` : ''}</h2>
@@ -383,26 +384,28 @@ export function DetailPage() {
         <Notice tone="green">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div>
-              {reviewDone
+              {ownReview?.moderationStatus === 'hidden'
+                ? `你的评论目前未公开${ownReview.moderationReason ? `：${ownReview.moderationReason}` : '。如需了解处理说明，请联系管理员。'}`
+                : reviewDone
                 ? '已记下你的体验分与评论。同一身份对这条投稿只保留一份评分，再提交会覆盖原来的，不会重复计数。'
                 : '你已经给它打过分；同一身份只保留一份评分，修改后覆盖原来的，评价人数不会重复增加。'}
             </div>
-            <button
+            {ownReview?.moderationStatus !== 'hidden' && <button
               type="button"
               className="btn btn--soft"
               style={{ alignSelf: 'flex-start' }}
               onClick={() => void startEditReview()}
             >
               <PenLine size={15} /> 修改我的评分与评论
-            </button>
+            </button>}
           </div>
         </Notice>
       ) : (
         <form className="info-card stack" onSubmit={submitReview}>
           <label className="switch-row" style={{ border: '1.5px solid var(--line-strong)' }}>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 13.5 }}>我自报吃过这一家</div>
-              <div className="tiny faint">必须勾选并填写大致日期，才能给体验分（自报不认证）</div>
+              <div style={{ fontWeight: 700, fontSize: 13.5 }}>我亲自吃过这一家</div>
+              <div className="tiny faint">必须勾选并填写大致日期，才能给体验分</div>
             </div>
             <button
               type="button"
@@ -415,26 +418,10 @@ export function DetailPage() {
 
           {ate && (
             <>
-              <div className="row-between">
-                <input
-                  type="month"
-                  className="text-input"
-                  style={{ flex: 1 }}
-                  value={ateDate}
-                  max={monthNow()}
-                  onChange={(e) => setAteDate(e.target.value)}
-                  required
-                />
-                <input
-                  type="text"
-                  className="text-input"
-                  style={{ flex: 1 }}
-                  maxLength={16}
-                  placeholder="昵称（自填）"
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  required
-                />
+              <div className="field">
+                <label className="field__label">吃过的大致月份 <span className="required-mark">*</span></label>
+                <input type="month" className="text-input" value={ateDate} max={monthNow()} onChange={(e) => setAteDate(e.target.value)} required />
+                <span className="field__hint">将以吃货 ID「{profile.foodieId || '未设置'}」发布；作者不能给自己的投稿评分。</span>
               </div>
               <div className="row-between">
                 <span className="field__label">体验分</span>
@@ -461,7 +448,7 @@ export function DetailPage() {
               <button
                 type="submit"
                 className="btn btn--blue btn--block"
-                disabled={submitting || !ate || !ateDate || !rating || !nickname.trim() || !text.trim()}
+                disabled={submitting || !ate || !ateDate || !rating || !profile.foodieId?.trim() || !text.trim()}
               >
                 <Send size={15} /> {submitting ? '提交中…' : editingReview ? '覆盖更新（不增加评价人数）' : '提交体验分与评论'}
               </button>
@@ -473,15 +460,16 @@ export function DetailPage() {
       <div className="stack mt-12">
         {reviewsState.status === 'ok' && reviews.length === 0 && (
           <p className="tiny faint" style={{ padding: '0 4px' }}>
-            还没有评论。吃过的话，自报一句，帮后面的同学做决定。
+            还没有评论。吃过的话，留下一句体验，帮后面的同学做决定。
           </p>
         )}
         {reviews.map((r) => (
           <div className="info-card review-item" key={r.id}>
             <div className="review-item__head">
-              <span style={{ fontWeight: 700, fontSize: 13.5 }}>
-                {r.nickname}
-                <span className="tiny faint"> · 自报 {r.ateDate} 吃过</span>
+              <span className="review-item__author">
+                <IdentityBadge role="member" compact />
+                <span>{r.nickname}</span>
+                <span className="tiny faint">· {r.ateDate} 吃过</span>
               </span>
               <Stars value={r.rating} size={14} />
             </div>

@@ -7,8 +7,7 @@ import type {
   SweetSaltyPref,
 } from '../types'
 import {
-  CAMPUSES,
-  HOMETOWNS,
+  DEFAULT_CITY_ID,
   OIL_PREF_LABEL,
   QUICK_BUDGETS_PER_PERSON,
   SPICY_PREF_LABEL,
@@ -16,6 +15,7 @@ import {
   SWEETSALTY_PREF_LABEL,
 } from '../data/campus'
 import { useProfile } from '../lib/profile'
+import { repo } from '../lib/repo'
 import { Chip, Notice } from './ui'
 
 function ChoiceRow<T extends string | number>({
@@ -40,23 +40,52 @@ function ChoiceRow<T extends string | number>({
 
 export function Onboarding({ mode, onClose }: { mode: 'gate' | 'edit'; onClose?: () => void }) {
   const { profile, saveProfile, updateProfile } = useProfile()
-  const [campusId, setCampusId] = useState(profile.campusId)
   const [hometown, setHometown] = useState(profile.hometown ?? '')
   const [spicy, setSpicy] = useState<SpicyPref>(profile.spicy)
   const [sweetSalty, setSweetSalty] = useState<SweetSaltyPref>(profile.sweetSalty)
   const [staple, setStaple] = useState<StaplePref>(profile.staple)
   const [oil, setOil] = useState<OilPref>(profile.oil)
   const [quickBudget, setQuickBudget] = useState<number | null>(profile.quickBudget)
+  const [foodieId, setFoodieId] = useState(profile.foodieId ?? '')
+  const [defaultArea, setDefaultArea] = useState(profile.defaultArea ?? '')
+  const [saving, setSaving] = useState(false)
+  const [identityError, setIdentityError] = useState<string | null>(null)
 
   const buildPayload = () => ({
-    campusId,
-    hometown: hometown || null,
+    campusId: DEFAULT_CITY_ID,
+    hometown: hometown.trim() || null,
     spicy,
     sweetSalty,
     staple,
     oil,
     quickBudget,
   })
+
+  const save = async (skipped: boolean) => {
+    const normalized = foodieId.trim()
+    const normalizedHometown = hometown.trim()
+    if (!/^[A-Za-z0-9_\-\u4e00-\u9fff]{2,16}$/.test(normalized)) {
+      setIdentityError('吃货 ID 需为 2–16 个中文、字母、数字、下划线或连字符，且不能含明显不当词。')
+      return
+    }
+    if (normalizedHometown.length < 2) {
+      setIdentityError('请如实填写至少 2 个字的户籍/吃货家乡，例如“昭通镇雄”。')
+      return
+    }
+    setSaving(true)
+    setIdentityError(null)
+    const payload = { ...buildPayload(), hometown: normalizedHometown, foodieId: normalized, defaultArea: defaultArea || null }
+    try {
+      if (repo.mode === 'remote') {
+        await repo.saveIdentity({ foodieId: normalized, hometown: payload.hometown, defaultArea: payload.defaultArea, tastes: payload })
+      }
+      const localPayload = skipped ? { ...payload, skipped: true, spicy: 'any' as SpicyPref, sweetSalty: 'any' as SweetSaltyPref, staple: 'any' as StaplePref, oil: 'any' as OilPref, quickBudget: null } : { ...payload, skipped: false }
+      if (mode === 'gate') saveProfile(localPayload)
+      else { updateProfile(localPayload); onClose?.() }
+    } catch (e) {
+      setIdentityError(e instanceof Error ? e.message : '吃货 ID 保存失败，请检查网络后重试。')
+    } finally { setSaving(false) }
+  }
 
   return (
     <div className="fullscreen-mask">
@@ -77,47 +106,43 @@ export function Onboarding({ mode, onClose }: { mode: 'gate' | 'edit'; onClose?:
             </span>
           </div>
           <h1 className="display-xl" style={{ margin: '8px 0 4px' }}>
-            先认识你的胃
+            先补全你的吃货身份
           </h1>
           <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>
-            30 秒选完，我们按你的口味排吃喝。随时能在“我的”里改，不用登录。
+            吃货 ID 和户籍/吃货家乡为进入饭搭子的必填资料；后者用于同乡推荐。请如实填写到市县/区，不填精确住址。
           </p>
         </div>
 
         <div className="stack-lg" style={{ gap: 13 }}>
           <div className="field">
-            <label className="field__label">你在哪个校区？</label>
-            <ChoiceRow
-              options={CAMPUSES.map((c) => ({ value: c.id, label: c.short }))}
-              value={campusId}
-              onChange={setCampusId}
-            />
-            {campusId !== 'ynu-chenggong' && (
-              <Notice tone="yellow">
-                这个校区暂时还没有起始内容。你可以先逛呈贡的示例，也欢迎当这个校区的第一个投稿人。
-              </Notice>
-            )}
+            <label className="field__label">吃货 ID <span className="required-mark">*</span></label>
+            <input className="text-input" value={foodieId} maxLength={16} autoFocus placeholder="例：云大面条研究员" onChange={(e) => setFoodieId(e.target.value)} />
+            <span className="field__hint">2–16 个中文、字母、数字、下划线或连字符；拒绝辱骂、色情等明显不当内容。</span>
+          </div>
+          <div className="field">
+            <label className="field__label">所在城市</label>
+            <div className="text-input">昆明市</div>
+          </div>
+          <div className="field">
+            <label className="field__label">常用地点说明（可选）</label>
+            <input className="text-input" value={defaultArea} maxLength={40} placeholder="例：云南大学呈贡校区" onChange={(e) => setDefaultArea(e.target.value)} />
           </div>
 
           <div className="field">
             <label className="field__label">
-              家乡（可选）<span className="field__hint">只作家乡味线索，不会限制你看别的菜</span>
+              吃货家乡 <span className="required-mark">*</span><span className="field__hint">请如实填写户籍/家乡地点，如“昭通镇雄”；仅用于匹配同乡投稿</span>
             </label>
-            <select
-              className="select-input"
+            <input
+              className="text-input"
               value={hometown}
               onChange={(e) => setHometown(e.target.value)}
-            >
-              <option value="">不填 / 先不透露</option>
-              {HOMETOWNS.map((h) => (
-                <option key={h.id} value={h.id}>
-                  {h.label}
-                </option>
-              ))}
-            </select>
+              maxLength={30}
+              placeholder="例：昭通镇雄"
+            />
           </div>
 
           <div className="field">
+            <div className="field__label">口味资料（可选，之后可在“我的”补充）</div>
             <label className="field__label">吃辣水平</label>
             <ChoiceRow<SpicyPref>
               options={([0, 1, 2, 3, 'any'] as SpicyPref[]).map((v) => ({
@@ -132,7 +157,7 @@ export function Onboarding({ mode, onClose }: { mode: 'gate' | 'edit'; onClose?:
           <div className="field">
             <label className="field__label">咸甜偏好</label>
             <ChoiceRow<SweetSaltyPref>
-              options={(['light', 'salty', 'sweet', 'any'] as SweetSaltyPref[]).map((v) => ({
+              options={(['light', 'normal', 'salty', 'sweet', 'any'] as SweetSaltyPref[]).map((v) => ({
                 value: v,
                 label: SWEETSALTY_PREF_LABEL[v],
               }))}
@@ -183,34 +208,27 @@ export function Onboarding({ mode, onClose }: { mode: 'gate' | 'edit'; onClose?:
         </div>
 
         <div className="stack" style={{ marginTop: 20 }}>
+          {identityError && <Notice tone="red">{identityError}</Notice>}
           {mode === 'gate' ? (
             <>
               <button
                 type="button"
                 className="btn btn--blue btn--lg btn--block"
-                onClick={() => saveProfile({ ...buildPayload(), skipped: false })}
+                disabled={saving || foodieId.trim().length < 2 || hometown.trim().length < 2}
+                onClick={() => void save(false)}
               >
                 按我的口味找
               </button>
               <button
                 type="button"
                 className="btn btn--ghost btn--block"
-                onClick={() =>
-                  saveProfile({
-                    ...buildPayload(),
-                    skipped: true,
-                    spicy: 'any',
-                    sweetSalty: 'any',
-                    staple: 'any',
-                    oil: 'any',
-                    quickBudget: null,
-                  })
-                }
+                disabled={saving || foodieId.trim().length < 2 || hometown.trim().length < 2}
+                onClick={() => void save(true)}
               >
-                先逛逛，口味设为不限
+                先进入看看，口味以后再补
               </button>
               <p className="tiny faint" style={{ textAlign: 'center' }}>
-                选择只存在这台设备上；家乡、“吃过”均为自报，不做认证。
+                匿名身份保存在当前浏览器；清除浏览器数据或换设备后无法自动恢复。
               </p>
             </>
           ) : (
@@ -218,10 +236,8 @@ export function Onboarding({ mode, onClose }: { mode: 'gate' | 'edit'; onClose?:
               <button
                 type="button"
                 className="btn btn--blue btn--lg btn--block"
-                onClick={() => {
-                  updateProfile({ ...buildPayload(), skipped: false })
-                  onClose?.()
-                }}
+                disabled={saving || foodieId.trim().length < 2 || hometown.trim().length < 2}
+                onClick={() => void save(false)}
               >
                 保存修改
               </button>

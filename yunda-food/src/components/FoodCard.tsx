@@ -35,6 +35,7 @@ export function FoodCard({
           category={item.category}
         />
         {item.source === 'sample' && <Stamp corner>示例</Stamp>}
+        {item.source === 'user' && <Stamp corner variant={item.verification?.status === 'verified' ? 'green' : 'orange'}>{item.verification?.status === 'verified' ? '已核验' : '待核验'}</Stamp>}
         {item.status === 'local-draft' && (
           <Stamp corner variant="blue">
             本机草稿

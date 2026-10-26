@@ -1,11 +1,9 @@
-import { useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, CheckCircle2, CloudOff, ImagePlus, Loader2, RotateCw, Ticket } from 'lucide-react'
-import type { Category, FoodItem, OilLevel, PriceMode, SpicyLevel, Staple, SubmissionInput, SweetSalty } from '../types'
+import type { Category, FoodItem, MyProfileStatus, OilLevel, PriceMode, SpicyLevel, Staple, SubmissionInput, SweetSalty } from '../types'
 import {
   AREAS,
-  CAMPUSES,
-  HOMETOWNS,
   OIL_LABEL,
   SPICY_LABEL,
   STAPLE_LABEL,
@@ -24,19 +22,20 @@ type Phase = 'form' | 'sending' | 'remote-ok' | 'local-draft' | 'error'
 
 export function PublishPage() {
   const navigate = useNavigate()
-  const { profile, updateProfile } = useProfile()
+  const { profile } = useProfile()
   const repoState = useRepoState()
 
   const [phase, setPhase] = useState<Phase>('form')
   const [savedItem, setSavedItem] = useState<FoodItem | null>(null)
   const [message, setMessage] = useState('')
+  const [restriction, setRestriction] = useState<MyProfileStatus | null>(null)
   const inFlight = useRef(false)
 
   // 表单
   const [name, setName] = useState('')
   const [category, setCategory] = useState<Category>('meal')
-  const [campusId, setCampusId] = useState(profile.campusId)
-  const [areaId, setAreaId] = useState(AREAS[0].id)
+  const [campusId] = useState(profile.campusId)
+  const [areaId, setAreaId] = useState('ynu-chenggong')
   const [venue, setVenue] = useState('')
   const [priceMode, setPriceMode] = useState<PriceMode>('per_item')
   const [price, setPrice] = useState<string>('')
@@ -45,16 +44,20 @@ export function PublishPage() {
   const [oil, setOil] = useState<OilLevel>('normal')
   const [staple, setStaple] = useState<Staple | ''>('')
   const [flavorsText, setFlavorsText] = useState('')
-  const [cuisine, setCuisine] = useState('')
   const [description, setDescription] = useState('')
   const [image, setImage] = useState<string | null>(null)
   const [imgError, setImgError] = useState('')
-  const [nickname, setNickname] = useState('')
-  const [hometown, setHometown] = useState(profile.hometown ?? '')
   const [ate, setAte] = useState(true)
   const [ateDate, setAteDate] = useState(monthNow())
 
-  const areas = useMemo(() => AREAS.filter((a) => a.campusId === campusId), [campusId])
+  const areas = useMemo(() => AREAS, [])
+
+  useEffect(() => {
+    if (repo.mode !== 'remote') return
+    let active = true
+    repo.getMyProfileStatus().then((status) => active && setRestriction(status)).catch(() => undefined)
+    return () => { active = false }
+  }, [])
 
   const onPickImage = async (file: File | undefined) => {
     if (!file) return
@@ -74,23 +77,19 @@ export function PublishPage() {
     Number(price) > 0 &&
     Number(price) <= 999 &&
     description.trim().length >= 5 &&
-    nickname.trim().length >= 1 &&
+    Boolean(profile.foodieId?.trim()) &&
     image !== null &&
-    (!ate || Boolean(ateDate)) &&
-    (campusId !== 'ynu-chenggong' || Boolean(areaId))
+    (!ate || Boolean(ateDate))
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (!valid || !image || inFlight.current) return
     inFlight.current = true
-    if (campusId !== 'ynu-chenggong') {
-      updateProfile({ campusId })
-    }
     const input: SubmissionInput = {
       name: name.trim().slice(0, 30),
       category,
       venue: venue.trim().slice(0, 40),
-      areaId: campusId === 'ynu-chenggong' ? areaId : `other-${campusId}`,
+      areaId,
       campusId,
       priceMode,
       price: Math.round(Number(price) * 100) / 100,
@@ -103,12 +102,11 @@ export function PublishPage() {
         .map((s) => s.trim())
         .filter(Boolean)
         .slice(0, 6),
-      cuisine: cuisine || null,
       description: description.trim().slice(0, 200),
       image,
       author: {
-        nickname: nickname.trim().slice(0, 16),
-        hometown: hometown || null,
+        nickname: profile.foodieId!.trim(),
+        hometown: profile.hometown ?? null,
         ate,
         ateDate: ate ? ateDate : null,
       },
@@ -145,6 +143,18 @@ export function PublishPage() {
           <button type="button" className="btn btn--ghost btn--block" onClick={() => navigate('/')}>
             回到找吃的
           </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (restriction?.restricted) {
+    return (
+      <div className="page">
+        <Header onBack={() => navigate('/me')} />
+        <div className="stack-lg mt-20">
+          <Notice tone="red"><b>当前不能发布投稿。</b>{restriction.reason ? `处理说明：${restriction.reason}` : '请到“我的”查看处理说明。'} 浏览、收藏和修改资料仍可使用。</Notice>
+          <button type="button" className="btn btn--soft btn--block" onClick={() => navigate('/me')}>返回我的</button>
         </div>
       </div>
     )
@@ -225,7 +235,7 @@ export function PublishPage() {
           <h2 className="display-md">这口吃的是什么</h2>
 
           <div className="field">
-            <label className="field__label">名称 *</label>
+            <label className="field__label">名称 <span className="required-mark">*</span></label>
             <input
               className="text-input"
               maxLength={30}
@@ -237,7 +247,7 @@ export function PublishPage() {
           </div>
 
           <div className="field">
-            <label className="field__label">类别 *</label>
+            <label className="field__label">类别 <span className="required-mark">*</span></label>
             <Seg<Category>
               value={category}
               onChange={setCategory}
@@ -250,29 +260,20 @@ export function PublishPage() {
           </div>
 
           <div className="field">
-            <label className="field__label">校区 *</label>
-            <select className="select-input" value={campusId} onChange={(e) => setCampusId(e.target.value)}>
-              {CAMPUSES.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <label className="field__label">城市</label>
+            <div className="text-input" aria-label="投稿城市">昆明市</div>
           </div>
 
-          {campusId === 'ynu-chenggong' ? (
-            <div className="field">
-              <label className="field__label">在哪个片区 *</label>
-              <select className="select-input" value={areaId} onChange={(e) => setAreaId(e.target.value)}>
-                {areas.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <Notice tone="blue">该校区还没有区域表，位置写在下面店名/摊位里即可，你将是第一批投稿。</Notice>
-          )}
+          <div className="field">
+            <label className="field__label">地点 <span className="required-mark">*</span></label>
+            <select className="select-input" value={areaId} onChange={(e) => setAreaId(e.target.value)}>
+              {areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+            <span className="field__hint">仅支持昆明市内地点；没有坐标的内容不会进入“附近”排序。</span>
+          </div>
 
           <div className="field">
-            <label className="field__label">具体店 / 食堂窗口 / 摊位 *</label>
+            <label className="field__label">具体店 / 食堂窗口 / 餐馆 <span className="required-mark">*</span></label>
             <input
               className="text-input"
               maxLength={40}
@@ -288,7 +289,7 @@ export function PublishPage() {
           <h2 className="display-md">多少钱、什么味</h2>
 
           <div className="field">
-            <label className="field__label">价格口径 *</label>
+            <label className="field__label">价格口径 <span className="required-mark">*</span></label>
             <Seg<PriceMode>
               value={priceMode}
               onChange={setPriceMode}
@@ -298,8 +299,8 @@ export function PublishPage() {
               ]}
             />
             <div className="row-between mt-8">
-              <div className="price" style={{ color: 'var(--ink)' }}>
-                <span className="price__sym">¥</span>
+              <div className="price price-input" style={{ color: 'var(--red-deep)' }}>
+                <span className="price__sym">￥</span>
                 <input
                   type="number"
                   inputMode="decimal"
@@ -307,7 +308,7 @@ export function PublishPage() {
                   max={999}
                   step={0.5}
                   className="price__num"
-                  style={{ width: 90, border: 0, outline: 0, font: 'inherit', color: 'inherit', background: 'transparent' }}
+                  style={{ width: 150, minHeight: 48, border: '1.5px solid var(--red-deep)', borderRadius: 10, outline: 0, font: 'inherit', color: 'inherit', background: 'var(--cream)', padding: '0 10px' }}
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
                   required
@@ -318,7 +319,7 @@ export function PublishPage() {
           </div>
 
           <div className="field">
-            <label className="field__label">辣度 *</label>
+            <label className="field__label">辣度 <span className="required-mark">*</span></label>
             <div className="chips-row" style={{ flexWrap: 'wrap', overflow: 'visible' }}>
               {[0, 1, 2, 3].map((v) => (
                 <Chip key={v} active={spicy === v} onClick={() => setSpicy(v as SpicyLevel)}>
@@ -329,9 +330,9 @@ export function PublishPage() {
           </div>
 
           <div className="field">
-            <label className="field__label">咸甜 *</label>
+            <label className="field__label">咸甜 <span className="required-mark">*</span></label>
             <div className="chips-row" style={{ flexWrap: 'wrap', overflow: 'visible' }}>
-              {(['light', 'salty', 'sweet'] as SweetSalty[]).map((v) => (
+              {(['light', 'normal', 'salty', 'sweet'] as SweetSalty[]).map((v) => (
                 <Chip key={v} active={sweetSalty === v} onClick={() => setSweetSalty(v)}>
                   {SWEETSALTY_LABEL[v]}
                 </Chip>
@@ -354,7 +355,7 @@ export function PublishPage() {
           )}
 
           <div className="field">
-            <label className="field__label">油重 *</label>
+            <label className="field__label">油重 <span className="required-mark">*</span></label>
             <div className="chips-row" style={{ flexWrap: 'wrap', overflow: 'visible' }}>
               {(['less', 'normal', 'heavy'] as OilLevel[]).map((v) => (
                 <Chip key={v} active={oil === v} onClick={() => setOil(v)}>
@@ -376,17 +377,7 @@ export function PublishPage() {
           </div>
 
           <div className="field">
-            <label className="field__label">家乡风味线索（可选）</label>
-            <select className="select-input" value={cuisine} onChange={(e) => setCuisine(e.target.value)}>
-              <option value="">无 / 不明显</option>
-              {Array.from(new Set(HOMETOWNS.map((h) => h.cuisine).filter(Boolean))).map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="field">
-            <label className="field__label">两句真话 *</label>
+            <label className="field__label">两句真话 <span className="required-mark">*</span></label>
             <textarea
               className="text-area"
               maxLength={200}
@@ -399,10 +390,10 @@ export function PublishPage() {
         </section>
 
         <section className="info-card stack-lg">
-          <h2 className="display-md">照片与署名</h2>
+          <h2 className="display-md">照片与发布身份</h2>
 
           <div className="field">
-            <label className="field__label">实拍照片 *（≤ {Math.round(MAX_SOURCE_BYTES / 1024 / 1024)}MB）</label>
+            <label className="field__label">实拍照片 <span className="required-mark">*</span>（≤ {Math.round(MAX_SOURCE_BYTES / 1024 / 1024)}MB）</label>
             {image ? (
               <div className="photo-picker" style={{ justifyContent: 'flex-start' }}>
                 <img src={image} alt="投稿预览" />
@@ -425,27 +416,7 @@ export function PublishPage() {
             {imgError && <span className="tiny" style={{ color: 'var(--red-deep)' }}>{imgError}</span>}
           </div>
 
-          <div className="field">
-            <label className="field__label">昵称 *</label>
-            <input
-              className="text-input"
-              maxLength={16}
-              placeholder="随便起，不用真名学号"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="field">
-            <label className="field__label">家乡（可选，仅作家乡味线索展示）</label>
-            <select className="select-input" value={hometown} onChange={(e) => setHometown(e.target.value)}>
-              <option value="">不填</option>
-              {HOMETOWNS.map((h) => (
-                <option key={h.id} value={h.id}>{h.label}</option>
-              ))}
-            </select>
-          </div>
+          <Notice tone="blue">将以吃货 ID「{profile.foodieId || '未设置'}」发布；昵称与家乡只可在“我的”修改。</Notice>
 
           <label className="switch-row" style={{ border: '1.5px solid var(--line-strong)' }}>
             <div>

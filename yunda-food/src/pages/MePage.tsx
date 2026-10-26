@@ -9,14 +9,17 @@ import {
   Plus,
   Ticket,
   BadgeInfo,
+  ShieldCheck,
 } from 'lucide-react'
-import type { FoodItem } from '../types'
+import type { FoodItem, MyProfileStatus, MyReview } from '../types'
 import { campusName } from '../data/campus'
 import { repo, useRepoState, DATA_CHANGED_EVENT } from '../lib/repo'
 import { useFavorites } from '../lib/useFavorites'
 import { useProfile } from '../lib/profile'
 import { profileTags } from '../lib/taste'
+import { useAdminStatus } from '../lib/useAdminStatus'
 import { EmptyState, Notice, Spinner, Stamp } from '../components/ui'
+import { IdentityBadge } from '../components/IdentityBadge'
 
 interface LayoutContext {
   openProfileEditor: () => void
@@ -28,10 +31,14 @@ export function MePage() {
   const favorites = useFavorites()
   const { openProfileEditor } = useOutletContext<LayoutContext>()
   const repoState = useRepoState()
+  const identityRole = useAdminStatus()
 
   const [items, setItems] = useState<FoodItem[] | null>(null)
   const [myItems, setMyItems] = useState<FoodItem[] | null>(null)
   const [myItemsError, setMyItemsError] = useState<string | null>(null)
+  const [myReviews, setMyReviews] = useState<MyReview[]>([])
+  const [myProfileStatus, setMyProfileStatus] = useState<MyProfileStatus | null>(null)
+  const [myItemsExpanded, setMyItemsExpanded] = useState(false)
 
   const loadAll = () => {
     repo.listItems().then(setItems).catch(() => setItems([]))
@@ -46,9 +53,13 @@ export function MePage() {
           setMyItems([])
           setMyItemsError(e instanceof Error ? e.message : '读取我的云端投稿失败')
         })
+      repo.listMyReviews().then(setMyReviews).catch(() => setMyReviews([]))
+      repo.getMyProfileStatus().then(setMyProfileStatus).catch(() => setMyProfileStatus(null))
     } else {
       // 本地模式：listMyItems 返回本机草稿，与下面的草稿分区一致，这里不重复展示
       setMyItems([])
+      repo.listMyReviews().then(setMyReviews).catch(() => setMyReviews([]))
+      setMyProfileStatus({ restricted: false })
     }
   }
 
@@ -66,6 +77,7 @@ export function MePage() {
   }, [repoState])
 
   const favItems = (items ?? []).filter((i) => favorites.ids.includes(i.id))
+  const unavailableFavoriteCount = favorites.ids.length - favItems.length
   const drafts = (items ?? []).filter((i) => i.status === 'local-draft')
 
   return (
@@ -78,11 +90,11 @@ export function MePage() {
       <section className="ticket" style={{ display: 'block', padding: 0 }}>
         <div style={{ padding: 16 }}>
           <div className="row-between">
-            <h1 className="display-md" style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <Ticket size={19} color="var(--red-deep)" /> 我的胃
+            <h1 className="display-md" style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+              <Ticket size={19} color="var(--red-deep)" /> {profile.foodieId ? `@${profile.foodieId}` : '我的吃货 ID'} <IdentityBadge role={identityRole} />
             </h1>
             <button type="button" className="btn btn--soft" onClick={openProfileEditor}>
-              <PencilLine size={15} /> 修改口味
+              <PencilLine size={15} /> 修改资料
             </button>
           </div>
 
@@ -96,16 +108,28 @@ export function MePage() {
             ))}
           </div>
 
+          {identityRole === 'admin' && (
+            <button type="button" className="btn btn--yellow mt-12" onClick={() => navigate('/admin')}>
+              <ShieldCheck size={16} /> 内容管理
+            </button>
+          )}
+
           {profile.skipped && (
             <Notice tone="blue" >
               你在用“先逛逛”模式，所有口味都是不限。设置后推荐卡会写出具体匹配理由。
             </Notice>
           )}
           <p className="tiny faint mt-8">
-            口味与收藏只存在这台设备上；没有学号、邮箱或登录。
+            匿名身份保存在当前浏览器，清除浏览器数据或换设备后无法自动恢复。不会收集姓名、手机号、学号、通讯录或精确住址。
           </p>
         </div>
       </section>
+
+      {myProfileStatus?.restricted && (
+        <Notice tone="red">
+          <b>你的投稿与评论功能已被限制。</b>{myProfileStatus.reason ? `处理说明：${myProfileStatus.reason}` : '请联系管理员了解处理说明。'} 浏览、收藏和修改资料仍可使用。
+        </Notice>
+      )}
 
       {/* 后端状态 */}
       <div className="section-title"><h2>数据状态</h2></div>
@@ -148,7 +172,7 @@ export function MePage() {
         <>
           <div className="section-title">
             <h2>我的云端投稿</h2>
-            <span className="section-title__aside">{myItems?.length ?? 0} 条 · 其他手机可见</span>
+            <span className="section-title__aside">{myItems?.length ?? 0} 条</span>
           </div>
           {myItems === null ? (
             <Spinner />
@@ -174,27 +198,31 @@ export function MePage() {
               发布后所有手机都能看到，也会出现在这里。
             </EmptyState>
           ) : (
-            <div className="stack">
-              {myItems.map((d) => (
-                <button key={d.id} type="button" className="ticket" onClick={() => navigate(`/item/${d.id}`)}>
+            <>
+              <div className={`stack${myItemsExpanded ? ' my-items-scroll' : ''}`}>
+              {myItems.slice(0, myItemsExpanded ? myItems.length : 3).map((d) => (
+                <button key={d.id} type="button" className="ticket" disabled={d.status === 'hidden'} onClick={() => d.status !== 'hidden' && navigate(`/item/${d.id}`)}>
                   <div className="ticket__body">
                     <div className="ticket__name">{d.name}</div>
                     <div className="ticket__venue">{d.venue}</div>
                     <div className="ticket__tags" style={{ marginTop: 6 }}>
-                      <Stamp>已共享</Stamp>
+                      {d.status === 'hidden' ? <Stamp variant="red">已下架</Stamp> : <Stamp>已共享</Stamp>}
                       {d.ratingCount > 0 && d.ratingAvg != null && (
                         <span className="tag" style={{ color: 'var(--green)' }}>
                           {d.ratingAvg.toFixed(1)} 分 · {d.ratingCount} 人评价
                         </span>
                       )}
                     </div>
+                    {d.status === 'hidden' && <p className="tiny" style={{ color: 'var(--red-deep)' }}>处理说明：{d.hiddenReason ?? '内容暂不可公开'}</p>}
                   </div>
                   <div className="ticket__price-col">
                     <div className="price"><span className="price__sym">¥</span><span className="price__num">{d.price}</span></div>
                   </div>
                 </button>
               ))}
-            </div>
+              </div>
+              {myItems.length > 3 && <button type="button" className="btn btn--soft my-items-toggle" onClick={() => setMyItemsExpanded((expanded) => !expanded)}>{myItemsExpanded ? '收起我的投稿' : `展开全部 ${myItems.length} 条`}</button>}
+            </>
           )}
         </>
       )}
@@ -244,13 +272,15 @@ export function MePage() {
         <h2>
           <Heart size={16} color="var(--red-deep)" /> 想吃清单
         </h2>
-        <span className="section-title__aside">本机收藏 · {favItems.length}</span>
+        <span className="section-title__aside">{repo.mode === 'remote' ? '云端想吃' : '本机收藏'} · {favItems.length}</span>
       </div>
+      {unavailableFavoriteCount > 0 && <Notice tone="yellow">有 {unavailableFavoriteCount} 条想吃内容暂不可查看；若只是下架，恢复公开后会自动回到清单。</Notice>}
+      {favorites.removedCount > 0 && <Notice tone="blue">已有 {favorites.removedCount} 条无法访问的旧收藏已从你的云端清单移除。</Notice>}
       {items === null ? (
         <Spinner />
       ) : favItems.length === 0 ? (
         <EmptyState art="🎟️" title="还没有收藏">
-          在吃喝卡片或详情页点“想吃”，清单只留在这台手机。
+          在吃喝卡片或详情页点“想吃”。云端模式按匿名身份唯一保存，重复点击只切换，不会刷量。
         </EmptyState>
       ) : (
         <div className="stack">
@@ -266,6 +296,11 @@ export function MePage() {
             </button>
           ))}
         </div>
+      )}
+
+      <div className="section-title"><h2>我的评论 / 评分</h2><span className="section-title__aside">{myReviews.length} 条</span></div>
+      {myReviews.length === 0 ? <p className="tiny faint">还没有评论或评分；每条投稿仅保留你最新的一份评分。</p> : (
+        <div className="stack">{myReviews.map((review) => <button key={review.id} type="button" className="info-card" disabled={review.itemStatus === 'hidden'} onClick={() => review.itemStatus !== 'hidden' && navigate(`/item/${review.itemId}`)}><strong>{review.rating} 星</strong><span className="tiny faint"> · {review.itemName || review.ateDate}</span><p className="tiny mt-8">{review.text}</p>{review.moderationStatus === 'hidden' && <p className="tiny" style={{ color: 'var(--red-deep)' }}>该评论未公开：{review.moderationReason ?? '请联系管理员了解处理说明'}</p>}{review.itemStatus === 'hidden' && <p className="tiny faint">关联投稿已下架，暂不能打开详情。</p>}</button>)}</div>
       )}
 
       {/* 说明 */}

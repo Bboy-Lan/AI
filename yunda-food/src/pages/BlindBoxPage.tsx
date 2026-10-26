@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Dices, RotateCw, Ticket, ArrowLeft } from 'lucide-react'
 import type { Category, FoodItem } from '../types'
-import { AREAS, areaName, SPICY_PREF_LABEL, STAPLE_PREF_LABEL } from '../data/campus'
+import { areaName, hometownLabel, SPICY_PREF_LABEL, STAPLE_PREF_LABEL } from '../data/campus'
 import {
   defaultFilters,
   drawOne,
@@ -16,8 +16,7 @@ import {
 import { DATA_CHANGED_EVENT, repo } from '../lib/repo'
 import { useProfile } from '../lib/profile'
 import { Chip, cn, EmptyState, FoodImage, Notice, Spinner, Stamp } from '../components/ui'
-import { BudgetControl } from '../components/FiltersSheet'
-import { profileTags } from '../lib/taste'
+import { AreaMultiSelect, BudgetControl } from '../components/FiltersSheet'
 
 type Phase = 'setup' | 'flipping' | 'result' | 'empty'
 
@@ -86,12 +85,6 @@ export function BlindBoxPage() {
     if (timer.current) window.clearTimeout(timer.current)
     timer.current = window.setTimeout(() => setPhase('result'), 750)
   }
-
-  const toggleArea = (id: string) =>
-    setFilters((f) => ({
-      ...f,
-      areaIds: f.areaIds.includes(id) ? f.areaIds.filter((x) => x !== id) : [...f.areaIds, id],
-    }))
 
   const cat = (filters.categories.length === 1 ? filters.categories[0] : 'any') as Category | 'any'
 
@@ -245,16 +238,7 @@ export function BlindBoxPage() {
               </div>
             </div>
 
-            <div className="field">
-              <label className="field__label">区域（不选=全部）</label>
-              <div className="chips-row" style={{ flexWrap: 'wrap', overflow: 'visible' }}>
-                {AREAS.map((a) => (
-                  <Chip key={a.id} active={filters.areaIds.includes(a.id)} onClick={() => toggleArea(a.id)}>
-                    {a.name}
-                  </Chip>
-                ))}
-              </div>
-            </div>
+            <AreaMultiSelect areaIds={filters.areaIds} onChange={(areaIds) => setFilters((f) => ({ ...f, areaIds }))} />
 
             <div className="field">
               <label className="field__label">预算口径与金额</label>
@@ -282,11 +266,11 @@ export function BlindBoxPage() {
               </div>
               <div className="switch-row">
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 13.5 }}>家乡味线索</div>
+                  <div style={{ fontWeight: 700, fontSize: 13.5 }}>同乡投稿</div>
                   <div className="tiny faint">
                     {profile.hometown
-                      ? `当前线索：${profileTags(profile).find((t) => t.includes('同乡')) ?? profile.hometown}；开启后只抽同风味`
-                      : '你还没填家乡，可在“我的 → 修改口味”里补，不填也能抽'}
+                      ? `当前家乡：${hometownLabel(profile.hometown)}；开启后只抽同乡投稿`
+                      : '你还没填写吃货家乡，可在“我的 → 修改资料”补充；不填也能抽'}
                   </div>
                 </div>
                 <button

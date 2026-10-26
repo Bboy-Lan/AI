@@ -1,7 +1,8 @@
 import type { FoodItem, TasteProfile } from '../types'
 import {
   areaName,
-  cuisineOfHometown,
+  AREAS,
+  hometownLabel,
   OIL_LABEL,
   SPICY_LABEL,
   SWEETSALTY_LABEL,
@@ -22,15 +23,24 @@ export interface FoodFilters {
   query: string
   budget: BudgetFilter
   noSpicy: boolean // 硬条件：完全不要辣
-  hometownOnly: boolean // 只要家乡味（硬过滤；默认关闭，家乡默认只是线索）
+  hometownOnly: boolean // 只看同乡投稿（硬过滤；默认关闭时仅用于排序）
 }
 
 export const EMPTY_BUDGET: BudgetFilter = { basis: 'per_person', amount: null, people: 1 }
 
+/** 地点默认全选；全选与未选不应意外造成筛选结果变窄。 */
+export function allAreaIds(): string[] {
+  return AREAS.map((area) => area.id)
+}
+
+export function isAreaFilterActive(areaIds: string[]): boolean {
+  return areaIds.length > 0 && areaIds.length < AREAS.length
+}
+
 export function defaultFilters(campusId: string): FoodFilters {
   return {
     campusId,
-    areaIds: [],
+    areaIds: allAreaIds(),
     categories: [],
     query: '',
     budget: EMPTY_BUDGET,
@@ -68,20 +78,29 @@ function perPersonCap(b: BudgetFilter): number | null {
 
 export function matchesHard(item: FoodItem, f: FoodFilters): boolean {
   if (item.campusId !== f.campusId) return false
-  if (f.areaIds.length > 0 && !f.areaIds.includes(item.areaId)) return false
+  if (isAreaFilterActive(f.areaIds) && !f.areaIds.includes(item.areaId)) return false
   if (f.categories.length > 0 && !f.categories.includes(item.category)) return false
   if (f.noSpicy && item.spicy > 0) return false
-  // 家乡味硬过滤在 rankItems 中结合 profile 处理
+  // 同乡投稿硬过滤在 rankItems 中结合 profile 处理
   const cap = perPersonCap(f.budget)
   if (cap !== null && perPersonPrice(item) > cap + 0.001) return false
   const q = f.query.trim().toLowerCase()
   if (q) {
-    const hay = [item.name, item.venue, item.description, item.cuisine ?? '', ...item.flavors]
+    const hay = [item.name, item.venue, item.description, ...item.flavors]
       .join(' ')
       .toLowerCase()
     if (!hay.includes(q)) return false
   }
   return true
+}
+
+function hometownKey(value: string | null | undefined): string {
+  return hometownLabel(value).trim().replace(/\s+/g, '').toLocaleLowerCase()
+}
+
+function isSameHometown(item: FoodItem, profile: TasteProfile): boolean {
+  const userHometown = hometownKey(profile.hometown)
+  return Boolean(userHometown && userHometown === hometownKey(item.author?.hometown))
 }
 
 function buildReasons(
@@ -123,11 +142,10 @@ function buildReasons(
     }
   }
 
-  // 家乡只是线索：默认弱加权；“家乡味优先”时加强（权重仍只是排序线索）
-  const homeCuisine = cuisineOfHometown(profile.hometown)
-  if (homeCuisine && item.cuisine === homeCuisine) {
+  // 默认把同乡投稿轻微前置；开启筛选后只保留同乡投稿。
+  if (isSameHometown(item, profile)) {
     score += f.hometownOnly ? 5 : 1
-    reasons.push(`家乡味线索 · ${homeCuisine}`)
+    reasons.push(`同乡投稿 · ${hometownLabel(item.author?.hometown)}`)
   }
 
   const cap = perPersonCap(f.budget)
@@ -162,11 +180,10 @@ export function rankItems(
   f: FoodFilters,
   profile: TasteProfile,
 ): MatchResult[] {
-  const homeCuisine = cuisineOfHometown(profile.hometown)
   return items
     .filter((item) => {
       if (!matchesHard(item, f)) return false
-      if (f.hometownOnly && (!homeCuisine || item.cuisine !== homeCuisine)) return false
+      if (f.hometownOnly && !isSameHometown(item, profile)) return false
       return true
     })
     .map((item) => {
@@ -203,7 +220,7 @@ export function emptySuggestions(items: FoodItem[], f: FoodFilters): string[] {
       .filter(
         (i) =>
           i.campusId === f.campusId &&
-          (f.areaIds.length === 0 || f.areaIds.includes(i.areaId)) &&
+          (!isAreaFilterActive(f.areaIds) || f.areaIds.includes(i.areaId)) &&
           (f.categories.length === 0 || f.categories.includes(i.category)),
       )
       .sort((a, b) => a.price - b.price)[0]
@@ -218,9 +235,9 @@ export function emptySuggestions(items: FoodItem[], f: FoodFilters): string[] {
     }
   }
   if (f.noSpicy) tips.push('关掉“完全不要辣”，微辣也有很多温和选择')
-  if (f.areaIds.length > 0) tips.push('取消区域限制，看看校内校外其他片区')
+  if (isAreaFilterActive(f.areaIds)) tips.push('恢复全部地点，看看校内校外其他区域')
   if (f.categories.length > 0) tips.push('类别选“不限”，正餐小吃饮品一起抽')
-  if (f.hometownOnly) tips.push('先别只看家乡味，换口味也许有惊喜')
+  if (f.hometownOnly) tips.push('先关闭“同乡投稿”，看看更多昆明同学的推荐')
   if (tips.length === 0) tips.push('换几个关键词，或清空搜索条件')
   return tips.slice(0, 3)
 }

@@ -7,7 +7,7 @@ export type PriceMode = 'per_item' | 'per_person'
 // per_person：店内人均价格
 
 export type SpicyLevel = 0 | 1 | 2 | 3 // 不辣 / 微辣 / 中辣 / 很辣
-export type SweetSalty = 'light' | 'salty' | 'sweet' // 清淡 / 偏咸 / 偏甜
+export type SweetSalty = 'light' | 'normal' | 'salty' | 'sweet' // 清淡 / 正常 / 偏咸 / 偏甜
 export type OilLevel = 'less' | 'normal' | 'heavy' // 少油 / 正常 / 油重
 export type Staple = 'noodle' | 'rice' // 面食（含粉/饺子）/ 米饭
 
@@ -18,13 +18,13 @@ export type StaplePref = Staple | 'any'
 
 export interface AuthorInfo {
   nickname: string
-  hometown?: string | null
+  hometown?: string | null // 投稿人自填的户籍/家乡地点
   ate: boolean // 自报“我吃过”，非认证
   ateDate?: string | null // 大致吃过日期 YYYY-MM
 }
 
 export type ItemSource = 'sample' | 'user'
-export type ItemStatus = 'published' | 'pending' | 'local-draft'
+export type ItemStatus = 'published' | 'pending' | 'hidden' | 'local-draft'
 
 export interface FoodItem {
   id: string
@@ -40,7 +40,7 @@ export interface FoodItem {
   oil: OilLevel
   staple: Staple | null // 饮品/部分小吃可为 null
   flavors: string[]
-  cuisine?: string | null // 家乡味线索，如“川渝味”，仅线索不限制
+  cuisine?: string | null // 历史兼容字段，前台不再展示或参与匹配
   description: string
   image?: string | null
   source: ItemSource
@@ -50,21 +50,31 @@ export interface FoodItem {
   author?: AuthorInfo | null
   ratingCount: number
   ratingAvg: number | null
-  // 显式声明：当前起始数据没有坐标，UI 绝不显示距离
-  hasCoords?: false
+  favoriteCount?: number
+  verification?: { status: 'pending' | 'verified'; positive: number; negative: number; total: number }
+  placeId?: string | null
+  placeKey?: string | null
+  latitude?: number | null
+  longitude?: number | null
+  addressSummary?: string | null
+  hiddenReason?: string | null
+  hiddenAt?: string | null
 }
 
 export interface TasteProfile {
   saved: boolean
   skipped: boolean // “先逛逛”进入，口味为中性
   campusId: string
-  hometown: string | null
+  hometown: string | null // 自填户籍/家乡地点，用于同乡投稿推荐
   spicy: SpicyPref
   sweetSalty: SweetSaltyPref
   staple: StaplePref
   oil: OilPref
   quickBudget: number | null
   savedAt: string | null
+  /** 公开展示名；云端模式由 profiles.user_id=auth.uid() 可信关联。 */
+  foodieId?: string
+  defaultArea?: string | null
 }
 
 export interface Review {
@@ -75,6 +85,51 @@ export interface Review {
   text: string
   ateDate: string // YYYY-MM
   createdAt: string
+}
+
+/** 仅评论作者本人可读的审核结果，不会下发到公开评论列表。 */
+export interface MyReview extends Review {
+  moderationStatus: ModerationStatus
+  moderationReason?: string | null
+  itemStatus: 'published' | 'hidden'
+  itemName?: string
+}
+
+/** 仅当前匿名身份可读的内容发布限制；浏览与收藏不受影响。 */
+export interface MyProfileStatus {
+  restricted: boolean
+  reason?: string | null
+  moderatedAt?: string | null
+}
+
+export type ModerationStatus = 'published' | 'hidden'
+
+/** 仅内容管理台使用；普通页面不会取得这些审核字段。 */
+export interface AdminReview extends Review {
+  itemName: string
+  moderationStatus: ModerationStatus
+  moderationReason?: string | null
+}
+
+/** 管理员查看的匿名用户资料；不暴露手机号、姓名或其他私密资料。 */
+export interface AdminProfile {
+  userId: string
+  foodieId: string
+  hometown?: string | null
+  defaultArea?: string | null
+  createdAt: string
+  itemCount: number
+  reviewCount: number
+  restricted: boolean
+  restrictionReason?: string | null
+}
+
+export interface AdminOverview {
+  profileCount: number
+  publishedItemCount: number
+  hiddenItemCount: number
+  publishedReviewCount: number
+  hiddenReviewCount: number
 }
 
 export interface SubmissionInput {
@@ -90,7 +145,6 @@ export interface SubmissionInput {
   oil: OilLevel
   staple: Staple | null
   flavors: string[]
-  cuisine?: string | null
   description: string
   image?: string | null // 远程 URL 或本地 dataURL（local 草稿）
   author: AuthorInfo

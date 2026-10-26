@@ -496,6 +496,10 @@ p {
   color: var(--blue-deep);
   border-color: var(--blue-deep);
 }
+.stamp--green { color: var(--green); border-color: var(--green); }
+.stamp--orange { color: #9a5b00; border-color: #9a5b00; background: var(--yellow-soft); }
+.badge--orange { color: #9a5b00; border-color: rgba(154, 91, 0, 0.45); background: var(--yellow-soft); }
+.required-mark { color: var(--red-deep); font-weight: 900; font-size: 1.05em; }
 
 .stamp--solid {
   background: var(--red);
@@ -530,6 +534,80 @@ p {
   border-color: rgba(70, 122, 81, 0.4);
   background: var(--green-soft);
 }
+
+.identity-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  padding: 5px 11px;
+  border: 1.5px solid var(--blue-deep);
+  border-radius: var(--radius-chip);
+  background: var(--blue-soft);
+  color: var(--blue-deep);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+.identity-badge--admin {
+  border-color: #b98b1d;
+  background: var(--yellow-soft);
+  color: #875d00;
+}
+.identity-float {
+  position: fixed;
+  top: 12px;
+  /* 在桌面上以居中的手机应用边缘为准，而不是浏览器窗口最右侧。 */
+  right: max(12px, calc((100vw - 480px) / 2 + 12px));
+  z-index: 35;
+  display: flex;
+  align-items: flex-end;
+}
+.identity-float__sync {
+  padding: 4px 8px;
+  min-height: 28px;
+  font-size: 11px;
+}
+.content-author,
+.review-item__author {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  vertical-align: middle;
+}
+.content-author .identity-badge,
+.review-item__author .identity-badge {
+  padding: 3px 7px;
+  font-size: 11px;
+}
+
+.my-items-scroll {
+  max-height: min(56dvh, 520px);
+  overflow-y: auto;
+  padding: 1px 4px 4px 1px;
+  overscroll-behavior: contain;
+}
+.my-items-toggle {
+  width: 100%;
+  margin-top: 10px;
+}
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.admin-stat {
+  padding: 9px 10px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--cream);
+  box-shadow: var(--shadow-hard-sm);
+}
+.admin-stat span { display: flex; align-items: center; gap: 4px; color: var(--ink-soft); font-size: 11px; }
+.admin-stat strong { display: block; margin-top: 2px; font-size: 20px; line-height: 1; }
+.admin-tabs .btn { flex: 1; justify-content: center; }
 
 /* ---------- 标签 / 胶囊 ---------- */
 
@@ -758,6 +836,74 @@ p {
 }
 .option-grid .chip {
   padding: 8px 14px;
+}
+
+.area-picker {
+  border: 1.5px solid var(--line-strong);
+  border-radius: 14px;
+  background: var(--cream);
+  box-shadow: var(--shadow-hard-sm);
+}
+.area-picker summary {
+  min-height: 48px;
+  padding: 12px 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 700;
+  list-style: none;
+}
+.area-picker summary::-webkit-details-marker { display: none; }
+.area-picker__summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--blue-deep);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.area-picker[open] .area-picker__summary svg { transform: rotate(180deg); }
+.area-picker__body {
+  border-top: 1px dashed var(--line);
+  padding: 11px 12px 13px;
+}
+.area-picker__all {
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--blue-deep);
+}
+
+.admin-id {
+  display: block;
+  overflow-wrap: anywhere;
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: var(--kraft);
+  color: var(--ink);
+  font-size: 11px;
+}
+.admin-item--hidden { opacity: 0.62; filter: grayscale(0.55); }
+.admin-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(28, 43, 45, 0.45);
+}
+.admin-dialog__card {
+  width: min(100%, 448px);
+  background: var(--paper);
+  padding: 18px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 18px;
+  box-shadow: var(--shadow-hard);
 }
 
 .stepper {
@@ -1296,8 +1442,7 @@ p {
 }
 
 .review-item {
-  border-bottom: 1px dashed var(--line);
-  padding: 11px 0;
+  padding: 12px 14px;
 }
 .review-item:last-child {
   border-bottom: 0;
@@ -1306,7 +1451,13 @@ p {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 3px;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+.review-item > p {
+  margin: 0;
+  padding-left: 2px;
+  line-height: 1.65;
 }
 
 /* ---------- 列表工具 ---------- */

@@ -15,7 +15,7 @@ export function Stamp({
   className,
 }: {
   children: ReactNode
-  variant?: 'red' | 'blue' | 'solid'
+  variant?: 'red' | 'blue' | 'solid' | 'green' | 'orange'
   corner?: boolean
   className?: string
 }) {
@@ -25,6 +25,8 @@ export function Stamp({
         'stamp',
         variant === 'blue' && 'stamp--blue',
         variant === 'solid' && 'stamp--solid',
+        variant === 'green' && 'stamp--green',
+        variant === 'orange' && 'stamp--orange',
         corner && 'stamp--corner',
         className,
       )}
@@ -193,8 +195,10 @@ export function FoodImage({
   category: 'meal' | 'snack' | 'drink'
   className?: string
 }) {
-  const [failed, setFailed] = useState(false)
-  const [loaded, setLoaded] = useState(false)
+  // 图片地址在热更新或卡片复用时改变，旧地址的加载失败不能让新图片永远停在占位图。
+  const [imageState, setImageState] = useState({ src, failed: false, loaded: false })
+  const failed = imageState.src === src ? imageState.failed : false
+  const loaded = imageState.src === src ? imageState.loaded : false
   if (!src || failed) {
     return (
       <div className={cn(`ticket__media-fallback ticket__media-fallback--${category}`, className)}>
@@ -209,8 +213,8 @@ export function FoodImage({
         src={src}
         alt={alt}
         loading="lazy"
-        onLoad={() => setLoaded(true)}
-        onError={() => setFailed(true)}
+        onLoad={() => setImageState({ src, failed: false, loaded: true })}
+        onError={() => setImageState({ src, failed: true, loaded: false })}
         style={loaded ? undefined : { opacity: 0, position: 'absolute', inset: 0 }}
         className={className}
       />

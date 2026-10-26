@@ -30,7 +30,7 @@ export function profileTags(p: TasteProfile): string[] {
   tags.push(STAPLE_PREF_LABEL[p.staple])
   tags.push(OIL_PREF_LABEL[p.oil])
   const home = hometownLabel(p.hometown)
-  if (home) tags.push(`${home}同乡(自填)`)
+  if (home) tags.push(`吃货家乡 · ${home}`)
   if (p.quickBudget) tags.push(`预算 ¥${p.quickBudget}`)
   return tags
 }
@@ -39,7 +39,7 @@ export function describeProfile(p: TasteProfile): string {
   if (p.skipped) return '还没设置口味，当前按全部内容浏览'
   const t = [`辣度${SPICY_PREF_LABEL[p.spicy]}`, SWEETSALTY_PREF_LABEL[p.sweetSalty], STAPLE_PREF_LABEL[p.staple], `油重${OIL_PREF_LABEL[p.oil]}`]
   const home = hometownLabel(p.hometown)
-  if (home) t.push(`家乡线索：${home}`)
+  if (home) t.push(`吃货家乡：${home}`)
   return t.join(' · ')
 }
 

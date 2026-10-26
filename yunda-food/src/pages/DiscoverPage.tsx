@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { MapPin, Search, SlidersHorizontal, X, Ticket, Plus } from 'lucide-react'
+import { MapPin, Search, SlidersHorizontal, X, Ticket, Plus, Navigation } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { Category, FoodItem } from '../types'
-import { CAMPUSES, campusName } from '../data/campus'
+import { AREAS, CAMPUSES, campusName } from '../data/campus'
 import { SAMPLE_ITEMS } from '../data/seed'
-import { defaultFilters, rankItems, type FoodFilters } from '../lib/match'
+import { defaultFilters, isAreaFilterActive, rankItems, type FoodFilters } from '../lib/match'
 import { repo, useRepoState, DATA_CHANGED_EVENT } from '../lib/repo'
 import { useProfile } from '../lib/profile'
 import { useFavorites } from '../lib/useFavorites'
@@ -19,6 +19,16 @@ const CATEGORY_TABS: Array<{ value: Category | 'all'; label: string }> = [
   { value: 'snack', label: '小吃' },
   { value: 'drink', label: '饮品' },
 ]
+
+const LOCATION_AREAS = AREAS
+
+function distanceKm(a: GeolocationCoordinates, latitude: number, longitude: number) {
+  const r = 6371
+  const dLat = (latitude - a.latitude) * Math.PI / 180
+  const dLng = (longitude - a.longitude) * Math.PI / 180
+  const q = Math.sin(dLat / 2) ** 2 + Math.cos(a.latitude * Math.PI / 180) * Math.cos(latitude * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+  return 2 * r * Math.asin(Math.sqrt(q))
+}
 
 export function DiscoverPage() {
   const navigate = useNavigate()
@@ -40,6 +50,9 @@ export function DiscoverPage() {
   const [query, setQuery] = useState('')
   const [sheetOpen, setSheetOpen] = useState(false)
   const [draft, setDraft] = useState<FoodFilters>(filters)
+  const [position, setPosition] = useState<GeolocationCoordinates | null>(null)
+  const [nearRadius, setNearRadius] = useState(5)
+  const [locationNotice, setLocationNotice] = useState<string | null>(null)
 
   useEffect(() => {
     let alive = true
@@ -87,19 +100,38 @@ export function DiscoverPage() {
 
   const effective = useMemo(() => ({ ...filters, query }), [filters, query])
   const results = useMemo(
-    () => (items ? rankItems(items, effective, profile) : []),
-    [items, effective, profile],
+    () => {
+      const ranked = items ? rankItems(items, effective, profile).filter((r) => r.item.status !== 'hidden') : []
+      if (!position) return ranked
+      return ranked
+        .filter((r) => r.item.latitude != null && r.item.longitude != null && distanceKm(position, r.item.latitude, r.item.longitude) <= nearRadius)
+        .sort((a, b) => distanceKm(position, a.item.latitude!, a.item.longitude!) - distanceKm(position, b.item.latitude!, b.item.longitude!))
+    },
+    [items, effective, profile, position, nearRadius],
   )
+  const topWanted = useMemo(() => (items ?? []).filter((i) => i.status === 'published').sort((a, b) => (b.favoriteCount ?? 0) - (a.favoriteCount ?? 0)).slice(0, 3), [items])
+  const requestLocation = () => {
+    if (!navigator.geolocation) { setLocationNotice('当前浏览器不支持定位，请继续按地点/校区筛选。'); return }
+    if (!window.isSecureContext) { setLocationNotice('定位仅能在 HTTPS 或 localhost 下使用；请继续按地点/校区筛选。'); return }
+    navigator.geolocation.getCurrentPosition(
+      (next) => { setPosition(next.coords); setLocationNotice(`已按 ${nearRadius} km 范围排序；无坐标投稿不会进入附近排序。`) },
+      (error) => setLocationNotice(error.code === error.PERMISSION_DENIED ? '你拒绝了定位授权，已继续按地点/校区浏览。' : '暂时无法定位，已继续按地点/校区浏览。'),
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
+    )
+  }
 
   const campusHasContent = CAMPUSES.find((c) => c.id === filters.campusId)?.hasContent ?? false
   const activeFilterCount =
-    filters.areaIds.length +
+    (isAreaFilterActive(filters.areaIds) ? 1 : 0) +
     filters.categories.length +
     (filters.budget.amount != null ? 1 : 0) +
     (filters.noSpicy ? 1 : 0) +
     (filters.hometownOnly ? 1 : 0)
 
   const tab = (filters.categories.length === 1 ? filters.categories[0] : 'all') as Category | 'all'
+  const locationValue = filters.areaIds.length === 1
+    ? `area:${filters.areaIds[0]}`
+    : `campus:${filters.campusId}`
 
   return (
     <div className="page">
@@ -125,9 +157,9 @@ export function DiscoverPage() {
           <div className="hero__meta">
             <span className="hero__chip">
               <MapPin size={11} style={{ display: 'inline', marginRight: 3 }} />
-              {CAMPUSES.find((c) => c.id === filters.campusId)?.short ?? '云大呈贡'}
+              {CAMPUSES.find((c) => c.id === filters.campusId)?.short ?? '昆明市'}
             </span>
-            <span className="hero__chip">同学推荐 · 无广告</span>
+            <span className="hero__chip">菜品由大学生互相推荐，不含广告。</span>
           </div>
         </div>
       </section>
@@ -158,26 +190,54 @@ export function DiscoverPage() {
         <select
           className="select-input"
           style={{ width: 'auto', flex: 1, padding: '8px 10px', fontSize: 13 }}
-          value={filters.campusId}
+          value={locationValue}
           onChange={(e) => {
-            const id = e.target.value
-            setFilters((f) => ({ ...f, campusId: id }))
-            updateProfile({ campusId: id })
+            const [kind, id] = e.target.value.split(':')
+            if (kind === 'area') {
+              const area = AREAS.find((entry) => entry.id === id)
+              if (!area) return
+              setFilters((f) => ({ ...f, campusId: area.campusId, areaIds: [area.id] }))
+              updateProfile({ campusId: area.campusId, defaultArea: area.id })
+              return
+            }
+            setFilters((f) => ({ ...f, campusId: id, areaIds: defaultFilters(id).areaIds }))
+            updateProfile({ campusId: id, defaultArea: null })
           }}
-          aria-label="切换校区"
+          aria-label="切换浏览地点"
         >
+          {filters.areaIds.length > 1 && isAreaFilterActive(filters.areaIds) && <option value={locationValue}>已选多个地点</option>}
+          <optgroup label="城市">
           {CAMPUSES.map((c) => (
-            <option key={c.id} value={c.id}>
+            <option key={c.id} value={`campus:${c.id}`}>
               {c.name}
             </option>
           ))}
+          </optgroup>
+          <optgroup label="昆明市具体地点">
+            {LOCATION_AREAS.map((area) => <option key={area.id} value={`area:${area.id}`}>{area.name}</option>)}
+          </optgroup>
         </select>
         <Chip
           active={filters.hometownOnly}
           onClick={() => setFilters((f) => ({ ...f, hometownOnly: !f.hometownOnly }))}
         >
-          家乡味{filters.hometownOnly ? '优先中' : '线索'}
+          同乡投稿{filters.hometownOnly ? '筛选中' : '优先'}
         </Chip>
+      </div>
+
+      <div className="info-card stack" style={{ marginBottom: 12 }}>
+        <div className="row-between"><strong>附近推荐</strong><span className="tiny faint">仅主动授权后定位</span></div>
+        <div className="chips-row" style={{ overflow: 'visible' }}>
+          {[1, 3, 5, 10].map((km) => <Chip key={km} active={nearRadius === km} onClick={() => setNearRadius(km)}>{km} km</Chip>)}
+          <button type="button" className="btn btn--soft" onClick={requestLocation}><Navigation size={14} /> 使用当前位置</button>
+          {position && <button type="button" className="btn btn--ghost" onClick={() => { setPosition(null); setLocationNotice('已退出附近排序，继续按地点/校区浏览。') }}>退出附近</button>}
+        </div>
+        {locationNotice && <span className="tiny faint">{locationNotice}</span>}
+      </div>
+
+      <div className="section-title"><h2>❤️ 最想吃 TOP 3</h2><span className="section-title__aside">不同用户想吃数</span></div>
+      <div className="stack" style={{ marginBottom: 14 }}>
+        {topWanted.length ? topWanted.map((item, index) => <button key={item.id} type="button" className="info-card row-between" onClick={() => navigate(`/item/${item.id}`)}><span>{index + 1}. {item.name}</span><span className="tiny">❤️ {item.favoriteCount ?? 0}</span></button>) : <p className="tiny faint">还没有真实投稿进入想吃榜。</p>}
       </div>
 
       {/* 搜索 */}

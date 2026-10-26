@@ -1,4 +1,5 @@
 import type { FoodItem } from '../types'
+import { DEFAULT_CITY_ID } from './campus'
 import { sampleImage } from '../lib/images'
 
 // 起始内容：全部为【示例数据】，店名/窗口/价格/照片均未经过云大现场核验，
@@ -323,7 +324,7 @@ export const SAMPLE_ITEMS: FoodItem[] = SEED_DEFS.map((s) => ({
   category: s.category,
   venue: s.venue,
   areaId: s.areaId,
-  campusId: 'ynu-chenggong',
+  campusId: DEFAULT_CITY_ID,
   priceMode: s.priceMode,
   price: s.price,
   spicy: s.spicy,

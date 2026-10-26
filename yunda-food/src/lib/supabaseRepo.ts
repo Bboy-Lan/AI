@@ -1,9 +1,14 @@
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js'
 import type {
   AuthorInfo,
+  AdminOverview,
+  AdminProfile,
+  AdminReview,
   FeedbackInput,
   FeedbackResult,
   FoodItem,
+  MyProfileStatus,
+  MyReview,
   RepoError as RepoErrorType,
   RepoState,
   Review,
@@ -50,18 +55,33 @@ function mapItem(row: Row): FoodItem {
     description: str(row.description),
     image: (row.image as string | null) ?? null,
     source: 'user',
-    status: 'published',
+    status: (row.status as FoodItem['status']) ?? 'published',
     submittedAt: str(row.submitted_at),
     priceUpdatedAt: (row.price_updated_at as string | null) ?? null,
     author,
     ratingCount: Number(row.rating_count ?? 0),
     ratingAvg: row.rating_avg == null ? null : Number(row.rating_avg),
-    hasCoords: false,
+    favoriteCount: Number(row.favorite_count ?? 0),
+    verification: {
+      status: row.verification_status === 'verified' ? 'verified' : 'pending',
+      positive: Number(row.verification_positive_count ?? 0),
+      negative: Number(row.verification_negative_count ?? 0),
+      total: Number(row.verification_rating_count ?? 0),
+    },
+    placeId: (row.place_id as string | null) ?? null,
+    placeKey: (row.place_key as string | null) ?? null,
+    latitude: row.lat == null ? null : Number(row.lat),
+    longitude: row.lng == null ? null : Number(row.lng),
+    addressSummary: (row.address_summary as string | null) ?? null,
+    hiddenReason: (row.hidden_reason as string | null) ?? null,
+    hiddenAt: (row.hidden_at as string | null) ?? null,
   }
 }
 
 // 只选择展示列，owner 等内部列不请求
 const ITEM_COLUMNS =
+  'id,name,category,venue,area_id,campus_id,price_mode,price,spicy,sweet_salty,oil,staple,flavors,cuisine,description,image,source,status,submitted_at,price_updated_at,author_nickname,author_hometown,author_ate,author_ate_date,rating_count,rating_avg,favorite_count,verification_status,verification_positive_count,verification_negative_count,verification_rating_count,place_id,place_key,lat,lng,address_summary'
+const LEGACY_ITEM_COLUMNS =
   'id,name,category,venue,area_id,campus_id,price_mode,price,spicy,sweet_salty,oil,staple,flavors,cuisine,description,image,source,status,submitted_at,price_updated_at,author_nickname,author_hometown,author_ate,author_ate_date,rating_count,rating_avg'
 
 const REVIEW_COLUMNS = 'id,item_id,nickname,rating,text,ate_date,created_at'
@@ -71,6 +91,13 @@ function toRepoError(where: string, err: unknown): RepoErrorType {
   const anyErr = err as { message?: string; code?: string; status?: number; name?: string } | null
   const message = anyErr?.message ?? '未知网络错误'
   const code = anyErr?.code ?? String(anyErr?.status ?? '')
+
+  if (message === 'profile_restricted' || /profile_restricted/i.test(message)) {
+    return new RepoError('当前身份已被限制发布投稿和评论。请到“我的”查看处理说明；浏览、收藏和修改资料仍可使用。', 'profile_restricted', false)
+  }
+  if (message === 'location_outside_kunming' || /location_outside_kunming/i.test(message)) {
+    return new RepoError('投稿地点仅支持昆明市内的预设地点，请重新选择。', 'location_outside_kunming', false)
+  }
 
   // 资源没建 / schema 没更新
   if (code === '42P01' || /relation .* does not exist|Could not find the table/.test(message)) {
@@ -118,6 +145,7 @@ export class SupabaseRepo implements FoodRepository {
   private sessionPromise: Promise<Session | null> | null = null
   private checkedOnce = false
   private remoteCache: FoodItem[] | null = null
+  private hiddenSampleIds = new Set<string>()
   private inflightList: Promise<FoodItem[]> | null = null
   private requestVersion = 0
 
@@ -197,17 +225,27 @@ export class SupabaseRepo implements FoodRepository {
   }
 
   private async fetchRemote(version: number): Promise<FoodItem[]> {
-    const { data, error } = await this.db
+    // 每轮同步先探测完整 schema：数据库迁移完成后，已打开的旧会话也会
+    // 自动恢复核验/想吃字段，而不必要求用户手动硬刷新。
+    const initial = await this.db
       .from('food_items')
       .select(ITEM_COLUMNS)
       .eq('status', 'published')
       .order('submitted_at', { ascending: false })
+    let data = initial.data as unknown as Row[] | null
+    let error = initial.error
+    // v3 尚未执行时，保留旧云端只读浏览，不把“新增字段不存在”伪装成无数据。
+    if (error && /favorite_count|verification_status|place_key|does not exist|schema cache/i.test(error.message ?? '')) {
+      const retry = await this.db.from('food_items').select(LEGACY_ITEM_COLUMNS).eq('status', 'published').order('submitted_at', { ascending: false })
+      data = retry.data as unknown as Row[] | null
+      error = retry.error
+    }
     if (error) {
       const re = toRepoError('读取投稿', error)
       if (version === this.requestVersion) this.setState('offline', re.message)
       throw re
     }
-    const remote = (data ?? []).map((r) => mapItem(r as Row))
+    const remote = (data ?? []).map((r) => mapItem(r))
     if (version === this.requestVersion) {
       this.setState('online')
       this.remoteCache = remote
@@ -215,21 +253,34 @@ export class SupabaseRepo implements FoodRepository {
     return remote
   }
 
+  private async visibleSamples(): Promise<FoodItem[]> {
+    try {
+      const { data, error } = await this.db.rpc('hidden_sample_ids')
+      if (error) throw error
+      this.hiddenSampleIds = new Set(Array.isArray(data) ? data.map(String) : [])
+    } catch {
+      // 管理员已隐藏过的示例不能因网络故障或迁移缺失重新露出。
+      // 远端状态无法确认时宁可暂不展示示例，也不回退到“全部可见”。
+      this.hiddenSampleIds = new Set(SAMPLE_ITEMS.map((item) => item.id))
+    }
+    return SAMPLE_ITEMS.filter((item) => !this.hiddenSampleIds.has(item.id))
+  }
+
   async listItems(): Promise<FoodItem[]> {
-    if (this.remoteCache) return [...this.remoteCache, ...SAMPLE_ITEMS]
-    if (this.inflightList) return this.inflightList.then((remote) => [...remote, ...SAMPLE_ITEMS])
+    if (this.remoteCache) return [...this.remoteCache, ...(await this.visibleSamples())]
+    if (this.inflightList) return this.inflightList.then(async (remote) => [...remote, ...(await this.visibleSamples())])
     const request = this.fetchRemote(++this.requestVersion)
     this.inflightList = request
     try {
       const remote = await request
-      return [...remote, ...SAMPLE_ITEMS]
+      return [...remote, ...(await this.visibleSamples())]
     } finally {
       if (this.inflightList === request) this.inflightList = null
     }
   }
   async refreshItems(): Promise<FoodItem[]> {
     const remote = await this.fetchRemote(++this.requestVersion)
-    return [...remote, ...SAMPLE_ITEMS]
+    return [...remote, ...(await this.visibleSamples())]
   }
 
   async listMyItems(): Promise<FoodItem[]> {
@@ -243,7 +294,7 @@ export class SupabaseRepo implements FoodRepository {
 
   async getItem(id: string): Promise<FoodItem | null> {
     if (SAMPLE_ITEMS.some((s) => s.id === id)) {
-      return SAMPLE_ITEMS.find((s) => s.id === id) ?? null
+      return (await this.visibleSamples()).find((s) => s.id === id) ?? null
     }
     if (!isUuidId(id)) return null
     // 优先用缓存，保证发布成功后立刻跳转详情时能看到最新数据
@@ -251,18 +302,25 @@ export class SupabaseRepo implements FoodRepository {
       const hit = this.remoteCache.find((i) => i.id === id)
       if (hit) return hit
     }
-    const { data, error } = await this.db
+    const initial = await this.db
       .from('food_items')
       .select(ITEM_COLUMNS)
       .eq('id', id)
       .maybeSingle()
+    let data = initial.data as unknown as Row | null
+    let error = initial.error
+    if (error && /favorite_count|verification_status|place_key|does not exist|schema cache/i.test(error.message ?? '')) {
+      const retry = await this.db.from('food_items').select(LEGACY_ITEM_COLUMNS).eq('id', id).maybeSingle()
+      data = retry.data as unknown as Row | null
+      error = retry.error
+    }
     if (error) throw toRepoError('读取详情', error)
-    return data ? mapItem(data as Row) : null
+    return data ? mapItem(data) : null
   }
 
   /** 上传到仅属于当前匿名身份的目录；服务端策略会再次校验路径与类型 */
-  private async uploadImage(uid: string, image: string): Promise<string> {
-    if (!image.startsWith('data:')) return image // 已是远程 URL（理论上当前投稿只产生 dataURL）
+  private async uploadImage(uid: string, image: string): Promise<{ url: string; path: string | null }> {
+    if (!image.startsWith('data:')) return { url: image, path: null } // 已是远程 URL（理论上当前投稿只产生 dataURL）
     const res = await fetch(image)
     const blob = await res.blob()
     if (!/^image\/(jpeg|png|webp)$/.test(blob.type)) {
@@ -280,11 +338,12 @@ export class SupabaseRepo implements FoodRepository {
     })
     if (upErr) throw toRepoError('图片上传', upErr)
     const { data } = this.db.storage.from('food-photos').getPublicUrl(path)
-    return data.publicUrl
+    return { url: data.publicUrl, path }
   }
 
   async submit(input: SubmissionInput): Promise<SubmissionResult> {
     let session: Session
+    let uploadedPath: string | null = null
     try {
       session = await this.ensureSession()
     } catch (e) {
@@ -297,9 +356,14 @@ export class SupabaseRepo implements FoodRepository {
     }
 
     try {
+      const moderation = await this.getMyProfileStatus()
+      if (moderation.restricted) {
+        throw new RepoError(`当前身份已被限制发布投稿${moderation.reason ? `：${moderation.reason}` : '。请到“我的”查看处理说明。'}`, 'profile_restricted', false)
+      }
       // 先传图，再写库：写库失败只会留下孤儿图片，不会产生无图/重复投稿
-      const imageUrl = input.image ? await this.uploadImage(session.user.id, input.image) : null
-      const { data, error } = await this.db.rpc('submit_food_item', {
+      const uploaded = input.image ? await this.uploadImage(session.user.id, input.image) : null
+      uploadedPath = uploaded?.path ?? null
+      const { data, error } = await this.db.rpc('submit_food_item_v3', {
         p_name: input.name,
         p_category: input.category,
         p_venue: input.venue,
@@ -312,13 +376,13 @@ export class SupabaseRepo implements FoodRepository {
         p_oil: input.oil,
         p_staple: input.staple ?? '',
         p_flavors: input.flavors,
-        p_cuisine: input.cuisine ?? '',
+        p_cuisine: '',
         p_description: input.description,
-        p_image: imageUrl ?? '',
-        p_nickname: input.author.nickname,
-        p_hometown: input.author.hometown ?? '',
-        p_ate: input.author.ate,
-        p_ate_date: input.author.ateDate ?? '',
+        p_image: uploaded?.url ?? '',
+        p_place_id: null,
+        p_lat: null,
+        p_lng: null,
+        p_address_summary: null,
       })
       if (error) throw toRepoError('投稿保存', error)
       const item = mapItem((data ?? {}) as Row)
@@ -328,6 +392,10 @@ export class SupabaseRepo implements FoodRepository {
       this.setState('online')
       return { ok: true, item, savedRemotely: true }
     } catch (e) {
+      if (uploadedPath) {
+        // 数据库写入失败时，回收本次刚上传且仍属于当前身份的图片，避免形成公开孤儿文件。
+        await this.db.storage.from('food-photos').remove([uploadedPath]).catch(() => undefined)
+      }
       const re = e instanceof RepoError ? e : toRepoError('投稿', e)
       if (this.state !== 'offline' && re.code === 'network') this.setState('offline', re.message)
       return {
@@ -340,6 +408,8 @@ export class SupabaseRepo implements FoodRepository {
   }
 
   async listReviews(itemId: string): Promise<Review[]> {
+    // 起始示例使用 s01/s02 等本地 ID，不属于云端 UUID 评论表；示例不提供真实评论。
+    if (SAMPLE_ITEMS.some((item) => item.id === itemId) || !isUuidId(itemId)) return []
     const { data, error } = await this.db
       .from('reviews')
       .select(REVIEW_COLUMNS)
@@ -367,13 +437,21 @@ export class SupabaseRepo implements FoodRepository {
     return Boolean(own)
   }
 
-  async getOwnReview(itemId: string): Promise<Review | null> {
+  async getOwnReview(itemId: string): Promise<MyReview | null> {
     if (!isUuidId(itemId)) return null
     const { data: sess } = await this.db.auth.getSession()
     if (!sess.session) return null
     const { data, error } = await this.db.rpc('my_review', { p_item_id: itemId })
     if (error) throw toRepoError('读取我的评分', error)
-    return data ? this.mapReview(data as Row) : null
+    if (!data) return null
+    const r = data as Row
+    return {
+      ...this.mapReview(r),
+      moderationStatus: r.moderation_status === 'hidden' ? 'hidden' : 'published',
+      moderationReason: (r.moderation_reason as string | null) ?? null,
+      itemStatus: r.item_status === 'hidden' ? 'hidden' : 'published',
+      itemName: str(r.item_name),
+    }
   }
 
   async addReview(input: Omit<Review, 'id' | 'createdAt'>): Promise<Review> {
@@ -381,9 +459,8 @@ export class SupabaseRepo implements FoodRepository {
       throw new RepoError('示例内容不能提交真实云端评分，它不是云大现场投稿。', 'sample_review', false)
     }
     await this.ensureSession()
-    const { data, error } = await this.db.rpc('submit_review', {
+    const { data, error } = await this.db.rpc('submit_review_v3', {
       p_item_id: input.itemId,
-      p_nickname: input.nickname,
       p_rating: input.rating,
       p_text: input.text,
       p_ate_date: input.ateDate,
@@ -406,5 +483,170 @@ export class SupabaseRepo implements FoodRepository {
     } catch (e) {
       throw toRepoError('反馈提交', e)
     }
+  }
+
+  async saveIdentity(input: { foodieId: string; hometown: string | null; defaultArea: string | null; tastes: Record<string, unknown> }): Promise<void> {
+    await this.ensureSession()
+    const { error } = await this.db.rpc('upsert_my_profile', {
+      p_foodie_id: input.foodieId,
+      p_hometown: input.hometown ?? '',
+      p_taste_preferences: input.tastes,
+      p_default_area_id: input.defaultArea ?? '',
+    })
+    if (error) throw toRepoError('保存吃货 ID', error)
+  }
+
+  async listFavoriteIds(): Promise<string[]> {
+    const { data: sess } = await this.db.auth.getSession()
+    if (!sess.session) return []
+    const { data, error } = await this.db.rpc('my_favorite_ids')
+    if (error) throw toRepoError('读取想吃清单', error)
+    return Array.isArray(data) ? data.map(String) : []
+  }
+
+  async toggleFavorite(itemId: string): Promise<boolean> {
+    await this.ensureSession()
+    const { data, error } = await this.db.rpc('toggle_favorite', { p_item_id: itemId })
+    if (error) throw toRepoError('更新想吃', error)
+    return Boolean((data as { saved?: boolean } | null)?.saved)
+  }
+
+  async listMyReviews(): Promise<MyReview[]> {
+    const { data: sess } = await this.db.auth.getSession()
+    if (!sess.session) return []
+    const { data, error } = await this.db.rpc('my_reviews')
+    if (error) throw toRepoError('读取我的评论', error)
+    return (Array.isArray(data) ? data : []).map((row) => {
+      const r = row as Row
+      return {
+        ...this.mapReview(r),
+        moderationStatus: r.moderation_status === 'hidden' ? 'hidden' : 'published',
+        moderationReason: (r.moderation_reason as string | null) ?? null,
+        itemStatus: r.item_status === 'hidden' ? 'hidden' : 'published',
+        itemName: str(r.item_name),
+      }
+    })
+  }
+
+  async getMyProfileStatus(): Promise<MyProfileStatus> {
+    const { data: sess } = await this.db.auth.getSession()
+    if (!sess.session) return { restricted: false }
+    const { data, error } = await this.db.rpc('my_profile')
+    if (error) throw toRepoError('读取我的账户状态', error)
+    const row = (data ?? {}) as Row
+    return {
+      restricted: row.moderation_status === 'restricted',
+      reason: (row.moderation_reason as string | null) ?? null,
+      moderatedAt: (row.moderated_at as string | null) ?? null,
+    }
+  }
+
+  async isAdmin(): Promise<boolean> {
+    const { data, error } = await this.db.rpc('is_admin')
+    if (error) throw toRepoError('核验管理员权限', error)
+    return data === true
+  }
+
+  async getCurrentUserId(): Promise<string | null> {
+    const { data } = await this.db.auth.getSession()
+    return data.session?.user.id ?? null
+  }
+
+  async listAdminItems(includeHidden: boolean): Promise<FoodItem[]> {
+    const { data, error } = await this.db.rpc('admin_list_items', { p_include_hidden: includeHidden })
+    if (error) throw toRepoError('读取内容管理列表', error)
+    return (Array.isArray(data) ? data : []).map((row) => mapItem(row as Row))
+  }
+
+  async setItemVisibility(input: { itemId: string; hidden: boolean; reason?: string }): Promise<void> {
+    const { error } = await this.db.rpc('admin_set_item_visibility', {
+      p_item_id: input.itemId,
+      p_hidden: input.hidden,
+      p_reason: input.reason?.trim() || null,
+    })
+    if (error) throw toRepoError(input.hidden ? '下架投稿' : '恢复投稿', error)
+  }
+
+
+  async getAdminOverview(): Promise<AdminOverview> {
+    const { data, error } = await this.db.rpc('admin_moderation_overview')
+    if (error) throw toRepoError('读取管理概览', error)
+    const row = (data ?? {}) as Row
+    return {
+      profileCount: Number(row.profile_count ?? 0),
+      publishedItemCount: Number(row.published_item_count ?? 0),
+      hiddenItemCount: Number(row.hidden_item_count ?? 0),
+      publishedReviewCount: Number(row.published_review_count ?? 0),
+      hiddenReviewCount: Number(row.hidden_review_count ?? 0),
+    }
+  }
+
+  async listAdminReviews(includeHidden: boolean): Promise<AdminReview[]> {
+    const { data, error } = await this.db.rpc('admin_list_reviews', { p_include_hidden: includeHidden })
+    if (error) throw toRepoError('读取评论审核列表', error)
+    return (Array.isArray(data) ? data : []).map((row) => {
+      const r = row as Row
+      return {
+        ...this.mapReview(r),
+        itemName: str(r.item_name),
+        moderationStatus: r.moderation_status === 'hidden' ? 'hidden' : 'published',
+        moderationReason: (r.moderation_reason as string | null) ?? null,
+      }
+    })
+  }
+
+  async setReviewVisibility(input: { reviewId: string; hidden: boolean; reason?: string }): Promise<void> {
+    const { error } = await this.db.rpc('admin_set_review_visibility', {
+      p_review_id: input.reviewId,
+      p_hidden: input.hidden,
+      p_reason: input.reason?.trim() || null,
+    })
+    if (error) throw toRepoError(input.hidden ? '隐藏评论' : '恢复评论', error)
+  }
+
+  async listAdminProfiles(): Promise<AdminProfile[]> {
+    const { data, error } = await this.db.rpc('admin_list_profiles')
+    if (error) throw toRepoError('读取用户群体', error)
+    return (Array.isArray(data) ? data : []).map((row) => {
+      const r = row as Row
+      return {
+        userId: str(r.user_id),
+        foodieId: str(r.foodie_id),
+        hometown: (r.hometown as string | null) ?? null,
+        defaultArea: (r.default_area_id as string | null) ?? null,
+        createdAt: str(r.created_at),
+        itemCount: Number(r.item_count ?? 0),
+        reviewCount: Number(r.review_count ?? 0),
+        restricted: r.moderation_status === 'restricted',
+        restrictionReason: (r.moderation_reason as string | null) ?? null,
+      }
+    })
+  }
+
+  async setProfileRestriction(input: { userId: string; restricted: boolean; reason?: string }): Promise<void> {
+    if (!isUuidId(input.userId)) throw new RepoError('用户身份格式不正确。', 'invalid_user', false)
+    const { error } = await this.db.rpc('admin_set_profile_restriction', {
+      p_user_id: input.userId,
+      p_restricted: input.restricted,
+      p_reason: input.reason?.trim() || null,
+    })
+    if (error) throw toRepoError(input.restricted ? '限制用户内容发布' : '解除用户限制', error)
+  }
+
+  async grantAdminDevice(userId: string): Promise<void> {
+    if (!isUuidId(userId)) throw new RepoError('匿名设备 ID 格式不正确。', 'invalid_user', false)
+    const { error } = await this.db.rpc('admin_grant_device', { p_user_id: userId })
+    if (error) throw toRepoError('授权管理员浏览器', error)
+  }
+
+  async listHiddenSampleIds(): Promise<string[]> {
+    const { data, error } = await this.db.rpc('hidden_sample_ids')
+    if (error) throw toRepoError('读取示例可见状态', error)
+    return Array.isArray(data) ? data.map(String) : []
+  }
+
+  async setSampleVisibility(input: { sampleId: string; hidden: boolean; reason?: string }): Promise<void> {
+    const { error } = await this.db.rpc('admin_set_sample_visibility', { p_sample_id: input.sampleId, p_hidden: input.hidden, p_reason: input.reason?.trim() || null })
+    if (error) throw toRepoError(input.hidden ? '隐藏示例' : '恢复示例', error)
   }
 }

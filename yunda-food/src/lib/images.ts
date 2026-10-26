@@ -3,7 +3,8 @@
 // 使用相对路径（无前导斜杠）：根路径部署与 GitHub Pages 子路径 /AI/ 下都能正确解析，
 // Hash 路由不会改变文档基础路径。
 
-export const HERO_IMAGE = 'samples/hero.jpg'
+// 用户提供并授权用于项目首页的云大钟楼与薰衣草实拍图。
+export const HERO_IMAGE = 'hero-lavender-clocktower.jpg'
 
 export function sampleImage(id: string): string {
   return `samples/${id}.jpg`
