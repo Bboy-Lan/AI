@@ -1,0 +1,7 @@
+import {useState,type FormEvent} from 'react'
+import {rpc} from '../services/cloud'
+export function ForumReport({target,id,version,onCancel,onDone}:{target:'topic'|'reply',id:string,version:number,onCancel:()=>void,onDone:(message:string)=>void}){
+ const [reason,setReason]=useState(''),[request,setRequest]=useState(()=>crypto.randomUUID()),[busy,setBusy]=useState(false),[error,setError]=useState('')
+ const submit=async(e:FormEvent)=>{e.preventDefault();if(reason.trim().length<2){setError('请填写至少2字的具体举报说明。');return}setBusy(true);setError('');try{const result=await rpc<{alreadyReported?:boolean}>('reportForum',{target,id,version,reason:reason.trim(),clientRequestId:request});onDone(result.alreadyReported?'你已举报过这个版本，处理结果会通过互动消息通知。':'举报已提交，处理结果会通过互动消息通知。')}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+ return <form className="card forum-report" onSubmit={submit}><h3>举报{target==='topic'?'话题':'楼层'}</h3><label>具体说明 <i>必填</i><textarea aria-label="讨论举报说明" value={reason} minLength={2} maxLength={300} required disabled={busy} onChange={e=>{setReason(e.target.value);setRequest(crypto.randomUUID())}} placeholder="请说明需要核实的内容和原因"/></label><p className="muted">会保留举报时的内容快照，仅管理员可查看举报信息。</p>{error&&<p role="alert" className="notice">{error}</p>}<div className="forum-inline-actions"><button type="button" className="button secondary" disabled={busy} onClick={onCancel}>取消举报</button><button className="button primary" disabled={busy}>{busy?'正在提交…':'提交讨论举报'}</button></div></form>
+}

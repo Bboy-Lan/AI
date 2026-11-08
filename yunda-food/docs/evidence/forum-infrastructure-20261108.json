@@ -1,0 +1,42 @@
+{
+  "environment": "cloud-yunda-d5gxrar1s14b2ee0d",
+  "collections": [
+    {
+      "name": "xsyj_forum_topics",
+      "created": true,
+      "acl": "ADMINONLY",
+      "indexes": 3
+    },
+    {
+      "name": "xsyj_forum_replies",
+      "created": true,
+      "acl": "ADMINONLY",
+      "indexes": 3
+    },
+    {
+      "name": "xsyj_forum_reports",
+      "created": true,
+      "acl": "ADMINONLY",
+      "indexes": 2
+    },
+    {
+      "name": "xsyj_forum_notifications",
+      "created": true,
+      "acl": "ADMINONLY",
+      "indexes": 2
+    },
+    {
+      "name": "xsyj_forum_meta",
+      "created": true,
+      "acl": "ADMINONLY",
+      "indexes": 0
+    },
+    {
+      "name": "xsyj_forum_audit",
+      "created": true,
+      "acl": "ADMINONLY",
+      "indexes": 1
+    }
+  ],
+  "otherCollectionsModified": false
+}

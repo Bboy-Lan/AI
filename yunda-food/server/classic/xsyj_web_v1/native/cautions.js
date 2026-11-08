@@ -6,7 +6,7 @@ module.exports = function createCautions({ db, fail, text, now, chinaDay, requir
     try { return (await store.collection(name).doc(id).get()).data }
     catch (error) { if (/not found|not exist|不存在|DOCUMENT_NOT_FOUND/i.test(error.message || error.errMsg || '')) return null; throw error }
   }
-  const write = (tx, name, id, data) => tx.collection(name).doc(id).set({ data })
+  const write = (tx, name, id, data) => { const { _id, ...fields } = data; return tx.collection(name).doc(id).set({ data: fields }) }
   const sequence = async tx => {
     const row = await doc(tx, C.meta, 'sequence'), value = Number(row && row.value || 0) + 1
     await write(tx, C.meta, 'sequence', { value }); return String(value).padStart(16, '0')
@@ -22,7 +22,7 @@ module.exports = function createCautions({ db, fail, text, now, chinaDay, requir
     if (!Array.isArray(input) || input.length > 3 || input.some(v => typeof v !== 'string' || v.length > 350 || !v.startsWith('cloud://') || !v.includes('/' + prefix(actor)) || v.includes('..'))) fail('请使用本人上传的照片，最多3张。')
     return [...new Set(input)]
   }
-  const clean = (value, min, max, label) => { const v = text(value, max + 1); if (v.length < min || v.length > max) fail(`${label}需${min}至${max}个字。`); assertSafeText(v, label); return v }
+  const clean = (value, min, max, label, quoting = false) => { const v = text(value, max + 1); if (v.length < min || v.length > max) fail(`${label}需${min}至${max}个字。`); if (!quoting) assertSafeText(v, label); return v }
   function content(actor, p) {
     const name = clean(p.name, 1, 50, '店铺名称'), address = clean(p.address, 2, 120, '文字地点'), body = clean(p.body, 10, 1000, '消费经历')
     const occurredOn = text(p.occurredOn, 10)
@@ -70,17 +70,17 @@ module.exports = function createCautions({ db, fail, text, now, chinaDay, requir
   }
   async function cautionSave(actor, p) {
     await requireProfile(actor); const data = content(actor, p), request = key(p.requestId)
-    const id = text(p.id, 100) || hash(actor, request), receipt = hash('save', actor, request)
+    const id = text(p.id, 100) || hash(actor, request), receipt = hash('save', actor, request), fingerprint = hash(id, data, p.version || 0)
     await db.runTransaction(async tx => {
       const done = await doc(tx, C.meta, receipt)
-      if (done) { if (done.postId !== id) fail('该提交标识已用于其他经历。'); return }
+      if (done) { if (done.postId !== id || done.fingerprint && done.fingerprint !== fingerprint) fail('提交标识与经历内容不一致，请保留输入并重新提交。'); return }
       const old = await doc(tx, C.posts, id)
       if (p.id && !old) fail('原经历不存在。')
       if (old && old.ownerOpenId !== actor) fail('只能编辑自己的消费经历。')
       if (old && Number(p.version) !== old.version) fail('经历已更新，请重新打开后编辑。')
       await quota(tx, actor, '经历提交', 3)
       await write(tx, C.posts, id, { ...old, ...data, ownerOpenId: actor, status: 'pending', reason: '', version: (old && old.version || 0) + 1, likeCount: old && old.likeCount || 0, sequence: old && old.sequence || await sequence(tx), createdAt: old && old.createdAt || now(), updatedAt: now() })
-      await write(tx, C.meta, receipt, { postId: id })
+      await write(tx, C.meta, receipt, { postId: id, fingerprint, ownerOpenId: actor })
     })
     return cautionGet(actor, { id })
   }
@@ -109,24 +109,24 @@ module.exports = function createCautions({ db, fail, text, now, chinaDay, requir
     })
   }
   async function cautionReport(actor, p) {
-    await requireProfile(actor); const reason = clean(p.reason, 2, 300, '举报说明'), type = 'post'
+    await requireProfile(actor); const reason = clean(p.reason, 2, 300, '举报说明', true), type = 'post'
     if (p.target && p.target !== 'post') fail('当前仅支持举报消费经历。')
     const id = hash(actor, key(p.requestId))
     return db.runTransaction(async tx => {
-      const old = await doc(tx, C.reports, id); if (old) return { id, status: old.status }
+      const old = await doc(tx, C.reports, id); if (old) { if (old.postId !== p.id || old.reason !== reason) fail('举报提交标识与内容不一致。'); return { id, status: old.status } }
       const target = await doc(tx, C.posts, text(p.id, 100))
       if (!target || target.status !== 'published') fail('该内容暂不可举报。')
       const parent = target
       if (!parent || parent.status !== 'published') fail('该经历暂不可举报。')
       await quota(tx, actor, '举报', 10)
-      await write(tx, C.reports, id, { ownerOpenId: actor, postId: parent._id, targetId: target._id, target: type, snapshot: { name: parent.name, body: target.body, address: parent.address, tags: target.tags || [], imageFileIds: target.imageFileIds || [], version: target.version, authorOpenId: target.ownerOpenId }, reason, status: 'pending', resolution: '', sequence: await sequence(tx), createdAt: now() })
+      await write(tx, C.reports, id, { ownerOpenId: actor, postId: parent._id, targetId: target._id, target: type, snapshot: { name: parent.name, body: target.body, address: parent.address, tags: target.tags || [], imageFileIds: target.imageFileIds || [], version: target.version, authorOpenId: target.ownerOpenId }, reason, status: 'pending', read: false, archived: false, resolution: '', sequence: await sequence(tx), createdAt: now() })
       return { id, status: 'pending' }
     })
   }
   async function cautionModerate(actor, p) {
     await requireAdmin(actor)
     if (p.target && !['post', 'report'].includes(p.target)) fail('不支持这类管理操作。')
-    const reason = clean(p.reason, 2, 120, '处理原因')
+    const reason = clean(p.reason, 2, 120, '处理原因', true)
     if (!['approve', 'reject', 'hide', 'restore', 'resolve'].includes(p.action)) fail('处理操作无效。')
     return db.runTransaction(async tx => {
       if (p.action === 'resolve') {
@@ -155,10 +155,10 @@ module.exports = function createCautions({ db, fail, text, now, chinaDay, requir
     const name = type === 'reports' ? C.reports : C.posts
     const status = type === 'reports' && p.status === 'resolved' ? 'resolved' : type === 'published' ? 'published' : type === 'hidden' ? 'hidden' : 'pending'
     const result = await page(name, { status }, p.after)
-    const rows = await Promise.all(result.rows.map(async r => {
+    const rows = await Promise.all(result.rows.filter(r => type !== 'reports' || !r.archived).map(async r => {
       if (type !== 'reports') return { ...await expose(r, actor), target: 'post' }
       const { authorOpenId, ...snapshot } = r.snapshot
-      return { id: r._id, postId: r.postId, targetId: r.targetId, target: r.target, reason: r.reason, resolution: r.resolution || '', snapshot, reportedAuthor: await author(authorOpenId), reporter: await author(r.ownerOpenId), createdAt: r.createdAt, status: r.status }
+      return { id: r._id, postId: r.postId, targetId: r.targetId, target: r.target, reason: r.reason, resolution: r.resolution || '', read: !!r.read, snapshot, reportedAuthor: await author(authorOpenId), reporter: await author(r.ownerOpenId), createdAt: r.createdAt, status: r.status }
     }))
     return { rows, next: result.next }
   }
@@ -179,12 +179,30 @@ module.exports = function createCautions({ db, fail, text, now, chinaDay, requir
       await tx.collection(C.messages).doc(row._id).update({ data: p.action === 'read' ? { read: true } : { archived: true } }); return { ok: true }
     })
   }
+  async function cautionReportAction(actor, p) {
+    await requireAdmin(actor)
+    if (!['read', 'delete', 'clear'].includes(p.action)) fail('举报操作无效。')
+    if (p.action === 'clear') {
+      let count = 0
+      for (;;) {
+        const rows = await db.collection(C.reports).where({ status: 'resolved', read: true, archived: db.command.neq(true) }).limit(100).get()
+        for (const row of rows.data) await db.collection(C.reports).doc(row._id).update({ data: { archived: true } })
+        count += rows.data.length; if (rows.data.length < 100) break
+      }
+      return { count }
+    }
+    return db.runTransaction(async tx => {
+      const row = await doc(tx, C.reports, text(p.id, 100)); if (!row) fail('举报不存在。')
+      if (p.action === 'delete' && row.status !== 'resolved') fail('请先记录举报处理结果，再清理记录。')
+      await tx.collection(C.reports).doc(row._id).update({ data: p.action === 'read' ? { read: true } : { archived: true } }); return { ok: true }
+    })
+  }
   async function cautionSummary(actor) {
     const unread = await db.collection(C.messages).where({ ownerOpenId: actor, read: false, archived: false }).count()
     let pendingCount = 0
     if (await adminFor(actor)) { const counts = await Promise.all([C.posts, C.reports].map(name => db.collection(name).where({ status: 'pending' }).count())); pendingCount = counts.reduce((sum, r) => sum + r.total, 0) }
     return { unreadCount: unread.total, pendingCount }
   }
-  return { cautionContext, cautionList, cautionGet, cautionSave, cautionWithdraw, cautionLike, cautionReport, cautionModerate, cautionQueue, cautionMessages, cautionMessageAction, cautionSummary }
+  return { cautionContext, cautionList, cautionGet, cautionSave, cautionWithdraw, cautionLike, cautionReport, cautionModerate, cautionQueue, cautionMessages, cautionMessageAction, cautionReportAction, cautionSummary }
 }
 

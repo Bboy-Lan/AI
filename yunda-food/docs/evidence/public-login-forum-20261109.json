@@ -1,0 +1,13 @@
+{
+  "checks": [
+    "公网实际账号密码登录成功，首次进入完善资料",
+    "头像未填不能保存",
+    "未完善资料也能浏览真实讨论",
+    "真实账号缺必填资料不能直接发帖",
+    "真实账号可正常退出"
+  ],
+  "profileWrites": 0,
+  "failure": "",
+  "temporaryAccountDeleted": true,
+  "credentialFileRemoved": true
+}

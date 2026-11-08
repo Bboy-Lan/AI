@@ -1,0 +1,319 @@
+{
+  "base": "http://127.0.0.1:5173/",
+  "checks": [
+    "长名称与价格完整展示 320",
+    "连续英文推荐正文可换行 320",
+    "长名称与价格完整展示 390",
+    "连续英文推荐正文可换行 390",
+    "长名称与价格完整展示 430",
+    "连续英文推荐正文可换行 430",
+    "长名称与价格完整展示 1440",
+    "连续英文推荐正文可换行 1440",
+    "公告原位编辑空间与无重复正文 320",
+    "公告原位编辑空间与无重复正文 390",
+    "公告原位编辑空间与无重复正文 1440",
+    "取消公告编辑保留原内容",
+    "演示公告保存后回到同一卡片阅读",
+    "反馈独立入口不混入消息分类",
+    "普通用户反馈与补充在本机刷新保留",
+    "反馈与回复连续英文完整换行 320",
+    "反馈与回复连续英文完整换行 390",
+    "反馈与回复连续英文完整换行 1440",
+    "互动消息保留自身分类入口",
+    "公告与互动消息入口分离",
+    "消息页反馈分类保留消息上下文",
+    "内外画布均无溢出且居中 320 me",
+    "内外画布均无溢出且居中 320 detail/demo-food-1",
+    "内外画布均无溢出且居中 320 feedback",
+    "内外画布均无溢出且居中 320 messages",
+    "内外画布均无溢出且居中 390 me",
+    "内外画布均无溢出且居中 390 detail/demo-food-1",
+    "内外画布均无溢出且居中 390 feedback",
+    "内外画布均无溢出且居中 390 messages",
+    "内外画布均无溢出且居中 1440 me",
+    "内外画布均无溢出且居中 1440 detail/demo-food-1",
+    "内外画布均无溢出且居中 1440 feedback",
+    "内外画布均无溢出且居中 1440 messages",
+    "内外画布均无溢出且居中 1920 me",
+    "内外画布均无溢出且居中 1920 detail/demo-food-1",
+    "内外画布均无溢出且居中 1920 feedback",
+    "内外画布均无溢出且居中 1920 messages",
+    "演示全程没有CloudBase请求",
+    "页面无运行时异常"
+  ],
+  "metrics": [
+    {
+      "kind": "detail-long-content",
+      "width": 320,
+      "row": {
+        "left": 36.333335876464844,
+        "right": 283.6666793823242,
+        "client": 247,
+        "scroll": 247
+      },
+      "title": {
+        "left": 36.333335876464844,
+        "right": 157.70833587646484,
+        "client": 121,
+        "scroll": 121
+      },
+      "price": {
+        "left": 167.70834350585938,
+        "right": 283.6666793823242,
+        "client": 116,
+        "scroll": 116
+      },
+      "copy": {
+        "left": 36.333335876464844,
+        "right": 283.6666793823242,
+        "client": 247,
+        "scroll": 247
+      }
+    },
+    {
+      "kind": "detail-long-content",
+      "width": 390,
+      "row": {
+        "left": 36.333335876464844,
+        "right": 353.6666793823242,
+        "client": 317,
+        "scroll": 317
+      },
+      "title": {
+        "left": 36.333335876464844,
+        "right": 227.70833587646484,
+        "client": 191,
+        "scroll": 191
+      },
+      "price": {
+        "left": 237.70834350585938,
+        "right": 353.6666793823242,
+        "client": 116,
+        "scroll": 116
+      },
+      "copy": {
+        "left": 36.333335876464844,
+        "right": 353.6666793823242,
+        "client": 317,
+        "scroll": 317
+      }
+    },
+    {
+      "kind": "detail-long-content",
+      "width": 430,
+      "row": {
+        "left": 36.333335876464844,
+        "right": 393.6666793823242,
+        "client": 357,
+        "scroll": 357
+      },
+      "title": {
+        "left": 36.333335876464844,
+        "right": 267.70833587646484,
+        "client": 231,
+        "scroll": 231
+      },
+      "price": {
+        "left": 277.7083435058594,
+        "right": 393.6666793823242,
+        "client": 116,
+        "scroll": 116
+      },
+      "copy": {
+        "left": 36.333335876464844,
+        "right": 393.6666793823242,
+        "client": 357,
+        "scroll": 357
+      }
+    },
+    {
+      "kind": "detail-long-content",
+      "width": 1440,
+      "row": {
+        "left": 541.3333740234375,
+        "right": 898.6667175292969,
+        "client": 357,
+        "scroll": 357
+      },
+      "title": {
+        "left": 541.3333740234375,
+        "right": 772.7083740234375,
+        "client": 231,
+        "scroll": 231
+      },
+      "price": {
+        "left": 782.7083740234375,
+        "right": 898.6667098999023,
+        "client": 116,
+        "scroll": 116
+      },
+      "copy": {
+        "left": 541.3333740234375,
+        "right": 898.6667175292969,
+        "client": 357,
+        "scroll": 357
+      }
+    },
+    {
+      "kind": "announcement",
+      "width": 320,
+      "height": 568,
+      "textareaHeight": 249.9166717529297,
+      "top": 16,
+      "bottom": 552,
+      "readingBodies": 0
+    },
+    {
+      "kind": "announcement",
+      "width": 390,
+      "height": 844,
+      "textareaHeight": 371.35418701171875,
+      "top": 76.13542175292969,
+      "bottom": 767.8541717529297,
+      "readingBodies": 0
+    },
+    {
+      "kind": "announcement",
+      "width": 1440,
+      "height": 900,
+      "textareaHeight": 380,
+      "top": 99.8125,
+      "bottom": 800.1771240234375,
+      "readingBodies": 0
+    },
+    {
+      "kind": "page",
+      "width": 320,
+      "route": "me",
+      "centerError": 0,
+      "documentOverflow": false,
+      "internalOverflow": false
+    },
+    {
+      "kind": "page",
+      "width": 320,
+      "route": "detail/demo-food-1",
+      "centerError": 0,
+      "documentOverflow": false,
+      "internalOverflow": false
+    },
+    {
+      "kind": "page",
+      "width": 320,
+      "route": "feedback",
+      "centerError": 0,
+      "documentOverflow": false,
+      "internalOverflow": false
+    },
+    {
+      "kind": "page",
+      "width": 320,
+      "route": "messages",
+      "centerError": 0,
+      "documentOverflow": false,
+      "internalOverflow": false
+    },
+    {
+      "kind": "page",
+      "width": 390,
+      "route": "me",
+      "centerError": 0,
+      "documentOverflow": false,
+      "internalOverflow": false
+    },
+    {
+      "kind": "page",
+      "width": 390,
+      "route": "detail/demo-food-1",
+      "centerError": 0,
+      "documentOverflow": false,
+      "internalOverflow": false
+    },
+    {
+      "kind": "page",
+      "width": 390,
+      "route": "feedback",
+      "centerError": 0,
+      "documentOverflow": false,
+      "internalOverflow": false
+    },
+    {
+      "kind": "page",
+      "width": 390,
+      "route": "messages",
+      "centerError": 0,
+      "documentOverflow": false,
+      "internalOverflow": false
+    },
+    {
+      "kind": "page",
+      "width": 1440,
+      "route": "me",
+      "centerError": 0,
+      "documentOverflow": false,
+      "internalOverflow": false
+    },
+    {
+      "kind": "page",
+      "width": 1440,
+      "route": "detail/demo-food-1",
+      "centerError": 0,
+      "documentOverflow": false,
+      "internalOverflow": false
+    },
+    {
+      "kind": "page",
+      "width": 1440,
+      "route": "feedback",
+      "centerError": 0,
+      "documentOverflow": false,
+      "internalOverflow": false
+    },
+    {
+      "kind": "page",
+      "width": 1440,
+      "route": "messages",
+      "centerError": 0,
+      "documentOverflow": false,
+      "internalOverflow": false
+    },
+    {
+      "kind": "page",
+      "width": 1920,
+      "route": "me",
+      "centerError": 0,
+      "documentOverflow": false,
+      "internalOverflow": false
+    },
+    {
+      "kind": "page",
+      "width": 1920,
+      "route": "detail/demo-food-1",
+      "centerError": 0,
+      "documentOverflow": false,
+      "internalOverflow": false
+    },
+    {
+      "kind": "page",
+      "width": 1920,
+      "route": "feedback",
+      "centerError": 0,
+      "documentOverflow": false,
+      "internalOverflow": false
+    },
+    {
+      "kind": "page",
+      "width": 1920,
+      "route": "messages",
+      "centerError": 0,
+      "documentOverflow": false,
+      "internalOverflow": false
+    }
+  ],
+  "errors": [],
+  "cloudCalls": [],
+  "screens": [
+    "D:/Desktop/小食云记-新网页版/docs/evidence/targeted-detail-long-content-20261108.png"
+  ],
+  "failure": ""
+}

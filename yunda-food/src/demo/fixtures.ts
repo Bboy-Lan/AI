@@ -6,7 +6,7 @@ export type DemoFood=Food&{owner_uid:string}
 export type DemoCaution=Caution&{owner_uid:string,sequence:string}
 export type DemoReview=Review&{owner_uid:string,status:'public'|'hidden'}
 export type DemoFeedback={id:string,owner_uid:string,kind:string,body:string,admin_read:boolean,user_read:boolean,admin_archived:boolean,user_archived:boolean,created_at:string,updated_at:string,appeal_status?:string,replies:{admin:boolean,body:string,createdAt:string}[]}
-export type DemoState={schema:1,actor:string,profiles:DemoProfile[],foods:DemoFood[],reviews:DemoReview[],cautions:DemoCaution[],feedback:DemoFeedback[],messages:any[],reports:any[],favorites:string[],liked:string[],announcement:{title:string,body:string,version:string,acknowledged:boolean},requests:Record<string,{payload:string,result:unknown}>}
+export type DemoState={schema:1,actor:string,profiles:DemoProfile[],foods:DemoFood[],reviews:DemoReview[],cautions:DemoCaution[],feedback:DemoFeedback[],messages:any[],reports:any[],favorites:string[],liked:string[],announcement:{title:string,body:string,version:string,acknowledged:boolean},requests:Record<string,{payload:string,result:unknown}>,forum?:any}
 export const DEMO_CASES=[{id:'admin',name:'多图与下架',description:'管理员 · 6条投稿、收藏、反馈对话与待审经历'},{id:'student',name:'投稿与互动',description:'普通同学 · 收藏、评价、反馈与审核状态'},{id:'empty',name:'空白状态',description:'管理员 · 无投稿、无反馈时的布局'}] as const
 export function createDemoState(scenario:DemoCase):DemoState{
  const actor=scenario==='empty'?'demo-empty':scenario==='admin'?'demo-admin':'demo-student'

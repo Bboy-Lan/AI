@@ -1,0 +1,138 @@
+{
+  "base": "http://127.0.0.1:5173/",
+  "checks": [
+    "资料顶部拉高且不溢出 320",
+    "图片入口加大且说明独立在下方 320",
+    "公告无右上角关闭键 320",
+    "Esc不绕过公告知晓 320",
+    "公告阅读面板完整无溢出 320",
+    "公告编辑区域更宽松 320",
+    "资料顶部拉高且不溢出 390",
+    "图片入口加大且说明独立在下方 390",
+    "公告无右上角关闭键 390",
+    "Esc不绕过公告知晓 390",
+    "公告阅读面板完整无溢出 390",
+    "公告编辑区域更宽松 390",
+    "资料顶部拉高且不溢出 1440",
+    "图片入口加大且说明独立在下方 1440",
+    "公告无右上角关闭键 1440",
+    "Esc不绕过公告知晓 1440",
+    "公告阅读面板完整无溢出 1440",
+    "公告编辑区域更宽松 1440",
+    "空名称地点价格不能发布",
+    "缺辣度不能发布",
+    "未确认亲自吃过不能发布",
+    "只填必要信息即可发布，无需照片理由地图",
+    "三张图片可添加且数量正确",
+    "照片仍可放大查看",
+    "缺昵称不能保存进入下一步",
+    "缺省市不能保存进入下一步",
+    "管理员保存后按六段清晰展示",
+    "演示验收不访问真实云端",
+    "无页面运行时错误"
+  ],
+  "metrics": [
+    {
+      "width": 320,
+      "profile": {
+        "height": 110,
+        "overflow": false
+      }
+    },
+    {
+      "width": 320,
+      "upload": {
+        "height": 88,
+        "width": 263.3333435058594,
+        "titleWrap": false,
+        "hintBelow": true,
+        "overflow": false
+      }
+    },
+    {
+      "width": 320,
+      "announcement": {
+        "top": 114.41667175292969,
+        "bottom": 729.5833587646484,
+        "width": 288,
+        "overflow": false
+      }
+    },
+    {
+      "width": 320,
+      "edit": {
+        "height": 371.35418701171875,
+        "lineHeight": "27.3px"
+      }
+    },
+    {
+      "width": 390,
+      "profile": {
+        "height": 110,
+        "overflow": false
+      }
+    },
+    {
+      "width": 390,
+      "upload": {
+        "height": 88,
+        "width": 327.3333435058594,
+        "titleWrap": false,
+        "hintBelow": true,
+        "overflow": false
+      }
+    },
+    {
+      "width": 390,
+      "announcement": {
+        "top": 110.41667175292969,
+        "bottom": 733.5833587646484,
+        "width": 358,
+        "overflow": false
+      }
+    },
+    {
+      "width": 390,
+      "edit": {
+        "height": 371.35418701171875,
+        "lineHeight": "27.3px"
+      }
+    },
+    {
+      "width": 1440,
+      "profile": {
+        "height": 110,
+        "overflow": false
+      }
+    },
+    {
+      "width": 1440,
+      "upload": {
+        "height": 88,
+        "width": 367.3333435058594,
+        "titleWrap": false,
+        "hintBelow": true,
+        "overflow": false
+      }
+    },
+    {
+      "width": 1440,
+      "announcement": {
+        "top": 110.41667175292969,
+        "bottom": 733.5833587646484,
+        "width": 414,
+        "overflow": false
+      }
+    },
+    {
+      "width": 1440,
+      "edit": {
+        "height": 371.35418701171875,
+        "lineHeight": "27.3px"
+      }
+    }
+  ],
+  "errors": [],
+  "cloudCalls": [],
+  "failure": ""
+}
