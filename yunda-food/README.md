@@ -2,7 +2,7 @@
 
 [公开测试](https://bboy-lan.github.io/AI/) · [CloudBase入口](https://cloud-ynnu-d6gs8ekf7dbcbe80e-1517920911.tcloudbaseapp.com/)
 
-React + TypeScript + Vite。当前后端采用CloudBase传统文档数据库及xsyj_web_v1函数；已替换本目录原Supabase旧版实现。游客可浏览、筛选和开盲盒；邮箱注册验证后可完善资料、投稿、评价和反馈。管理员权限由服务端独立xsyj_admins授权，不能由前端自选。三组demo参数仅在本浏览器模拟，不写真实库。
+React + TypeScript + Vite。当前后端采用CloudBase传统文档数据库及xsyj_web_v1函数；已替换本目录原Supabase旧版实现。游客可浏览、筛选和开盲盒；邮箱注册验证后先完善昵称、头像和家乡省市，再进行投稿等操作。口味和预算可稍后选填。推荐发布必须填写名称、类别、具体地点、价格口径、辣度或甜度，并确认亲自吃过；照片、理由、地图和地点补充可留空。缺少必填项时前端拦截，服务端保留独立校验。公告通过“我已知晓”关闭，管理员可原位编辑。管理员权限由服务端独立xsyj_admins授权，不能由前端自选。三组demo参数仅在本浏览器模拟，不写真实库。
 
 ## 本地运行
 

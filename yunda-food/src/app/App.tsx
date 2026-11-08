@@ -1,3 +1,4 @@
+import {announcementKeyboard} from '../platform/announcement-dialog'
 import {DemoControls} from '../components/DemoControls'
 import {BackButton} from '../components/BackButton'
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react'
@@ -50,9 +51,9 @@ function TabBar({ active }: { active: string }) { const tabs = [
 
 function AnnouncementModal({open,setOpen}:{open:boolean,setOpen:(value:boolean)=>void}) {
   const [acknowledged,setAcknowledged]=useState(()=>localStorage.getItem('xiaoshiyunji-web:announcement:v1')==='ack')
-  useEffect(()=>{if(!open)return;const previous=document.body.style.overflow;document.body.style.overflow='hidden';const escape=(e:KeyboardEvent)=>{if(e.key==='Escape')setOpen(false)};addEventListener('keydown',escape);return()=>{document.body.style.overflow=previous;removeEventListener('keydown',escape)}},[open])
+  useEffect(()=>{if(!open)return;const previous=document.body.style.overflow;document.body.style.overflow='hidden';const escape=announcementKeyboard;addEventListener('keydown',escape);return()=>{document.body.style.overflow=previous;removeEventListener('keydown',escape)}},[open])
   if(!open)return null
-  return <div className="announcement-overlay is-open" role="dialog" aria-modal="true" aria-label="公告"><div className="announcement-mask" onClick={()=>setOpen(false)}/><section className="announcement-modal-card"><div className="announcement-heading"><span>公告 · 使用须知</span><button autoFocus aria-label="关闭公告" onClick={()=>setOpen(false)}>×</button></div><h2>小食云记使用说明</h2><p className="announcement-date">2026-11-05 更新</p><div className="announcement-modal-body"><p>欢迎浏览同学们的实吃推荐。价格和地点以现场为准，请理性参考。</p><p>首次浏览、筛选、查看详情和开盲盒不需要完善资料；发布、评价和反馈时才按需完善资料。</p><p>树洞仅收录黑榜消费经历，不提供留言、讨论或聊天。请描述具体时间、地点和事实。</p></div><button className="announcement-ack" onClick={()=>{localStorage.setItem('xiaoshiyunji-web:announcement:v1','ack');setAcknowledged(true);setOpen(false)}}>{acknowledged?'已知晓':'我已知晓！'}</button></section></div>
+  return <div className="announcement-overlay is-open" role="dialog" aria-modal="true" aria-label="公告"><div className="announcement-mask"/><section className="announcement-modal-card"><div className="announcement-heading"><span>公告 · 使用须知</span></div><h2>小食云记使用说明</h2><p className="announcement-date">2026-11-05 更新</p><div className="announcement-modal-body"><p>欢迎浏览同学们的实吃推荐。价格和地点以现场为准，请理性参考。</p><p>首次浏览、筛选、查看详情和开盲盒不需要完善资料；发布、评价和反馈时才按需完善资料。</p><p>树洞仅收录黑榜消费经历，不提供留言、讨论或聊天。请描述具体时间、地点和事实。</p></div><button className="announcement-ack" autoFocus onClick={()=>{localStorage.setItem('xiaoshiyunji-web:announcement:v1','ack');setAcknowledged(true);setOpen(false)}}>{acknowledged?'已知晓':'我已知晓！'}</button></section></div>
 }
 function PublishFab({ tree = false }) { return <button className={tree ? 'publish-fab danger' : 'publish-fab'} onClick={() => go(tree ? '/tree-compose' : '/publish')}><img src="/assets/icons/ticket-white.svg" />{tree ? '写消费经历' : '发布推荐'}</button> }
 function Chip({ active, children, onClick }: { active?: boolean, children: React.ReactNode, onClick: () => void }) { return <button type="button" className={active ? 'chip active' : 'chip'} onClick={onClick}>{children}</button> }
