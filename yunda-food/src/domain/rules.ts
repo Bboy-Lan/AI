@@ -1,4 +1,4 @@
-export const SPICY = ['正常', '不辣', '微辣', '中辣', '很辣'] as const
+export const SPICY = ['正常', '不辣', '微辣', '中辣', '爆辣'] as const
 export const SWEET = ['正常', '无糖', '少糖', '较甜'] as const
 export const BUDGET_MODES = { per_person: { min: 5, max: 100, step: 5, initial: 30 }, total: { min: 50, max: 300, step: 10, initial: 50 } } as const
 export type BudgetMode = keyof typeof BUDGET_MODES

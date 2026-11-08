@@ -3,7 +3,7 @@
 import {same,label} from './hometown'
 import type {Food} from '../services/local-repository'
 export const CATEGORIES=['全部','正餐','小吃','饮品','甜品']
-export const SPICY_LABELS=['不辣','微辣','中辣','很辣']
+export const SPICY_LABELS=['不辣','微辣','中辣','爆辣']
 export const SWEET_LABELS=['无糖或不甜','少甜','正常甜','偏甜']
 export const TAG_OPTIONS=['正常','清淡','偏咸','偏甜','香辣']
 export const READABLE_TAGS=[...TAG_OPTIONS,'酸香','麻香']
@@ -22,7 +22,8 @@ export function preferences(owner:string|null,hometown=''):Preferences{
 export function savePreferences(owner:string|null,value:Preferences){localStorage.setItem('xsyj-preferences:'+(owner||'guest'),JSON.stringify(value))}
 export function normalize(food:Food){
  const taste=food.taste||{},drink=isDrink(food.category)
- const spicy=drink?null:level(taste.spicy??(SPICY_LABELS.includes(food.spicy||'')?SPICY_LABELS.indexOf(food.spicy!):null))
+ const spicyLabel=food.spicy==='很辣'?'爆辣':food.spicy||''
+ const spicy=drink?null:level(taste.spicy??(SPICY_LABELS.includes(spicyLabel)?SPICY_LABELS.indexOf(spicyLabel):null))
  const legacySweet:Record<string,number>={'无糖':0,'少糖':1,'较甜':3}
  const sweet=drink?level(taste.sweet??legacySweet[food.sweet||'']):null
  const tags=Array.isArray(taste.tags)?taste.tags.filter(t=>READABLE_TAGS.includes(t)).slice(0,2):food.tags.filter(t=>READABLE_TAGS.includes(t)).slice(0,2)

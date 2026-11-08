@@ -22,7 +22,18 @@ test('发现页和盲盒：同输入对照原小程序筛选、严格口味、�
   assert.deepEqual(got.map(f=>[f.id,f.orderScore,f.reasons]),want.map((f:any)=>[f.id,f.orderScore,f.reasons]));checked++
  }
  assert.equal(checked,432)
- for(let i=0;i<foods.length;i++){const got=normalize(foods[i]),want=plain(original.normalize(rows[i]));assert.deepEqual(got.taste,want.taste);assert.equal(got.tasteText,want.tasteText)}
+ // User-requested display wording differs; numeric levels and filtering remain identical.
+ for(let i=0;i<foods.length;i++){const got=normalize(foods[i]),want=plain(original.normalize(rows[i]));assert.deepEqual(got.taste,want.taste);assert.equal(got.tasteText,want.tasteText.replaceAll('很辣','爆辣'))}
+})
+
+test('爆辣保留原最高辣度3，并兼容已保存的很辣文字',()=>{
+ const food:Food={id:'legacy-hot',name:'米线',category:'正餐',locationType:'inside',spicy:'很辣',tags:[],images:[],author:'同学',hometown:'云南省昆明市',placeText:'窗口',status:'public'}
+ for(const item of [food,{...food,spicy:'爆辣'},{...food,spicy:undefined,taste:{spicy:3}}]){
+  assert.equal(normalize(item).taste.spicy,3)
+  assert.equal(normalize(item).tasteText,'爆辣')
+  assert.deepEqual(filterItems([item],{spicy:3}).map(f=>f.id),['legacy-hot'])
+  assert.equal(filterItems([item],{spicy:2}).length,0)
+ }
 })
 test('投稿口味互斥、北京时间日期、消息回复排序和清理条件与源一致',()=>{
  const tags=source('taste-tags'),presentation=source('detail-presentation'),order=source('message-order')
