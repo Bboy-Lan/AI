@@ -1,0 +1,5 @@
+{
+ "envId":"cloud-yunda-d5gxrar1s14b2ee0d",
+ "functionRoot":"server/classic",
+ "functions":[{"name":"xsyj_web_v1","runtime":"Nodejs20.19","handler":"index.main","timeout":60,"memorySize":256,"installDependency":true}]
+}

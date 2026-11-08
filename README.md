@@ -1,13 +1,5 @@
-# 云大饭搭子
+# 小食云记
 
-面向云南大学呈贡校区学生的手机优先 H5：按口味找吃的、开条件盲盒、发布同学推荐，并通过匿名登录实现跨设备投稿、图片与评分评论共享。
+[所有人可访问的测试网站](https://bboy-lan.github.io/AI/) · [备用入口](https://cloud-ynnu-d6gs8ekf7dbcbe80e-1517920911.tcloudbaseapp.com/) · [最新源码与运行说明](yunda-food/README.md)
 
-- 公网演示：<https://bboy-lan.github.io/AI/>
-- 源码与运行说明：[yunda-food/README.md](./yunda-food/README.md)
-- 技术栈：React、Vite、TypeScript、Supabase（匿名登录、Postgres、Storage）
-
-```powershell
-cd yunda-food
-npm install
-npm run dev
-```
+当前源码在yunda-food/，React/TypeScript/Vite + CloudBase文档数据库。已替换此前Supabase旧网页版，保留Git历史。游客可浏览，普通用户可邮箱注册登录并参与测试；管理员由后端授权。demo示例只保存在本机。真实数据和私有备份不在仓库中。

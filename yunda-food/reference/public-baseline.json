@@ -1,0 +1,8 @@
+{
+  "reference/miniapp/miniprogram/services/detail-presentation.js": "0b3799cabc3f17430c0e61665218e4d3caf7d65fe911cf59344b93d87cd80903",
+  "reference/miniapp/miniprogram/services/discovery.js": "59739b0f5ed5d9a0a46ec00c53ab1e1c64389d99091c47d0fe51b383e978683e",
+  "reference/miniapp/miniprogram/services/hometown.js": "c7d071e82700a8b47c077b7737e3fdc6cbbeb06fba9d64535bc289da789715d2",
+  "reference/miniapp/miniprogram/services/location.js": "bc43d407573e5aa9a38cbcec548d1c352c63838a39bf3c5dd6534ffb37dcac94",
+  "reference/miniapp/miniprogram/services/message-order.js": "8368fb820130080f869c266238a1b1f9c9016966b193ed9db4c19c6d7835a06a",
+  "reference/miniapp/miniprogram/services/taste-tags.js": "3724a70e01fe6e2af38287be3b48c70d018b77ee62ce30a5e2abb565bfb09060"
+}
