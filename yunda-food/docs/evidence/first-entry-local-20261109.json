@@ -1,0 +1,33 @@
+{
+  "base": "http://127.0.0.1:5173/",
+  "checks": [
+    "全新桌面阻断云端仍显示注册页",
+    "首次注册入口不发起匿名登录和云数据库请求 false",
+    "注册首屏不下载大型认证SDK false",
+    "缺账号密码不进入注册 false",
+    "空注册表单没有发送请求 false",
+    "新用户可切换已有账号登录 false",
+    "首次入口无运行时错误 false",
+    "全新微信UA模拟阻断云端仍显示注册页",
+    "首次注册入口不发起匿名登录和云数据库请求 true",
+    "注册首屏不下载大型认证SDK true",
+    "缺账号密码不进入注册 true",
+    "空注册表单没有发送请求 true",
+    "新用户可切换已有账号登录 true",
+    "首次入口无运行时错误 true",
+    "脚本下载失败显示可理解的静态提示",
+    "资源下载失败有可用重试按钮而非永久白屏"
+  ],
+  "metrics": [
+    {
+      "mode": "desktop",
+      "milliseconds": 260
+    },
+    {
+      "mode": "simulated-wechat-android",
+      "milliseconds": 255
+    }
+  ],
+  "cloudBlocked": true,
+  "realWeChatDevice": false
+}

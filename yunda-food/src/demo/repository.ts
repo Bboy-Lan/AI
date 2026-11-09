@@ -1,9 +1,10 @@
+import {demoNotices} from './notices'
 import {demoModeration,fillReviewCase,REVIEW_ACTIONS,REVIEW_READS} from './moderation'
 import {demoForum,FORUM_ACTIONS,FORUM_READS} from './forum'
 import {createDemoState,type DemoCase,type DemoState,type DemoFood,type DemoCaution} from './fixtures'
-const READ_ACTIONS=new Set([...REVIEW_READS,...FORUM_READS,'context','foods','food','myFoods','myFavorites','myReviews','reviews','cautions','caution','announcement','notificationSummary','publicProfile','adminProfileDetail','messages','feedback','myAppeals','adminFeedback','adminAppeals','adminFoods','adminReviews','adminProfiles','adminCautions','adminReports'])
+const READ_ACTIONS=new Set([...REVIEW_READS,...FORUM_READS,'context','foods','food','myFoods','myFavorites','myReviews','reviews','cautions','caution','announcements','adminNotices','announcement','notificationSummary','publicProfile','adminProfileDetail','messages','feedback','myAppeals','adminFeedback','adminAppeals','adminFoods','adminReviews','adminProfiles','adminCautions','adminReports'])
 function validateFood(p:any){
- if(!p.name?.trim()||p.name.length>60||!p.venue?.trim()||p.venue.length>80||!(p.price>0&&p.price<1000)||!p.authorAte)throw Error('请填写名称、地点、有效价格并确认亲自吃过。')
+ if(!p.name?.trim()||p.name.length>60||!p.venue?.trim()||p.venue.length>80||!Number.isInteger(p.price)||!(p.price>=1&&p.price<=999)||!p.authorAte)throw Error('请填写名称、地点、有效价格并确认亲自吃过。')
  if(!['正餐','小吃','饮品','甜品'].includes(p.category)||!['inside','outside'].includes(p.locationType)||!['portion','person'].includes(p.priceBasis))throw Error('请选择类别、地点类型和价格口径。')
  const drink=['饮品','甜品'].includes(p.category),taste=p.taste||{},level=drink?taste.sweet:taste.spicy
  if(!Number.isInteger(level)||level<0||level>3)throw Error('请选择明确的'+(drink?'甜度':'辣度')+'。')
@@ -25,6 +26,7 @@ export function createDemoRepository(initial:DemoState,onChange:(value:DemoState
  function execute(action:string,p:any):any{
   const target=p.id||p.foodId
   if(action.startsWith('admin'))admin()
+  if(['announcements','adminNotices','ackNotice','ackAnnouncement','adminSaveNotice'].includes(action))return demoNotices(state,action,p)
   if(REVIEW_ACTIONS.has(action)){demoForum(state,'forumTopics',{});return demoModeration(state,action,p)}
   if(FORUM_ACTIONS.has(action))return demoForum(state,action,p)
   switch(action){
@@ -77,7 +79,7 @@ export function createDemoRepository(initial:DemoState,onChange:(value:DemoState
  }
  return {snapshot:()=>structuredClone(state),rpc<T=unknown>(action:string,payload:Record<string,any>={}):T{
   const request=payload.clientRequestId||payload.requestId,key=request?state.actor+':'+action+':'+request:'';const serialized=JSON.stringify(payload)
-  const idempotent=['editForumReply','adminReviewApply','adminReviewBatch','saveForumTopic','saveForumReply','reportForum','adminForumStatus','adminForumResolve','saveFood','saveCaution','saveFeedback','saveAppeal','replyFeedback','reportCaution','saveIssue','updateFoodLocation'].includes(action)
+  const idempotent=['adminSaveNotice','editForumReply','adminReviewApply','adminReviewBatch','saveForumTopic','saveForumReply','reportForum','adminForumStatus','adminForumResolve','saveFood','saveCaution','saveFeedback','saveAppeal','replyFeedback','reportCaution','saveIssue','updateFoodLocation'].includes(action)
   if(idempotent&&key&&state.requests[key]){if(state.requests[key].payload!==serialized)throw Error('提交编号与内容不匹配。');return structuredClone(state.requests[key].result) as T}
   const previous=structuredClone(state)
   try{const result=execute(action,payload);if(idempotent&&key)state.requests[key]={payload:serialized,result:structuredClone(result)};if(!READ_ACTIONS.has(action))onChange(state);return structuredClone(result) as T}catch(error){state=previous;throw error}

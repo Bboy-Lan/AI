@@ -1,0 +1,14 @@
+import type {DemoState} from './fixtures'
+import {pendingNotices,type Notice} from '../domain/notices'
+export function demoNotices(state:DemoState,action:string,p:any){
+ const admin=!!state.profiles.find(r=>r.uid===state.actor)?.isAdmin,all=state.notices||(state.notices=[{id:'basic',kind:'basic',title:state.announcement.title,body:state.announcement.body,version:state.announcement.version,active:true,popupEnabled:true,acknowledged:state.announcement.acknowledged}]),acks=state.noticeAcks||(state.noticeAcks={}),key=(n:any)=>state.actor+':'+n.id+':'+(n.popupVersion||n.version),visible=(n:Notice)=>n.kind==='basic'||n.active&&(!n.startsAt||Date.parse(n.startsAt)<=Date.now())&&(!n.endsAt||Date.parse(n.endsAt)>Date.now()),rows=()=>all.map(n=>({...n,acknowledged:!!acks[key(n)]||n.kind==='basic'&&state.announcement.acknowledged&&!n.popupVersion}));
+ if(action==='announcements')return rows().filter(visible)
+ if(action==='adminNotices'){if(!admin)throw Error('无管理员权限');return rows()}
+ if(action==='ackNotice'||action==='ackAnnouncement'){const n=all.find(n=>n.id===(p.id||'basic'));if(!n||!visible(n))throw Error('公告未发布或已过期。');if(n.version!==p.version)throw Error('公告已有更新。');acks[key(n)]=true;if(n.kind==='basic')state.announcement.acknowledged=true;return {acknowledged:true}}
+ if(!admin)throw Error('无管理员权限')
+ if(action==='adminSaveNotice'){const old=all.find(n=>n.id===p.id),basic=p.id==='basic';if(p.id&&!old)throw Error('原公告不存在。');if(old&&p.baseVersion!==old.version)throw Error('公告已有新版本。');const title=String(p.title||'').trim(),body=String(p.body||'').trim();if(!title||title.length>(basic?20:40)||body.length<10||body.length>(basic?260:2000))throw Error('请检查公告标题和正文长度。');if(typeof p.notifyAgain!=='boolean'||!basic&&(typeof p.active!=='boolean'||typeof p.popupEnabled!=='boolean'))throw Error('请选择发布和弹窗规则。');if(p.active&&p.endsAt&&Date.parse(p.endsAt)<=Date.parse(p.startsAt||new Date().toISOString()))throw Error('截止时间必须晚于开始时间和当前时间。');const version=crypto.randomUUID(),popupVersion=!old||p.notifyAgain?version:(old as any).popupVersion||old.version;
+ // Preserve already-read users when editing without a new popup generation.
+ if(old?.kind==='basic'&&!p.notifyAgain&&state.announcement.acknowledged)acks[state.actor+':basic:'+popupVersion]=true;
+ const row={...old,...p,id:p.id||'notice_'+crypto.randomUUID().replaceAll('-',''),kind:basic?'basic':'notice',active:basic||p.active,popupEnabled:basic||p.popupEnabled,version,popupVersion,createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()} as Notice;state.notices=[...all.filter(n=>n.id!==row.id),row];if(basic)state.announcement={title,body,version,acknowledged:!!acks[key(row)]};return {id:row.id,version}}
+ throw Error('不支持公告操作。')
+}

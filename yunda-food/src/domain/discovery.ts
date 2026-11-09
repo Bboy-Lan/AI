@@ -1,3 +1,4 @@
+import {integerPrice} from './price-step'
 // Ported from the frozen mini-program services/discovery.js and detail-presentation.js.
 // Web persistence and the SQL field names are adapted at this boundary only.
 import {same,label} from './hometown'
@@ -29,7 +30,7 @@ export function normalize(food:Food){
  const tags=Array.isArray(taste.tags)?taste.tags.filter(t=>READABLE_TAGS.includes(t)).slice(0,2):food.tags.filter(t=>READABLE_TAGS.includes(t)).slice(0,2)
  const price=numeric(food.price)
  const places=food.locationType==='inside'?[food.school,food.campus,food.venue]:[food.region,food.venue,food.addressSummary]
- return {...food,price:price??undefined,taste:{spicy,sweet,tags,staple:taste.staple||'',temperature:taste.temperature||''},placeText:places.filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ')||food.placeText||'地点未标注',tasteText:[spicy==null?'':SPICY_LABELS[spicy],sweet==null?'':SWEET_LABELS[sweet],...tags,taste.temperature].filter(Boolean).join(' · ')||'口味未标注'}
+ return {...food,price:integerPrice(price??undefined),taste:{spicy,sweet,tags,staple:taste.staple||'',temperature:taste.temperature||''},placeText:places.filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ')||food.placeText||'地点未标注',tasteText:[spicy==null?'':SPICY_LABELS[spicy],sweet==null?'':SWEET_LABELS[sweet],...tags,taste.temperature].filter(Boolean).join(' · ')||'口味未标注'}
 }
 export function filterItems(items:Food[],filters:Filters={},prefs:Partial<Preferences>={}){
  const words=String(filters.keyword||'').trim().toLowerCase(),budget=numeric(filters.budget),people=Number(filters.people)>0?Number(filters.people):1

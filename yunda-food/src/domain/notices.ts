@@ -1,0 +1,2 @@
+export type Notice={id:string,kind:'basic'|'notice',version:string,popupVersion?:string,title:string,body:string,popupEnabled:boolean,active:boolean,acknowledged:boolean,startsAt?:string,endsAt?:string,createdAt?:string,updatedAt?:string}
+export function pendingNotices(rows:Notice[],date=Date.now()){return rows.filter(n=>n.active&&n.popupEnabled&&!n.acknowledged&&(!n.startsAt||Date.parse(n.startsAt)<=date)&&(!n.endsAt||Date.parse(n.endsAt)>date)).sort((a,b)=>Number(b.kind==='basic')-Number(a.kind==='basic')||String(a.createdAt).localeCompare(String(b.createdAt)))}

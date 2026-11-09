@@ -12,7 +12,7 @@ test('推荐必填项缺少任一项均拦截，照片理由地图和地点补�
  const food:Partial<Food>={name:'米线',category:'正餐',locationType:'inside',venue:'楠苑一楼米线窗口',price:12,priceBasis:'portion',taste:{spicy:0},authorAte:true}
  assert.equal(foodRequiredError(food),'')
  for(const key of ['name','category','locationType','venue','price','priceBasis','taste','authorAte'])assert.notEqual(foodRequiredError({...food,[key]:undefined}),'',key)
- for(const price of [0,-1,1000,NaN])assert.notEqual(foodRequiredError({...food,price}),'')
+ for(const price of [0,-1,1000,NaN,15.12,.5])assert.notEqual(foodRequiredError({...food,price}),'')
  assert.notEqual(foodRequiredError({...food,category:'饮品',taste:{spicy:1}}),'')
  assert.equal(foodRequiredError({...food,category:'饮品',taste:{sweet:0}}),'')
  assert.equal(foodRequiredError({...food,taste:{spicy:3},images:[],description:''}),'')

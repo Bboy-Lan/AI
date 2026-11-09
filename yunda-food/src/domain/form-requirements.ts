@@ -13,7 +13,7 @@ export function foodRequiredError(value:Partial<Food>){
  if(!['正餐','小吃','饮品','甜品'].includes(value.category||''))return '请选择类别。'
  if(!['inside','outside'].includes(value.locationType||''))return '请选择高校内或高校外。'
  if(!(value.venue||value.placeText)?.trim())return '请填写具体的食堂、窗口或街道摊位。'
- if(value.price==null||!Number.isFinite(Number(value.price))||Number(value.price)<=0||Number(value.price)>=1000)return '请填写0.01～999.99元的有效价格。'
+ if(value.price==null||!Number.isFinite(Number(value.price))||!Number.isInteger(Number(value.price))||Number(value.price)<1||Number(value.price)>999)return '请填写1～999元的整数价格。'
  if(!['portion','person'].includes(value.priceBasis||''))return '请选择单份价格或人均价格。'
  const drink=['饮品','甜品'].includes(value.category||''),level=drink?value.taste?.sweet:value.taste?.spicy
  if(level==null||!Number.isInteger(level)||level<0||level>3)return '请选择这份'+(drink?'饮品 / 甜品的甜度。':'食物的辣度。')

@@ -93,7 +93,7 @@ async function submitItem(id, payload) {
   const profile = await requireProfile(id); const verifiedAdmin = Boolean(await adminFor(id)); const name = text(payload.name, 60); const venue = text(payload.venue, 80); const description = text(payload.description, 500); const areaId = text(payload.areaId, 40); const price = finiteNumber(payload.price)
   if (name.length < 1 || venue.length < 1) fail('请填写菜品名称和具体地点。')
   if (!payload.locationType && !KUNMING_AREAS.has(areaId)) fail('投稿地点仅支持昆明市内的预设地点。')
-  if (price == null || price <= 0 || price >= 1000) fail('请填写 0 到 1000 元之间的有效价格。')
+  if (price == null || !Number.isInteger(price) || price < 1 || price > 999) fail('请填写1～999元的整数价格。')
   assertSafeText(name, '菜品名称'); assertSafeText(venue, '具体地点'); assertSafeText(description, '补充说明')
   const extra = contract.extension(payload, null, text(payload.category, 20) || '其他', assertSafeText)
   const requestId = requestKey(payload.clientRequestId)
@@ -141,7 +141,7 @@ async function updateItem(id, payload) {
   const extra = contract.extension(payload, item, category, assertSafeText)
   if (name.length < 1 || venue.length < 1) fail('请填写菜品名称和具体地点。')
   if (!extra.itemSchemaVersion && !KUNMING_AREAS.has(areaId)) fail('投稿地点仅支持昆明市内的预设地点。')
-  if (price == null || price <= 0 || price >= 1000) fail('请填写 0 到 1000 元之间的有效价格。')
+  if (price == null || price <= 0 || price >= 1000) fail('请填写1～999元的整数价格。')
   assertSafeText(name, '菜品名称'); assertSafeText(venue, '具体地点'); assertSafeText(description, '补充说明')
   const authorAte = Boolean(payload.authorAte); const authorAteDate = chinaDay()
   if (!authorAte || !/^\d{4}-\d{2}-\d{2}$/.test(authorAteDate)) fail('请确认亲自吃过，并填写日期。')
@@ -375,7 +375,8 @@ async function requireAccountAccess(id) {
   if (profile && profile.accountStatus === 'banned') fail(profile.banReason || '当前账号已被封禁，请申请复核。', 'ACCOUNT_BANNED')
 }
 
-const handlers = { ...inboxHandlers, ...appealHandlers, ...feedbackHandlers, ...announcementHandlers, adminSetAccountBan, getCapabilities, findSubmission, getMyProfile, getPublicProfile, saveProfile, listPublishedItems: async () => listPublishedItems(), getItem, submitItem, updateItem, updateItemLocation, myItems, getFavoriteIds, toggleFavorite, listReviews, upsertReview, submitIssue, myFavoriteItems, myReviews, adminListItems, adminSetItemVisibility, adminListReviews, adminSetReviewVisibility, adminListProfiles, adminGetProfileDetail, adminSetProfileModeration, whoAmI }
+const noticeHandlers=require('../../notice-center.cjs')({db,collection:C.events,requireAdmin,adminFor,profileFor,now,fail})
+const handlers = { ...noticeHandlers, ...inboxHandlers, ...appealHandlers, ...feedbackHandlers, ...announcementHandlers, adminSetAccountBan, getCapabilities, findSubmission, getMyProfile, getPublicProfile, saveProfile, listPublishedItems: async () => listPublishedItems(), getItem, submitItem, updateItem, updateItemLocation, myItems, getFavoriteIds, toggleFavorite, listReviews, upsertReview, submitIssue, myFavoriteItems, myReviews, adminListItems, adminSetItemVisibility, adminListReviews, adminSetReviewVisibility, adminListProfiles, adminGetProfileDetail, adminSetProfileModeration, whoAmI }
 
 // Only the trusted wrapper supplies the verified CloudBase UID. Old OpenIDs are never imported.
 exports.dispatch=async(id,action,payload={})=>{
@@ -383,5 +384,5 @@ exports.dispatch=async(id,action,payload={})=>{
  if(id&&!['whoAmI','getMyProfile','submitFeedback','myFeedback','submitAccountAppeal','myAccountAppeals','feedbackReplySummary','readFeedbackReply','replyFeedback','archiveFeedback','clearReadFeedback'].includes(action))await requireAccountAccess(id);
  return decorateRoles(action,await handler(id,payload));
 };
-exports.dependencies={rebuildItemRatings,db,fail,text,now,chinaDay,requireProfile,profileFor,adminFor,requireAdmin,assertSafeText,hash:(...parts)=>crypto.createHash('sha256').update(JSON.stringify(parts)).digest('hex').slice(0,32)};
+exports.dependencies={noticesEnabled:true,rebuildItemRatings,db,fail,text,now,chinaDay,requireProfile,profileFor,adminFor,requireAdmin,assertSafeText,hash:(...parts)=>crypto.createHash('sha256').update(JSON.stringify(parts)).digest('hex').slice(0,32)};
 

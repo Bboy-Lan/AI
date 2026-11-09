@@ -1,17 +1,5 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {stepPrice} from '../src/domain/price-step'
-test('每次调整1元且保留手填小数，不产生浮点累积误差',()=>{
- assert.equal(stepPrice(15.12,1),16.12);assert.equal(stepPrice(15.12,-1),14.12)
- assert.equal(stepPrice(.29,1),1.29)
- let price:number|undefined=15.12
- for(let i=0;i<100;i++)price=stepPrice(price,1)
- for(let i=0;i<100;i++)price=stepPrice(price,-1)
- assert.equal(price,15.12)
-})
-test('空值可从1元开始，边界不越界或偷偷变成小于1元的步长',()=>{
- assert.equal(stepPrice(undefined,1),1);assert.equal(stepPrice(undefined,-1),undefined)
- assert.equal(stepPrice(.01,-1),.01);assert.equal(stepPrice(.5,-1),.5)
- assert.equal(stepPrice(998.99,1),999.99);assert.equal(stepPrice(999.99,1),999.99)
- assert.equal(stepPrice(999.5,1),999.5)
-})
+import {stepPrice,integerPrice} from '../src/domain/price-step'
+test('价格始终为整数，历史小数四舍五入后逐元调整',()=>{assert.equal(integerPrice(15.12),15);assert.equal(integerPrice(15.8),16);assert.equal(stepPrice(15,1),16);assert.equal(stepPrice(15,-1),14);assert.equal(stepPrice(15.12,1),16);let p:number|undefined=15;for(let i=0;i<100;i++)p=stepPrice(p,1);for(let i=0;i<100;i++)p=stepPrice(p,-1);assert.equal(p,15)})
+test('整数价格限定1～999，空值与极限长按不会越界',()=>{assert.equal(stepPrice(undefined,1),1);assert.equal(stepPrice(undefined,-1),undefined);assert.equal(stepPrice(1,-1),1);assert.equal(stepPrice(999,1),999);assert.equal(integerPrice(.29),1);assert.equal(integerPrice(999.99),999);assert.equal(integerPrice(NaN),undefined)})

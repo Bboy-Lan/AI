@@ -1,3 +1,5 @@
+import {restoreIdentity} from '../platform/identity-bootstrap'
+import type {Notice} from '../domain/notices'
 import {repository as local} from './local-repository'
 import type {Food,Review,Caution} from './local-repository'
 import {activeSession,cloudEnabled,mediaUrl,rpc,type CloudContext} from './cloud'
@@ -11,17 +13,20 @@ export const repository={
  mode:cloudEnabled?'cloud':'local',
  context:{uid:null,isAdmin:false,profile:null} as CloudContext,
  unreadCount:0,pendingCount:0,cautionHasMore:false,mineCautionHasMore:false,
+ announcements:[] as Notice[],
  announcement:null as null|{version:string,title?:string,body?:string,acknowledged?:boolean,updatedAt?:string},
  mine:[] as Food[],favorites:[] as Food[],ownReviews:[] as Record<string,unknown>[],mineCautions:[] as Caution[],
  invalidate(){refresh.invalidate()},
  load({maxAge=0}:{maxAge?:number}={}){return refresh.load(maxAge)},
  async refreshData(){
   if(!cloudEnabled)return
-  const context=await rpc<CloudContext>('context')
-  if(context.profile?.account_status==='banned'){this.context=context;foods=[];cautions=[];this.mine=[];this.favorites=[];this.ownReviews=[];this.mineCautions=[];return}
-  const [rows,posts,announcement]=await Promise.all([rpc<Food[]>('foods'),rpc<Caution[]>('cautions'),rpc<typeof this.announcement>('announcement')])
-  const session=await activeSession()
-  this.context=session?context:{uid:null,isAdmin:false,profile:null};this.announcement=announcement
+  let restoredSession:Awaited<ReturnType<typeof activeSession>>=null;
+  const context=await restoreIdentity(async()=>{restoredSession=await activeSession();return restoredSession},()=>rpc<CloudContext>('context'),{uid:null,isAdmin:false,profile:null} as CloudContext)
+  this.context=restoredSession?context:{uid:null,isAdmin:false,profile:null};
+  if(!restoredSession||!context.profile?.display_name||!context.profile.avatar_key||!context.profile.hometown||context.profile.account_status==='banned'){this.announcements=[];this.announcement=null;this.unreadCount=0;this.pendingCount=0;foods=[];cautions=[];this.mine=[];this.favorites=[];this.ownReviews=[];this.mineCautions=[];return}
+  const [rows,posts,announcement]=await Promise.all([rpc<Food[]>('foods'),rpc<Caution[]>('cautions'),rpc<Notice[]>('announcements')])
+  const session=restoredSession
+  this.context=session?context:{uid:null,isAdmin:false,profile:null};this.announcements=announcement;this.announcement=announcement.find(n=>n.kind==='basic')||null
   if(session){const summary=await rpc<{unreadCount:number,pendingCount:number}>('notificationSummary');this.unreadCount=summary.unreadCount;this.pendingCount=summary.pendingCount}else{this.unreadCount=0;this.pendingCount=0}
   this.cautionHasMore=posts.length===20;foods=await Promise.all(rows.map(decorateFood));cautions=await Promise.all(posts.map(async p=>({...p,mediaKeys:p.images,images:await Promise.all(p.images.map(mediaUrl))})))
   if(session&&context.profile&&context.profile.account_status!=='banned'){
