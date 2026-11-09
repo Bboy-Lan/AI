@@ -77,3 +77,5 @@ test('演示投稿、评价、收藏和审核走页面相同契约并支持重�
  assert.equal(admin.rpc<any>('caution',{id:'demo-caution-2'}).status,'public')
  assert.throws(()=>admin.rpc('adminCautionStatus',{id:'demo-caution-2',version:1,status:'hidden',reason:'旧版本操作'}),/版本/)
 })
+
+test('演示与服务端一致：管理员新黑榜直接已审核，普通用户仍待审',()=>{const p={name:'演示免审店铺',address:'示例街道窗口',date:'2026-11-01',body:'真实消费情况的完整隔离演示内容。',tags:['服务'],images:[],confirmed:true,requestId:'demo-admin-exempt-01'};for(const role of ['admin','student'] as const){const repo=createDemoRepository(createDemoState(role)),saved=repo.rpc<any>('saveCaution',p),row=repo.rpc<any>('caution',{id:saved.id});assert.equal(row.status,role==='admin'?'public':'pending');assert.equal(row.reviewTag,role==='admin'?'approved':'pending');assert.equal(row.authorRole,role==='admin'?'admin':'user')}})

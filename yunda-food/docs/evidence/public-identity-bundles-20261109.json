@@ -1,0 +1,16 @@
+{
+  "checks": [
+    {
+      "url": "https://bboy-lan.github.io/AI/",
+      "bundle": "/AI/assets/index-0bcHRf6b.js",
+      "status": 200,
+      "assetStatus": 200
+    },
+    {
+      "url": "https://cloud-ynnu-d6gs8ekf7dbcbe80e-1517920911.tcloudbaseapp.com/",
+      "bundle": "/assets/index-BAreRflE.js",
+      "status": 200,
+      "assetStatus": 200
+    }
+  ]
+}

@@ -90,7 +90,7 @@ async function getItem(id, payload) {
   return null
 }
 async function submitItem(id, payload) {
-  const profile = await requireProfile(id); const name = text(payload.name, 60); const venue = text(payload.venue, 80); const description = text(payload.description, 500); const areaId = text(payload.areaId, 40); const price = finiteNumber(payload.price)
+  const profile = await requireProfile(id); const verifiedAdmin = Boolean(await adminFor(id)); const name = text(payload.name, 60); const venue = text(payload.venue, 80); const description = text(payload.description, 500); const areaId = text(payload.areaId, 40); const price = finiteNumber(payload.price)
   if (name.length < 1 || venue.length < 1) fail('请填写菜品名称和具体地点。')
   if (!payload.locationType && !KUNMING_AREAS.has(areaId)) fail('投稿地点仅支持昆明市内的预设地点。')
   if (price == null || price <= 0 || price >= 1000) fail('请填写 0 到 1000 元之间的有效价格。')
@@ -117,7 +117,7 @@ async function submitItem(id, payload) {
   const data = {
     ownerOpenId: id, name, venue, areaId, campusId: 'kunming', category: text(payload.category, 20) || '其他', price, description, imageFileIds,
     authorNickname: profile.foodieId, authorHometown: profile.hometown, authorAvatarFileId: profile.avatarFileId || '', authorAte, authorAteDate,
-    status: 'published', hiddenReason: '', submittedAt: now(), submissionDay, contentUpdatedAt: now(), priceUpdatedAt: now(), latitude, longitude, addressSummary: text(payload.addressSummary, 120),
+    ...reviewPolicy.resubmit(null,verifiedAdmin), status: 'published', hiddenReason: '', submittedAt: now(), submissionDay, contentUpdatedAt: now(), priceUpdatedAt: now(), latitude, longitude, addressSummary: text(payload.addressSummary, 120),
     favoriteCount: 0, ratingCount: 0, ratingAverage: 0, verificationStatus: 'unverified', verificationPositiveCount: 0, verificationNegativeCount: 0,
     ...savedLocation(payload), ...extra, ...(documentId ? { _id: documentId, clientRequestId: requestId } : {}),
   }
@@ -155,7 +155,7 @@ async function updateItem(id, payload) {
     latitude: Object.prototype.hasOwnProperty.call(payload, 'latitude') ? latitude : item.latitude == null ? null : item.latitude,
     longitude: Object.prototype.hasOwnProperty.call(payload, 'longitude') ? longitude : item.longitude == null ? null : item.longitude,
     ...extra, ...savedLocation(payload, item),
-    addressSummary: payload.addressSummary == null ? item.addressSummary || '' : text(payload.addressSummary, 120), authorNickname: profile.foodieId, authorHometown: profile.hometown, authorAvatarFileId: profile.avatarFileId || '', updatedAt: now(), contentUpdatedAt: now(), priceUpdatedAt: now(), ...reviewPolicy.resubmit(current),
+    addressSummary: payload.addressSummary == null ? item.addressSummary || '' : text(payload.addressSummary, 120), authorNickname: profile.foodieId, authorHometown: profile.hometown, authorAvatarFileId: profile.avatarFileId || '', updatedAt: now(), contentUpdatedAt: now(), priceUpdatedAt: now(), ...reviewPolicy.resubmit(current,Boolean(await adminFor(id))),
   } })})
   await event('update_item', id, 'item', itemId, '投稿人补充或修改内容')
   return itemById(itemId)
@@ -202,7 +202,7 @@ async function listReviews(id, payload) {
   const itemId = text(payload.itemId, 100); const item = await getItem(id, { id: itemId }); if (!item) return []
   const result = await db.collection(C.reviews).where({ itemId, status: 'published' }).orderBy('updatedAt', 'desc').limit(100).get()
   const decorated = await authorBadges(result.data)
-  return decorated.map((review) => ({ _id: review._id, itemId: review.itemId, status: review.status, own:review.ownerOpenId===id, rating: review.rating, text: review.text || '', ateDate: review.ateDate || '', foodVerified: Boolean(review.foodVerified), authorNickname: review.authorNickname || '同学', authorHometown: review.authorHometown || '', authorAvatarFileId: review.authorAvatarFileId || '', authorRole: review.authorRole }))
+  return decorated.map((review) => ({ _id: review._id, itemId: review.itemId, status: review.status, own:review.ownerOpenId===id, rating: review.rating, text: review.text || '', ateDate: review.ateDate || '', foodVerified: Boolean(review.foodVerified), authorNickname: review.authorNickname || '同学', authorHometown: review.authorHometown || '', authorAvatarFileId: review.authorAvatarFileId || '', authorRole: review.authorRole,reviewTag:review.reviewTag,reviewVersion:review.reviewVersion,adminEdited:review.adminEdited }))
 }
 async function upsertReview(id, payload) {
   const profile = await requireProfile(id); const itemId = text(payload.itemId, 100); const item = await itemById(itemId)

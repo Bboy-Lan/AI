@@ -17,7 +17,7 @@ export function memoryDb(){
    count:async()=>({total:[...table(name).values()].filter(row=>matches(row,where)).length}),
    update:async({data}:any)=>{let updated=0;for(const row of table(name).values())if(matches(row,where)){Object.assign(row,copy(data));updated++}return {stats:{updated}}},
    doc:(id:string)=>({get:async()=>{const row=table(name).get(id);if(!row)throw Error('DOCUMENT_NOT_FOUND');return {data:copy(row)}},set:async({data}:any)=>{if(Object.hasOwn(data,'_id'))throw Error('INVALID_PARAM: immutable _id');table(name).set(id,{...copy(data),_id:id});return {id}},update:async({data}:any)=>{const row=table(name).get(id);if(!row)throw Error('DOCUMENT_NOT_FOUND');Object.assign(row,copy(data));return {stats:{updated:1}}},remove:async()=>{table(name).delete(id);return {}}}),
-   add:async({data}:any)=>{const id=data._id||'memory-'+(++counter);table(name).set(id,{...copy(data),_id:id});return {_id:id}}
+   add:async({data}:any)=>{const id=data._id||'memory-'+(++counter);if(table(name).has(id))throw Error('DUPLICATE_KEY');table(name).set(id,{...copy(data),_id:id});return {_id:id}}
   })
   return query()
  }

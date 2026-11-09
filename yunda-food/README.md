@@ -8,6 +8,10 @@ React + TypeScript + Vite。当前后端采用CloudBase传统文档数据库及x
 
 [管理员讨论演示](https://bboy-lan.github.io/AI/?demo=admin#/treehole?tab=forum) · [普通用户案例](https://bboy-lan.github.io/AI/?demo=student#/me) · [空白案例](https://bboy-lan.github.io/AI/?demo=empty#/treehole?tab=forum)。演示仅写本浏览器，正式站通过登录真实参与。全功能范围和验证边界见docs/树洞讨论与全功能验收报告-20261109.md。
 
+## 最新身份与反馈
+
+话题标签右上横排、紧凑图可点按放大、统一实体操作按钮；昵称旁显示吃货大王/小吃货，回复标明楼主。管理员本人新发布免审但仍遵守必填、配额和下架边界。我的新增问题反馈弹窗，私有多轮对话、处理中/已处理结果、用户补充重新提醒，与原互动消息共用记录。当前报告docs/帖子身份与问题反馈验收-20261109.md。
+
 ## 本地运行
 
 最新集中审核台提供五类内容的标签/意见、要求修改、管理员编辑、可恢复软删除、批量部分失败、连续下一条、举报筛选及原互动消息修改入口。管理员从用户治理进入，讨论治理复用同一组件。组图支持350ms长按换序。100条隔离案例：[集中审核演示](https://bboy-lan.github.io/AI/?demo=admin&reviewCase=bulk#/review-admin)，只写本浏览器，真实管理员权限仍由服务端验证。当前验收与未实测边界见docs/集中审核与长按排序验收-20261109.md。

@@ -5,7 +5,7 @@ const ACTIONS=new Set([...PUBLIC,'forumOwnReply','editForumReply','forumMyReplie
 const C={topics:'xsyj_forum_topics',replies:'xsyj_forum_replies',reports:'xsyj_forum_reports',notifications:'xsyj_forum_notifications',meta:'xsyj_forum_meta',audit:'xsyj_forum_audit'}
 const categories=['同乡交流','校园生活','吃喝吐槽']
 module.exports=function createForum(d){
- const {db,fail,now,hash,profileFor,requireProfile,requireAdmin,chinaDay}=d
+ const {db,fail,now,hash,profileFor,requireProfile,requireAdmin,adminFor,chinaDay}=d
  const get=async(store,name,id)=>{try{return (await store.collection(name).doc(id).get()).data||null}catch(e){if(/not.?found|not.?exist|不存在|DOCUMENT_NOT_FOUND/i.test(String(e.message||e.errMsg||'')))return null;throw e}}
  const set=(tx,name,id,data)=>{const {_id,...fields}=data;return tx.collection(name).doc(id).set({data:fields})}
  const clean=(v,min,max,label)=>{if(typeof v!=='string')fail('请填写'+label+'。');const s=v.trim();if(s.length<min||s.length>max)fail(label+'需'+min+'～'+max+'字。');if(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(s))fail(label+'含有不可见控制字符。');return s}
@@ -17,13 +17,13 @@ module.exports=function createForum(d){
  async function receipt(tx,uid,action,payload){const id=hash('forum-request',uid,action,req(payload.clientRequestId)),signature=hash(payload),old=await get(tx,C.meta,id);if(old&&old.signature!==signature)fail('提交编号与内容不一致，请保留输入重新提交。');return {id,signature,old:old?.result}}
  const record=(tx,uid,r,result)=>set(tx,C.meta,r.id,{ownerOpenId:uid,signature:r.signature,result,createdAt:now()})
  const audit=(tx,uid,targetType,targetId,topicId,action,reason,snapshot)=>set(tx,C.audit,hash(uid,targetType,targetId,action,sequence()),{operatorOpenId:uid,targetType,targetId,topicId,action,reason,snapshot,createdAt:now()})
- async function author(uid,cache){if(!cache.has(uid))cache.set(uid,profileFor(uid));const p=await cache.get(uid);return {profileId:p?._id||'',name:p?.foodieId||'同学',avatarKey:p?.avatarFileId||'',hometown:p?.hometown||''}}
+ async function author(uid,cache){if(!cache.has(uid))cache.set(uid,Promise.all([profileFor(uid),adminFor(uid)]));const [p,admin]=await cache.get(uid);return {profileId:p?._id||'',name:p?.foodieId||'同学',avatarKey:p?.avatarFileId||'',hometown:p?.hometown||'',isAdmin:Boolean(admin)}}
  async function topicDto(row,identity,cache=new Map()){if(row.reviewTag==='deleted'&&!identity.admin)row={...row,body:'此话题已删除，处理意见请查看互动消息。',images:[]};return {...require('./moderation.cjs').fields(row),id:row._id,title:row.title,body:row.body,category:row.category,hometown:row.hometown,images:row.images||[],status:row.status,version:row.version,replyCount:row.replyCount||0,sequence:row.sequence,createdAt:stamp(row.createdAt),updatedAt:stamp(row.updatedAt),own:row.ownerOpenId===identity.uid,canEdit:row.ownerOpenId===identity.uid&&row.status!=='withdrawn'&&row.reviewTag!=='deleted',reason:row.ownerOpenId===identity.uid||identity.admin?row.reason||'':'',author:await author(row.ownerOpenId,cache)}}
  async function replyDto(row,identity,cache=new Map()){
   const own=row.ownerOpenId===identity.uid,readBody=row.status==='public'||own||identity.admin,key='topic:'+row.topicId
   if(!cache.has(key))cache.set(key,get(db,C.topics,row.topicId))
   const topic=await cache.get(key)
-  return {...require('./moderation.cjs').fields(row),id:row._id,topicId:row.topicId,topicTitle:topic?.title||'已不可访问的话题',topicUnavailable:!topic||topic.status!=='public'&&topic.ownerOpenId!==identity.uid&&!identity.admin,body:readBody&&(row.reviewTag!=='deleted'||identity.admin)?row.body:'',status:row.status,floor:row.floor,replyToFloor:row.replyToFloor||0,version:row.version,sequence:row.sequence,own,reason:own||identity.admin?row.reason||'':'',createdAt:stamp(row.createdAt),author:await author(row.ownerOpenId,cache)}
+  return {...require('./moderation.cjs').fields(row),id:row._id,topicId:row.topicId,topicTitle:topic?.title||'已不可访问的话题',topicUnavailable:!topic||topic.status!=='public'&&topic.ownerOpenId!==identity.uid&&!identity.admin,body:readBody&&(row.reviewTag!=='deleted'||identity.admin)?row.body:'',status:row.status,floor:row.floor,replyToFloor:row.replyToFloor||0,version:row.version,sequence:row.sequence,own,reason:own||identity.admin?row.reason||'':'',createdAt:stamp(row.createdAt),author:await author(row.ownerOpenId,cache),isTopicAuthor:!!topic&&row.ownerOpenId===topic.ownerOpenId}
  }
  async function visible(id,identity,store=db){const row=await get(store,C.topics,id);if(!row||row.status!=='public'&&row.ownerOpenId!==identity.uid&&!identity.admin)fail('这条话题暂不可访问。');return row}
  async function page(name,where,after){if(after&& !/^\d{13}-[a-f0-9]{16}$/.test(after))fail('分页标识无效，请刷新列表。');const rows=(await db.collection(name).where({...where,...(after?{sequence:db.command.lt(after)}:{})}).orderBy('sequence','desc').limit(21).get()).data;return {rows:rows.slice(0,20),next:rows.length>20?rows[19].sequence:''}}
@@ -49,7 +49,7 @@ module.exports=function createForum(d){
   if(action==='forumMyReplies'){const result=await page(C.replies,{ownerOpenId:uid},p.after),cache=new Map();return {rows:await Promise.all(result.rows.map(row=>replyDto(row,identity,cache))),next:result.next}}
   if(action==='forumOwnReply'){const row=await get(db,C.replies,p.id);if(!row||row.ownerOpenId!==uid)fail('只能读取自己的楼层修改记录。');return replyDto(row,identity)}
   if(action==='editForumReply'){
-   await requireProfile(uid);const body=clean(p.body,2,1000,'回复正文');await db.runTransaction(async tx=>{const receiptRow=await receipt(tx,uid,action,p);if(receiptRow.old)return;const row=await get(tx,C.replies,p.id);if(!row||row.ownerOpenId!==uid)fail('只能修改自己的楼层。');if(row.version!==Number(p.version))fail('楼层版本已变化，请重新读取。');require('./review-policy.cjs').assertEditable(row,p,fail);await quota(tx,uid,'楼层回复',60);const topic=await get(tx,C.topics,row.topicId);await tx.collection(C.replies).doc(row._id).update({data:{body,status:row.status==='hidden'||!topic||topic.status!=='public'?'hidden':'public',reviewTag:'pending',version:row.version+1,updatedAt:now()}});await audit(tx,uid,'reply',row._id,row.topicId,'author_edit','作者补充楼层',{body:row.body,version:row.version});await record(tx,uid,receiptRow,{id:row._id})});return replyDto(await get(db,C.replies,p.id),identity)
+   await requireProfile(uid);const body=clean(p.body,2,1000,'回复正文');await db.runTransaction(async tx=>{const receiptRow=await receipt(tx,uid,action,p);if(receiptRow.old)return;const row=await get(tx,C.replies,p.id);if(!row||row.ownerOpenId!==uid)fail('只能修改自己的楼层。');if(row.version!==Number(p.version))fail('楼层版本已变化，请重新读取。');require('./review-policy.cjs').assertEditable(row,p,fail);await quota(tx,uid,'楼层回复',60);const topic=await get(tx,C.topics,row.topicId);await tx.collection(C.replies).doc(row._id).update({data:{body,status:row.status==='hidden'||!topic||topic.status!=='public'?'hidden':'public',...require('./review-policy.cjs').resubmit(row,Boolean(await adminFor(uid))),version:row.version+1,updatedAt:now()}});await audit(tx,uid,'reply',row._id,row.topicId,'author_edit','作者补充楼层',{body:row.body,version:row.version});await record(tx,uid,receiptRow,{id:row._id})});return replyDto(await get(db,C.replies,p.id),identity)
   }
   if(action==='saveForumTopic'){
    const profile=await requireProfile(uid),title=clean(p.title,2,60,'标题'),body=clean(p.body,2,2000,'话题正文'),images=photos(uid,p.images||[])
@@ -63,7 +63,7 @@ module.exports=function createForum(d){
     if(old&&old.version!==Number(p.version))fail('话题已更新，请重新读取后修改。')
     require('./review-policy.cjs').assertEditable(old,p,fail)
     await quota(tx,uid,'发帖或修改',5)
-    await set(tx,C.topics,id,{...old,ownerOpenId:uid,title,body,images,category:p.category,hometown:profile.hometown,status:old?.status||'public',reason:old?.reason||'',version:(old?.version||0)+1,replyCount:old?.replyCount||0,sequence:old?.sequence||sequence(),createdAt:old?.createdAt||now(),updatedAt:now(),reviewTag:'pending',reviewVersion:old?.reviewVersion||0})
+    await set(tx,C.topics,id,{...old,ownerOpenId:uid,title,body,images,category:p.category,hometown:profile.hometown,status:old?.status||'public',reason:old?.reason||'',version:(old?.version||0)+1,replyCount:old?.replyCount||0,sequence:old?.sequence||sequence(),createdAt:old?.createdAt||now(),updatedAt:now(),...require('./review-policy.cjs').resubmit(old,Boolean(await adminFor(uid)))})
     await record(tx,uid,r,{id})
    })
    return topicDto(await get(db,C.topics,id),identity)
@@ -77,7 +77,7 @@ module.exports=function createForum(d){
     if(p.replyTo){parent=await get(tx,C.replies,p.replyTo);if(!parent||parent.topicId!==p.topicId||parent.status!=='public')fail('被回复的楼层不可访问，或不属于该话题。')}
     await quota(tx,uid,'楼层回复',60)
     const floor=(topic.replyCount||0)+1
-    await set(tx,C.replies,id,{ownerOpenId:uid,topicId:p.topicId,body,floor,replyToId:parent?._id||'',replyToFloor:parent?.floor||0,status:'public',reason:'',version:1,sequence:sequence(),createdAt:now()})
+    await set(tx,C.replies,id,{ownerOpenId:uid,topicId:p.topicId,body,floor,replyToId:parent?._id||'',replyToFloor:parent?.floor||0,status:'public',reason:'',version:1,sequence:sequence(),createdAt:now(),...require('./review-policy.cjs').resubmit(null,Boolean(await adminFor(uid)))})
     await tx.collection(C.topics).doc(topic._id).update({data:{replyCount:floor,lastReplyAt:now(),sequence:sequence()}})
     const recipients=new Set([topic.ownerOpenId,parent?.ownerOpenId].filter(v=>v&&v!==uid))
     for(const recipient of recipients)await notify(tx,recipient,'forum_reply',topic._id,id,floor,'有人回复了「'+topic.title+'」 · 第'+floor+'楼',uid)

@@ -33,7 +33,7 @@ module.exports = function createCautions({ db, fail, text, now, chinaDay, requir
   }
   async function author(actor) {
     const p = await profileFor(actor)
-    return p ? { profileId: p._id, nickname: p.foodieId || '吃货同学', avatar: p.avatarFileId || '', hometown: p.hometown || '' } : { nickname: '吃货同学', avatar: '', hometown: '' }
+    return p ? { profileId: p._id, nickname: p.foodieId || '吃货同学', avatar: p.avatarFileId || '', hometown: p.hometown || '',isAdmin:Boolean(await adminFor(actor)) } : { nickname: '吃货同学', avatar: '', hometown: '' }
   }
   async function expose(row, actor) {
     const own = row.ownerOpenId === actor, admin = Boolean(await adminFor(actor))
@@ -81,7 +81,7 @@ module.exports = function createCautions({ db, fail, text, now, chinaDay, requir
       if (old && Number(p.version) !== old.version) fail('经历已更新，请重新打开后编辑。')
       require('../review-policy.cjs').assertEditable(old,p,fail)
       await quota(tx, actor, '经历提交', 3)
-      await write(tx, C.posts, id, { ...old, ...data, ownerOpenId: actor, status: 'pending', reason: '', version: (old && old.version || 0) + 1, likeCount: old && old.likeCount || 0, sequence: old && old.sequence || await sequence(tx), createdAt: old && old.createdAt || now(), updatedAt: now(), reviewTag:'pending',reviewVersion:old?.reviewVersion||0 })
+      await write(tx, C.posts, id, { ...old, ...data, ownerOpenId: actor, status: Boolean(await adminFor(actor))&&(!old||!['hidden','rejected'].includes(old.status))?'published':'pending', reason: '', version: (old && old.version || 0) + 1, likeCount: old && old.likeCount || 0, sequence: old && old.sequence || await sequence(tx), createdAt: old && old.createdAt || now(), updatedAt: now(), ...require('../review-policy.cjs').resubmit(old,Boolean(await adminFor(actor))) })
       await write(tx, C.meta, receipt, { postId: id, fingerprint, ownerOpenId: actor })
     })
     return cautionGet(actor, { id })

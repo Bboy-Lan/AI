@@ -1,0 +1,433 @@
+{
+  "base": "http://127.0.0.1:5173/",
+  "checks": [
+    "页面适配 320 ",
+    "页面适配 320 blindbox",
+    "页面适配 320 treehole?tab=black",
+    "页面适配 320 me",
+    "页面适配 320 detail/demo-food-1",
+    "页面适配 320 publish/demo-food-1",
+    "页面适配 320 onboarding",
+    "页面适配 320 onboarding?preferences=1",
+    "页面适配 320 admin",
+    "页面适配 320 user/demo-profile-demo-other",
+    "页面适配 320 feedback",
+    "页面适配 320 blocked",
+    "页面适配 320 messages",
+    "页面适配 320 tree-detail/demo-caution-2",
+    "页面适配 320 tree-compose/demo-caution-2",
+    "页面适配 320 tree-admin",
+    "页面适配 320 treehole?tab=forum",
+    "页面适配 320 forum/demo-forum-topic-1",
+    "页面适配 320 forum-compose",
+    "页面适配 320 forum-admin",
+    "页面适配 390 ",
+    "页面适配 390 blindbox",
+    "页面适配 390 treehole?tab=black",
+    "页面适配 390 me",
+    "页面适配 390 detail/demo-food-1",
+    "页面适配 390 publish/demo-food-1",
+    "页面适配 390 onboarding",
+    "页面适配 390 onboarding?preferences=1",
+    "页面适配 390 admin",
+    "页面适配 390 user/demo-profile-demo-other",
+    "页面适配 390 feedback",
+    "页面适配 390 blocked",
+    "页面适配 390 messages",
+    "页面适配 390 tree-detail/demo-caution-2",
+    "页面适配 390 tree-compose/demo-caution-2",
+    "页面适配 390 tree-admin",
+    "页面适配 390 treehole?tab=forum",
+    "页面适配 390 forum/demo-forum-topic-1",
+    "页面适配 390 forum-compose",
+    "页面适配 390 forum-admin",
+    "页面适配 1440 ",
+    "页面适配 1440 blindbox",
+    "页面适配 1440 treehole?tab=black",
+    "页面适配 1440 me",
+    "页面适配 1440 detail/demo-food-1",
+    "页面适配 1440 publish/demo-food-1",
+    "页面适配 1440 onboarding",
+    "页面适配 1440 onboarding?preferences=1",
+    "页面适配 1440 admin",
+    "页面适配 1440 user/demo-profile-demo-other",
+    "页面适配 1440 feedback",
+    "页面适配 1440 blocked",
+    "页面适配 1440 messages",
+    "页面适配 1440 tree-detail/demo-caution-2",
+    "页面适配 1440 tree-compose/demo-caution-2",
+    "页面适配 1440 tree-admin",
+    "页面适配 1440 treehole?tab=forum",
+    "页面适配 1440 forum/demo-forum-topic-1",
+    "页面适配 1440 forum-compose",
+    "页面适配 1440 forum-admin",
+    "初始化后切换各主页面不重复出现整屏加载",
+    "页面图标和封面路径可加载",
+    "全部页面演示不访问云端且无运行时错误"
+  ],
+  "metrics": [
+    {
+      "width": 320,
+      "route": "",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "blindbox",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "treehole?tab=black",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "me",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "detail/demo-food-1",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "publish/demo-food-1",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "onboarding",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "onboarding?preferences=1",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "admin",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "user/demo-profile-demo-other",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "feedback",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "blocked",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "messages",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "tree-detail/demo-caution-2",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "tree-compose/demo-caution-2",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "tree-admin",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "treehole?tab=forum",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "forum/demo-forum-topic-1",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "forum-compose",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "forum-admin",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "blindbox",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "treehole?tab=black",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "me",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "detail/demo-food-1",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "publish/demo-food-1",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "onboarding",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "onboarding?preferences=1",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "admin",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "user/demo-profile-demo-other",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "feedback",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "blocked",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "messages",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "tree-detail/demo-caution-2",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "tree-compose/demo-caution-2",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "tree-admin",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "treehole?tab=forum",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "forum/demo-forum-topic-1",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "forum-compose",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "forum-admin",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "blindbox",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "treehole?tab=black",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "me",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "detail/demo-food-1",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "publish/demo-food-1",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "onboarding",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "onboarding?preferences=1",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "admin",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "user/demo-profile-demo-other",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "feedback",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "blocked",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "messages",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "tree-detail/demo-caution-2",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "tree-compose/demo-caution-2",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "tree-admin",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "treehole?tab=forum",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "forum/demo-forum-topic-1",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "forum-compose",
+      "center": 0,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "forum-admin",
+      "center": 0,
+      "overflow": false
+    }
+  ],
+  "errors": [],
+  "cloudCalls": [],
+  "failure": ""
+}

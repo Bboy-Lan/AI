@@ -39,7 +39,7 @@ try{
  check((await rpc('context',{},a.token)).isAdmin,'管理员只读取xsyj_admins独立授权')
  await denied('adminFoods',{uid:a.uid,isAdmin:true},b.token,/管理员/,'普通账号不能伪造管理员')
  const payload={name:'临时验收米线',venue:'临时验收窗口',price:12,category:'正餐',locationType:'inside',priceBasis:'portion',school:'云南大学',campus:'呈贡校区',taste:{spicy:1,tags:[],staple:'米线'},images:[],authorAte:true,clientRequestId:crypto.randomUUID()}
- const food=await rpc('saveFood',payload,a.token);check(!!food.id&&food.canEdit,'真实投稿保存与本人编辑权')
+ const food=await rpc('saveFood',payload,a.token);check(!!food.id&&food.canEdit,'真实投稿保存与本人编辑权');check(food.reviewTag==='approved'&&food.authorRole==='admin','管理员推荐发布免审且身份取服务端')
  check((await rpc('saveFood',payload,a.token)).id===food.id,'投稿重试返回同一记录')
  await denied('saveFood',{...payload,id:food.id,name:'不应修改'},b.token,/自己的投稿/,'跨账号修改被原生服务端拒绝')
  await denied('saveReview',{id:food.id,ate:true,rating:5},a.token,/不能给自己|自评/,'作者不能自评')
@@ -55,7 +55,7 @@ try{
  const blackPayload={name:'临时验收店铺',address:'临时验收地点',date:'2026-11-01',body:'这是只用于验证先审后公开功能的临时验收经历。',tags:['服务'],images:[],confirmed:true,requestId:req}
  await denied('saveCaution',{...blackPayload,date:'2999-01-01'},b.token,/日期/,'黑榜未来日期被拒')
  await denied('saveCaution',{...blackPayload,tags:[]},b.token,/问题/,'黑榜问题类别必填')
- const caution=await rpc('saveCaution',blackPayload,b.token);knownPosts.add(caution.id)
+ const caution=await rpc('saveCaution',{...blackPayload,isAdmin:true},b.token);knownPosts.add(caution.id);check(caution.status==='pending','普通用户伪造管理员仍不能免审');const adminBlackRequest=crypto.randomUUID();cautionRequests.push({uid:a.uid,request:adminBlackRequest});const adminBlack=await rpc('saveCaution',{...blackPayload,name:'临时管理员验收店铺',requestId:adminBlackRequest},a.token);knownPosts.add(adminBlack.id);const adminBlackDetail=await rpc('caution',{id:adminBlack.id},b.token);check(adminBlack.status==='public'&&adminBlackDetail.reviewTag==='approved'&&adminBlackDetail.authorRole==='admin','管理员黑榜免审直接公开')
  check((await rpc('saveCaution',blackPayload,b.token)).id===caution.id,'黑榜重试不会多建记录')
  await denied('saveCaution',{...blackPayload,body:blackPayload.body+'改写'},b.token,/标识.*内容|内容.*一致/,'黑榜相同提交编号不能偷偷改正文')
  check(!(await rpc('cautions')).some(r=>r.id===caution.id),'黑榜待审不向游客公开')
@@ -96,9 +96,9 @@ try{
  await rpc('saveFeedback',{type:'使用问题',body:'这是仅用于验收的临时用户反馈。',clientRequestId:crypto.randomUUID()},b.token)
  const feedback=(await rpc('feedback',{},b.token)).find(r=>!beforeFeedback.some(v=>v.id===r.id));if(!feedback)throw Error('Feedback not found')
  await rpc('replyFeedback',{id:feedback.id,body:'这是临时管理员回复。',clientRequestId:crypto.randomUUID()},a.token)
- check((await rpc('feedback',{},b.token)).find(r=>r.id===feedback.id)?.replies.length===1,'真实反馈回复历史保留')
+ check((await rpc('feedback',{},b.token)).find(r=>r.id===feedback.id)?.replies.length===1,'真实反馈回复历史保留');check((await rpc('feedback',{},b.token)).find(r=>r.id===feedback.id)?.processingStatus==='processing','管理员回复记录处理中');await denied('replyFeedback',{id:feedback.id,body:'不能冒充处理结果',processingStatus:'resolved',clientRequestId:crypto.randomUUID()},b.token,/状态/,'普通用户不能伪造已处理结果');await denied('replyFeedback',{id:feedback.id,body:'不能查看或回复他人私密反馈',clientRequestId:crypto.randomUUID()},c.token,/无权/,'其他用户不能回复私人反馈');await rpc('replyFeedback',{id:feedback.id,body:'临时验收已处理结果',processingStatus:'resolved',clientRequestId:crypto.randomUUID()},a.token);check((await rpc('feedback',{},b.token)).find(r=>r.id===feedback.id)?.processingStatus==='resolved','用户可见管理员处理结果');await rpc('replyFeedback',{id:feedback.id,body:'临时补充会重新提醒管理员',clientRequestId:crypto.randomUUID()},b.token);const reopened=(await rpc('adminFeedback',{},a.token)).find(r=>r.id===feedback.id);check(reopened?.processingStatus==='pending'&&!reopened.admin_read,'用户补充重新待处理并通知管理员')
  await rpc('feedbackAction',{id:feedback.id,operation:'read'},b.token);check((await rpc('feedback',{},b.token)).find(r=>r.id===feedback.id)?.user_read,'反馈回复可标为已读')
- const notice=await rpc('announcement',{},b.token);await rpc('ackAnnouncement',{version:notice.version},b.token)
+ const feedbackRace=crypto.randomUUID(),race=await Promise.allSettled([rpc('saveFeedback',{type:'功能建议',body:'并发反馈编号内容甲',clientRequestId:feedbackRace},b.token),rpc('saveFeedback',{type:'功能建议',body:'并发反馈编号内容乙',clientRequestId:feedbackRace},b.token)]);check(race.filter(r=>r.status==='fulfilled').length===1&&race.filter(r=>r.status==='rejected').length===1,'并发反馈同号不同内容只允许一条成功');const notice=await rpc('announcement',{},b.token);await rpc('ackAnnouncement',{version:notice.version},b.token)
  check((await rpc('announcement',{},b.token)).acknowledged,'真实用户可知晓当前公告而不改写内容')
  await denied('ackAnnouncement',{version:'outdated-test-version'},b.token,/更新/,'过期公告不能冒充已经知晓')
  await denied('adminSaveAnnouncement',{title:'不应保存',body:'普通用户不能修改公告内容。'},b.token,/管理员/,'普通用户不能修改公告')
@@ -111,7 +111,7 @@ try{
  check(Array.isArray(await rpc('messages',{},a.token)),'互动与避雷消息可读取')
  const topicPayload={title:'临时验收同乡话题',body:'这是仅用于验证同乡话题和楼层回复的临时案例。',category:'同乡交流',images:[],clientRequestId:crypto.randomUUID()}
  await denied('saveForumTopic',topicPayload,guestToken,/登录/,'游客不能直接发起话题')
- const topic=await rpc('saveForumTopic',topicPayload,a.token)
+ const topic=await rpc('saveForumTopic',topicPayload,a.token);check(topic.reviewTag==='approved'&&topic.author.isAdmin,'管理员讨论主题直接已审核且身份可见')
  check((await rpc('saveForumTopic',topicPayload,a.token)).id===topic.id,'真实话题保存与重试幂等')
  await denied('saveForumTopic',{...topicPayload,body:'换一个正文。'},a.token,/编号.*内容/,'话题同一编号不同正文被拒')
  await denied('adminForumList',{isAdmin:true,uid:a.uid},b.token,/管理员/,'论坛管理员角色无法从事件伪造')
@@ -220,7 +220,7 @@ try{
  await denied('forumOwnReply',{id:quoted.id},b.token,/自己/,'不能读取其他作者楼层修改资料')
  const editedReply=await rpc('editForumReply',{id:quoted.id,body:'已补充本层具体事实，仅供验收。',version:authorReply.version,reviewVersion:authorReply.reviewVersion,clientRequestId:crypto.randomUUID()},c.token)
  check(editedReply.floor===quoted.floor&&editedReply.reviewTag==='pending'&&editedReply.status==='hidden','作者修改原楼层保留编号并重审，不恢复隐藏')
- const freshNotice=await rpc('announcement');check(freshNotice.version===protectedNotice.version&&freshNotice.title===protectedNotice.title&&freshNotice.body===protectedNotice.body,'全程没有改写共享真实公告')
+ const adminFloor=await rpc('saveForumReply',{topicId:other.id,body:'管理员在自己的话题中补充事实。',clientRequestId:crypto.randomUUID()},c.token);const ownFloor=(await rpc('forumReplies',{id:other.id},b.token)).rows.find(r=>r.id===adminFloor.id);check(ownFloor?.isTopicAuthor&&!ownFloor.author.isAdmin,'普通楼主身份对其他用户可见');const identityTopic=await rpc('saveForumTopic',{...topicPayload,title:'临时身份标识验收话题',clientRequestId:crypto.randomUUID()},a.token);const adminOwnFloor=await rpc('saveForumReply',{topicId:identityTopic.id,body:'管理员原楼主的公开补充。',clientRequestId:crypto.randomUUID()},a.token);const adminOwnRow=(await rpc('forumReplies',{id:identityTopic.id},b.token)).rows.find(r=>r.id===adminOwnFloor.id);check(adminOwnRow?.isTopicAuthor&&adminOwnRow.author.isAdmin&&adminOwnRow.reviewTag==='approved','管理员楼主回复免审且他人可见角色');const freshNotice=await rpc('announcement');check(freshNotice.version===protectedNotice.version&&freshNotice.title===protectedNotice.title&&freshNotice.body===protectedNotice.body,'全程没有改写共享真实公告')
  for(const table of ['xsyj_forum_topics','xsyj_forum_replies','xsyj_forum_reports','xsyj_forum_notifications','xsyj_forum_meta','xsyj_forum_audit']){let allowed=false;try{await app.database().collection(table).get();allowed=true}catch{}check(!allowed,'客户端不能直读 '+table)}
  let directReadAllowed=false;try{await app.database().collection('xsyj_profiles').get();directReadAllowed=true}catch{}
  check(!directReadAllowed,'客户端不能绕过云函数直读业务集合')
@@ -239,6 +239,6 @@ try{
  }
  cleanupFailure=cleanupErrors.join('; ')
  if(!cleanupFailure&&fs.existsSync(ledger))fs.unlinkSync(ledger)
- const result={date:'2026-11-08',environment:env,mode:'real-classic-cloud',checks,failure,cleanupFailure,temporaryAccounts:accounts.length,temporaryFiles:files.length,credentialsPersisted:false,concurrentReplies:8,concurrentRetries,sharedAnnouncementWritten:false,ledgerRemoved:!fs.existsSync(ledger)}
+ const result={date:new Date(Date.now()+8*3600e3).toISOString().slice(0,10),executedAt:new Date().toISOString(),environment:env,mode:'real-classic-cloud',checks,failure,cleanupFailure,temporaryAccounts:accounts.length,temporaryFiles:files.length,credentialsPersisted:false,concurrentReplies:8,concurrentRetries,sharedAnnouncementWritten:false,ledgerRemoved:!fs.existsSync(ledger)}
  fs.writeFileSync('docs/evidence/classic-cloud-20261108.json',JSON.stringify(result,null,2));console.log(JSON.stringify({checks:checks.length,failure,cleanupFailure}));process.exit(failure||cleanupFailure?1:0)
 }

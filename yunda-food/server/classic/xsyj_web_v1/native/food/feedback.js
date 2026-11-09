@@ -1,7 +1,7 @@
 // 反馈复用既有私有事件集合，按 type 隔离；只经云函数读写。
 module.exports = function createFeedback({ db, collection, text, fail, profileFor, requireProfile, requireAdmin, chinaDay, now, requestKey, submissionId, adminFor, adminFlags }) {
   const type = 'app_feedback'
-  function publicRow(row) { return { _id: row._id, category: row.category, content: row.content, readState: row.readState, createdAt: row.createdAt, lastActivityAt: row.lastActivityAt || row.createdAt, kind: row.kind || '', target: row.target || '', appealStatus: row.appealStatus || '', resolutionReason: row.resolutionReason || '', userUnread: row.userUnread === true, replies: (row.replies || []).map(reply => ({ _id: reply._id, role: reply.role, content: reply.content, createdAt: reply.createdAt })) } }
+  function publicRow(row) { return { _id: row._id, category: row.category, content: row.content, readState: row.readState, createdAt: row.createdAt, lastActivityAt: row.lastActivityAt || row.createdAt, kind: row.kind || '', target: row.target || '', appealStatus: row.appealStatus || '', resolutionReason: row.resolutionReason || '', processingStatus: row.processingStatus || (row.replies?.some(r=>r.role==='admin')?'processing':'pending'), userUnread: row.userUnread === true, replies: (row.replies || []).map(reply => ({ _id: reply._id, role: reply.role, content: reply.content, createdAt: reply.createdAt, senderName:reply.senderName||'',processingStatus:reply.processingStatus||'' })) } }
   async function recentRows(where, limit) {
     const groups = await Promise.all(['createdAt', 'lastActivityAt'].map(field => db.collection(collection).where(where).orderBy(field, 'desc').limit(limit).get()))
     const time = row => new Date((row.lastActivityAt || row.createdAt) && ((row.lastActivityAt || row.createdAt).$date || row.lastActivityAt || row.createdAt) || 0).getTime() || 0
@@ -15,11 +15,11 @@ module.exports = function createFeedback({ db, collection, text, fail, profileFo
     const request = requestKey(payload.clientRequestId); if (!request) fail('缺少反馈提交编号。')
     const documentId = 'fb_' + submissionId(id, request)
     const old = await db.collection(collection).doc(documentId).get().then(r => r.data).catch(error => { if (/not.?found|not.?exist|不存在/i.test(error.errMsg || error.message || '')) return null; throw error })
-    if (old) { if (old.ownerOpenId !== id || old.type !== type) fail('反馈身份不匹配。'); return publicRow(old) }
+    if (old) { if (old.ownerOpenId !== id || old.type !== type) fail('反馈身份不匹配。'); if(old.content!==content||old.category!==category)fail('反馈编号与内容不匹配。'); return publicRow(old) }
     const count = await db.collection(collection).where({ type, ownerOpenId: id, submissionDay: chinaDay() }).limit(5).get()
     if (count.data.length >= 5) fail('每天最多提交5条反馈，已有反馈管理员会查看。')
-    const data = { _id: documentId, type, ownerOpenId: id, category, content, readState: 'unread', submissionDay: chinaDay(), createdAt: now(), lastActivityAt: now() }
-    try { await db.collection(collection).add({ data }) } catch (error) { const saved = await db.collection(collection).doc(documentId).get().then(r => r.data).catch(() => null); if (!saved || saved.ownerOpenId !== id) throw error }
+    const data = { _id: documentId, type, ownerOpenId: id, category, content, processingStatus:'pending', readState: 'unread', submissionDay: chinaDay(), createdAt: now(), lastActivityAt: now() }
+    try { await db.collection(collection).add({ data }) } catch (error) { const saved = await db.collection(collection).doc(documentId).get().then(r => r.data).catch(() => null); if (!saved || saved.ownerOpenId !== id) throw error; if(saved.content!==content||saved.category!==category)fail('反馈编号与内容不匹配。') }
     return publicRow((await db.collection(collection).doc(documentId).get()).data)
   }
   async function myFeedback(id) { const rows = await recentRows({ type, ownerOpenId: id }, 50); return rows.filter(row => row.kind !== 'account_appeal' && !row.userArchived).slice(0, 50).map(publicRow) }
@@ -51,16 +51,17 @@ module.exports = function createFeedback({ db, collection, text, fail, profileFo
   async function replyFeedback(id, payload) {
     const content = typeof payload.content === 'string' ? payload.content.trim() : '', key = text(payload.feedbackId, 100), request = requestKey(payload.clientRequestId)
     if (!key || !request || content.length < 2 || content.length > 500) fail('请填写2～500字的回复。')
-    const isAdmin = Boolean(await adminFor(id)), replyId = submissionId(id, request)
+    const isAdmin = Boolean(await adminFor(id)), replyId = submissionId(id, request), sender=await profileFor(id), processingStatus=isAdmin?(payload.processingStatus||'processing'):'pending'
+    if(isAdmin&&!['processing','resolved'].includes(processingStatus)||!isAdmin&&payload.processingStatus&&payload.processingStatus!=='pending')fail('处理状态无效。')
     await db.runTransaction(async transaction => {
       const ref = transaction.collection(collection).doc(key), row = await ref.get().then(r => r.data).catch(() => null)
       if (!row || row.type !== type || row.kind === 'account_appeal' || !isAdmin && row.ownerOpenId !== id) fail('无权回复这条反馈。')
       if (await adminFor(row.ownerOpenId)) fail('此入口只处理用户反馈。')
       const replies = row.replies || []
       const previous = replies.find(reply => reply._id === replyId && reply.senderOpenId === id)
-      if (previous) { if (previous.content !== content) fail('回复编号与内容不匹配。'); return publicRow(row) }
+      if (previous) { if (previous.content !== content || previous.processingStatus&&previous.processingStatus!==processingStatus) fail('回复编号与内容不匹配。'); return publicRow(row) }
       if (replies.length >= 20) fail('本条交流已满20条回复，请另提交反馈补充。')
-      const patch = { lastActivityAt: now(), adminArchived: false, userArchived: false, replies: [...replies, { _id: replyId, senderOpenId: id, role: isAdmin ? 'admin' : 'user', content, createdAt: now() }], ...(isAdmin ? { readState: 'read', readBy: id, readAt: now(), userUnread: true, userArchived: false } : { readState: 'unread', adminArchived: false, userUnread: false }) }
+      const patch = { processingStatus, resolutionReason:isAdmin&&processingStatus==='resolved'?content:row.resolutionReason||'', lastActivityAt: now(), adminArchived: false, userArchived: false, replies: [...replies, { _id: replyId, senderOpenId: id, role: isAdmin ? 'admin' : 'user', content, createdAt: now(),senderName:sender?.foodieId||'',processingStatus }], ...(isAdmin ? { readState: 'read', readBy: id, readAt: now(), userUnread: true, userArchived: false } : { readState: 'unread', adminArchived: false, userUnread: false }) }
       await ref.update({ data: patch }); return publicRow({ ...row, ...patch })
     })
     return publicRow((await db.collection(collection).doc(key).get()).data)

@@ -1,2 +1,2 @@
 exports.assertEditable=(row,p,fail)=>{if(!row)return;if(row.reviewTag==='deleted'||row.status==='withdrawn')fail('已删除或撤回内容不能修改。');if(row.reviewVersion&&(row.version==null||p.reviewVersion!=null)&&Number(p.reviewVersion)!==row.reviewVersion)fail('内容已有审核更新，请重新读取最新版本后修改。')}
-exports.resubmit=row=>({reviewTag:'pending',reviewVersion:row?.reviewVersion||0,...(row?.status==='hidden'?{status:'hidden'}:{})})
+exports.resubmit=(row,admin=false)=>({reviewTag:admin&&(!row||['public','published','pending'].includes(row.status))?'approved':'pending',reviewVersion:row?.reviewVersion||0,...(row?.status==='hidden'?{status:'hidden'}:{})})

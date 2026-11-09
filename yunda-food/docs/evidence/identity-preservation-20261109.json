@@ -1,0 +1,87 @@
+{
+  "environment": "cloud-yunda-d5gxrar1s14b2ee0d",
+  "checks": [
+    {
+      "resource": "lijin_announcement_drafts_v1",
+      "records": 0,
+      "dataHashUnchanged": true,
+      "ruleUnchanged": true
+    },
+    {
+      "resource": "lijin_announcements_v1",
+      "records": 0,
+      "dataHashUnchanged": true,
+      "ruleUnchanged": true
+    },
+    {
+      "resource": "lijin_feedback_admins_v1",
+      "records": 1,
+      "dataHashUnchanged": true,
+      "ruleUnchanged": true
+    },
+    {
+      "resource": "lijin_feedback_replies_v1",
+      "records": 1,
+      "dataHashUnchanged": true,
+      "ruleUnchanged": true
+    },
+    {
+      "resource": "lijin_feedback_v1",
+      "records": 2,
+      "dataHashUnchanged": true,
+      "ruleUnchanged": true
+    },
+    {
+      "resource": "relation_data_depart",
+      "records": 0,
+      "dataHashUnchanged": true,
+      "ruleUnchanged": true
+    },
+    {
+      "resource": "sys_department",
+      "records": 0,
+      "dataHashUnchanged": true,
+      "ruleUnchanged": true
+    },
+    {
+      "resource": "sys_user",
+      "records": 1,
+      "dataHashUnchanged": true,
+      "ruleUnchanged": true
+    }
+  ],
+  "lijinFunctionUnchanged": true,
+  "protectedHosting": 6,
+  "legacyCollectionsAbsent": true,
+  "remainingCollections": [
+    "lijin_announcement_drafts_v1",
+    "lijin_announcements_v1",
+    "lijin_feedback_admins_v1",
+    "lijin_feedback_replies_v1",
+    "lijin_feedback_v1",
+    "relation_data_depart",
+    "sys_department",
+    "sys_user",
+    "xsyj_admins",
+    "xsyj_caution_audit",
+    "xsyj_caution_likes",
+    "xsyj_caution_messages",
+    "xsyj_caution_meta",
+    "xsyj_caution_posts",
+    "xsyj_caution_reports",
+    "xsyj_events",
+    "xsyj_favorites",
+    "xsyj_food_items",
+    "xsyj_forum_audit",
+    "xsyj_forum_meta",
+    "xsyj_forum_notifications",
+    "xsyj_forum_replies",
+    "xsyj_forum_reports",
+    "xsyj_forum_topics",
+    "xsyj_profiles",
+    "xsyj_review_audit",
+    "xsyj_review_notifications",
+    "xsyj_reviews"
+  ],
+  "verified": true
+}

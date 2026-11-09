@@ -1,0 +1,1 @@
+export function RoleBadge({admin=false,owner=false}:{admin?:boolean,owner?:boolean}){return <span className="identity-badges"><span className={'role-badge'+(admin?' role-badge--admin':'')}>{admin?'♛ 吃货大王':'小吃货'}</span>{owner&&<span className="role-badge role-badge--owner">楼主</span>}</span>}
