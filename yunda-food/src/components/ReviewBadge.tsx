@@ -1,0 +1,2 @@
+import {REVIEW_LABELS,type ReviewFields} from '../domain/moderation'
+export function ReviewBadge({item,overlay=false}:{item:ReviewFields&{status?:string},overlay?:boolean}){const tag=item.reviewTag||(item.status==='hidden'?'blocked':item.status==='withdrawn'?'withdrawn':item.status==='returned'?'changes':'pending');return <span className={'review-badge review-badge--'+tag+(overlay?' is-overlay':'')}>{REVIEW_LABELS[tag]}{item.adminEdited&&<small> · 管理员已编辑</small>}</span>}

@@ -55,7 +55,7 @@ export const repository={
  async updateLocation(food:Food,point:{latitude:number,longitude:number,mapName:string}){
   const expected={latitude:food.latitude??null,longitude:food.longitude??null,mapName:food.mapName||'',locationAddress:food.locationAddress||''},signature=JSON.stringify([food.id,point,expected])
   const clientRequestId=pendingLocations.get(signature)||crypto.randomUUID();pendingLocations.set(signature,clientRequestId)
-  const result=await decorateFood(await rpc<Food>('updateFoodLocation',{id:food.id,...point,expected,clientRequestId}));pendingLocations.delete(signature);foods=foods.map(f=>f.id===result.id?result:f);return result
+  const result=await decorateFood(await rpc<Food>('updateFoodLocation',{id:food.id,reviewVersion:food.reviewVersion,...point,expected,clientRequestId}));pendingLocations.delete(signature);foods=foods.map(f=>f.id===result.id?result:f);return result
  },
 }
 const refresh=createRefreshGate(()=>repository.refreshData())

@@ -4,4 +4,6 @@ xsyj_web_v1/index.js仅从服务端运行时取UID；service.cjs开放固定业�
 
 讨论资源初始化使用node scripts/initialize-forum.mjs，只创建明确的6个讨论集合和索引；已有集合若权限不符则拒绝覆盖。发帖/修改每日5次、回复60次、举报20次，成功重试不重复计数。旧PG迁移不能对当前NoSQL环境执行。应先盘点并备份后部署，不能以初始化为由重置全环境。
 
+集中审核另有xsyj_review_audit（包含幂等回执）和xsyj_review_notifications两个ADMINONLY集合，使用node scripts/initialize-review.mjs建立；不复制原业务内容，不重置已有数据。moderation.cjs负责服务端权限、标签与可见性、管理员编辑、版本审计、批量逐条结果和本人通知；review-policy.cjs在作者实际写入事务中拦截旧版本/软删除绕过。
+
 部署源码见工程根scripts/deploy.mjs；真实验收脚本使用独立临时外部账号并精确清理。gateway-with-xsyj.rego仅是维护者当前策略参考，不得覆盖别人的或后续变更后的共享策略。

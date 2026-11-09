@@ -9,11 +9,12 @@ if(config.VITE_CLOUDBASE_ENV_ID!==env||config.VITE_CLOUDBASE_BACKEND!=='classic'
 const call=(args,target=env)=>{const result=JSON.parse(execFileSync(process.execPath,[cli,...args,'-e',target,'--json'],{encoding:'utf8'}));if(result.error)throw Error(result.error.message);return result.data}
 const detail=call(['env','detail'])
 if(detail.EnvId!==env||detail.PostgreSQL?.length||detail.PackageId!=='baas_personal'||detail.Status!=='NORMAL')throw Error('Target must be the selected paid traditional environment')
-execFileSync(process.execPath,[require.resolve('tsx/cli'),'--test','tests/postgres.test.ts','tests/hometown-source.test.ts','tests/repository.test.ts','tests/rules.test.ts','tests/source-parity.test.ts','tests/demo.test.ts','tests/classic.test.ts','tests/refresh-gate.test.ts','tests/form-requirements.test.ts','tests/price-step.test.ts','tests/caution-native.test.ts','tests/forum.test.ts','tests/announcement-native.test.ts'],{stdio:'inherit'})
+execFileSync(process.execPath,[require.resolve('tsx/cli'),'--test','tests/postgres.test.ts','tests/hometown-source.test.ts','tests/repository.test.ts','tests/rules.test.ts','tests/source-parity.test.ts','tests/demo.test.ts','tests/classic.test.ts','tests/refresh-gate.test.ts','tests/form-requirements.test.ts','tests/price-step.test.ts','tests/caution-native.test.ts','tests/forum.test.ts','tests/announcement-native.test.ts','tests/moderation.test.ts'],{stdio:'inherit'})
 execFileSync(process.execPath,[path.join(path.dirname(require.resolve('typescript/package.json')),'bin','tsc'),'-b'],{stdio:'inherit'})
 execFileSync(process.execPath,[path.join(path.dirname(require.resolve('vite/package.json')),'bin','vite.js'),'build'],{stdio:'inherit'})
 const integrity=JSON.parse(execFileSync('python',['scripts/verify_sources.py'],{encoding:'utf8',env:{...process.env,PYTHONIOENCODING:'utf-8'}}))
 if(!integrity.ok)throw Error('Reference source integrity check failed')
+execFileSync(process.execPath,['scripts/initialize-review.mjs'],{stdio:'inherit'})
 call(['fn','deploy','xsyj_web_v1','--force','--install-dependency','true'])
 // Retain the existing H5 origin. The paid origin hosts Lijin administration and keeps signup denied.
 const result=call(['hosting','deploy','./dist','--verify'],hostingEnv)

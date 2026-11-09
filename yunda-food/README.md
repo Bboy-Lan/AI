@@ -10,6 +10,8 @@ React + TypeScript + Vite。当前后端采用CloudBase传统文档数据库及x
 
 ## 本地运行
 
+最新集中审核台提供五类内容的标签/意见、要求修改、管理员编辑、可恢复软删除、批量部分失败、连续下一条、举报筛选及原互动消息修改入口。管理员从用户治理进入，讨论治理复用同一组件。组图支持350ms长按换序。100条隔离案例：[集中审核演示](https://bboy-lan.github.io/AI/?demo=admin&reviewCase=bulk#/review-admin)，只写本浏览器，真实管理员权限仍由服务端验证。当前验收与未实测边界见docs/集中审核与长按排序验收-20261109.md。
+
 安装Node.js与Python后运行npm ci，复制.env.example为.env.local，仅填写浏览器publishable key，然后npm run dev。未配置环境时是明确标注的本地演示，不能当作云端部署。
 
 ## 构建与检查

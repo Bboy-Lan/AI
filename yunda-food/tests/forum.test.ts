@@ -11,6 +11,8 @@ function setup(){
  const topic=(uid='a',suffix='1')=>call(uid,'saveForumTopic',{title:'同乡今天吃什么 '+suffix,body:'交流口味和校园生活的独立话题。',category:'同乡交流',images:[],clientRequestId:'topic-request-'+suffix})
  return {...memory,d,profiles,forum,identity,call,topic}
 }
+test('楼层修改保留原编号，修改要求重审不能恢复隐藏，重复请求不重复修改',async()=>{const{topic,call}=setup(),post=await topic(),reply=await call('b','saveForumReply',{topicId:post.id,body:'原始楼层正文。',clientRequestId:'reply-edit-source-01'});await call('admin','adminForumStatus',{target:'reply',id:reply.id,version:1,status:'hidden',reason:'请补充具体事实',clientRequestId:'reply-edit-moderate-01'});await assert.rejects(()=>call('c','forumOwnReply',{id:reply.id}),/自己/);const own=await call('b','forumOwnReply',{id:reply.id}),p={id:reply.id,version:own.version,body:'已补充消费时间与具体事实。',clientRequestId:'reply-edit-request-01'};await call('b','editForumReply',p);await call('b','editForumReply',p);const saved=await call('b','forumOwnReply',{id:reply.id});assert.equal(saved.floor,1);assert.equal(saved.version,3);assert.equal(saved.reviewTag,'pending');assert.equal(saved.status,'hidden');assert.equal((await call('a','forumTopic',{id:post.id})).replyCount,1)})
+
 test('讨论主题真实模块：游客公开阅读、同乡筛选、私有我的帖子与公开DTO',async()=>{
  const{topic,call}=setup();await topic();await topic('c','2');assert.equal((await call('','forumTopics')).rows.length,2);const mine=await call('','forumTopics',{hometown:'云南省昆明市'});assert.equal(mine.rows.length,1);assert.equal(mine.rows[0].ownerOpenId,undefined);assert.equal(mine.rows[0].author.name,'同学a');await assert.rejects(()=>call('','forumTopics',{mine:true}),/登录/);assert.equal((await call('a','forumTopics',{mine:true})).rows.length,1)
 })

@@ -4,8 +4,10 @@ export function memoryDb(){
  const copy=(v:any)=>structuredClone(v)
  const table=(name:string)=>{if(!tables.has(name))tables.set(name,new Map());return tables.get(name)!}
  const matches=(row:any,where:any)=>Object.entries(where).every(([key,value]:any)=>{
+  if(key==='op')return where.op==='or'?where.value.some((v:any)=>matches(row,v)):where.op==='and'?where.value.every((v:any)=>matches(row,v)):true
+  if(key==='value'&&where.op)return true
   const actual=row[key]
-  if(value&&typeof value==='object'&&value.op){if(value.op==='lt')return actual<value.value;if(value.op==='gt')return actual>value.value;if(value.op==='neq')return actual!==value.value;if(value.op==='in')return value.value.includes(actual)}
+  if(value&&typeof value==='object'&&value.op){if(value.op==='lt')return actual<value.value;if(value.op==='gt')return actual>value.value;if(value.op==='neq')return actual!==value.value;if(value.op==='in')return value.value.includes(actual);if(value.op==='exists')return Object.hasOwn(row,key)===value.value}
   return Array.isArray(actual)?actual.includes(value):actual===value
  })
  function collection(name:string){
@@ -19,7 +21,7 @@ export function memoryDb(){
   })
   return query()
  }
- const db:any={collection,command:{lt:(value:any)=>({op:'lt',value}),gt:(value:any)=>({op:'gt',value}),neq:(value:any)=>({op:'neq',value}),in:(value:any)=>({op:'in',value})},serverDate:()=>new Date('2026-11-08T08:00:00Z'),
+ const db:any={collection,command:{lt:(value:any)=>({op:'lt',value}),gt:(value:any)=>({op:'gt',value}),neq:(value:any)=>({op:'neq',value}),in:(value:any)=>({op:'in',value}),exists:(value:any)=>({op:'exists',value}),or:(value:any)=>({op:'or',value}),and:(value:any)=>({op:'and',value})},serverDate:()=>new Date('2026-11-08T08:00:00Z'),
   runTransaction:(fn:any)=>{const run=serial.then(async()=>{const saved=copy(tables);try{return await fn(db)}catch(error){tables=saved;throw error}});serial=run.then(()=>{},()=>{});return run}}
  return {db,rows:(name:string)=>copy([...table(name).values()]),seed:(name:string,rows:any[])=>{for(const row of rows)table(name).set(row._id,copy(row))}}
 }

@@ -1,0 +1,16 @@
+{
+  "environment": "cloud-yunda-d5gxrar1s14b2ee0d",
+  "collections": [
+    {
+      "name": "xsyj_review_audit",
+      "created": true,
+      "acl": "ADMINONLY"
+    },
+    {
+      "name": "xsyj_review_notifications",
+      "created": true,
+      "acl": "ADMINONLY"
+    }
+  ],
+  "existingContentModified": false
+}

@@ -2,6 +2,7 @@ const hometown = require('./hometown')
 const cloud = require('wx-server-sdk')
 const crypto = require('crypto')
 const contract = require('./item-contract')
+const reviewPolicy = require('../../review-policy.cjs')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
 const db = cloud.database()
@@ -149,13 +150,13 @@ async function updateItem(id, payload) {
   if (longitude != null && (longitude < -180 || longitude > 180)) fail('位置经度无效。')
   const imageFileIds = Array.isArray(payload.imageFileIds) ? payload.imageFileIds.map((value) => text(value, 300)).filter(Boolean).slice(0, 3) : item.imageFileIds || []
   if (extra.itemSchemaVersion === 2 || item.itemSchemaVersion === 2) validateNewSubmission(payload, imageFileIds, latitude, longitude)
-  await db.collection(C.items).doc(itemId).update({ data: {
+  await db.runTransaction(async tx=>{const ref=tx.collection(C.items).doc(itemId),current=(await ref.get()).data;reviewPolicy.assertEditable(current,payload,fail);await ref.update({ data: {
     name, venue, areaId, price, category, description, imageFileIds, authorAte, authorAteDate,
     latitude: Object.prototype.hasOwnProperty.call(payload, 'latitude') ? latitude : item.latitude == null ? null : item.latitude,
     longitude: Object.prototype.hasOwnProperty.call(payload, 'longitude') ? longitude : item.longitude == null ? null : item.longitude,
     ...extra, ...savedLocation(payload, item),
-    addressSummary: payload.addressSummary == null ? item.addressSummary || '' : text(payload.addressSummary, 120), authorNickname: profile.foodieId, authorHometown: profile.hometown, authorAvatarFileId: profile.avatarFileId || '', updatedAt: now(), contentUpdatedAt: now(), priceUpdatedAt: now(),
-  } })
+    addressSummary: payload.addressSummary == null ? item.addressSummary || '' : text(payload.addressSummary, 120), authorNickname: profile.foodieId, authorHometown: profile.hometown, authorAvatarFileId: profile.avatarFileId || '', updatedAt: now(), contentUpdatedAt: now(), priceUpdatedAt: now(), ...reviewPolicy.resubmit(current),
+  } })})
   await event('update_item', id, 'item', itemId, '投稿人补充或修改内容')
   return itemById(itemId)
 }
@@ -177,6 +178,7 @@ async function updateItemLocation(id, payload) {
       return { id: itemId, clientRequestId: requestId, ...location }
     }
     if (stamp(item) !== stamp(expected)) fail('地图位置已被修改，请重新读取后再选点。')
+    reviewPolicy.assertEditable(item,payload,fail)
     await ref.update({ data: { ...location, locationRequestId: requestId, contentUpdatedAt: now(), updatedAt: now() } })
     await transaction.collection(C.events).doc('location_edit_' + submissionId(id, itemId + ':' + requestId)).set({ data: { type: 'update_item_location', operatorOpenId: id, targetType: 'item', targetId: itemId, reason: '投稿人更新地图位置', createdAt: now() } })
     return { id: itemId, clientRequestId: requestId, ...location }
@@ -214,7 +216,7 @@ async function upsertReview(id, payload) {
   if (!old && await dailyCount(C.reviews, id, chinaDay(), 10) >= 10) fail('每位用户每天最多新增 10 条评价，请稍后再试。')
   const data = { itemId, ownerOpenId: id, authorNickname: profile.foodieId, authorHometown: profile.hometown, authorAvatarFileId: profile.avatarFileId || '', rating, text: reviewText, ateDate, foodVerified: Boolean(payload.foodVerified), status: 'published', submissionDay: old && old.submissionDay || chinaDay(), updatedAt: now() }
   const reviewId=old?old._id:crypto.createHash('sha256').update(id+':'+itemId).digest('hex').slice(0,32)
-  await db.runTransaction(async tx=>{const ref=tx.collection(C.reviews).doc(reviewId);const current=await ref.get().then(r=>r.data).catch(()=>null);await ref.set({data:{...data,createdAt:current?.createdAt||now()}})})
+  await db.runTransaction(async tx=>{const ref=tx.collection(C.reviews).doc(reviewId);const current=await ref.get().then(r=>r.data).catch(()=>null);reviewPolicy.assertEditable(current,payload,fail);const {_id,...kept}=current||{};await ref.set({data:{...kept,...data,...reviewPolicy.resubmit(current),createdAt:current?.createdAt||now()}})})
   await rebuildItemRatings(itemId)
   return { ok: true }
 }
@@ -238,7 +240,7 @@ async function myReviews(id) {
   const items = await Promise.all(result.data.map((review) => itemById(review.itemId)))
   return result.data.map((review, index) => ({
     _id: review._id, itemId: review.itemId, itemName: items[index] && items[index].name || '关联投稿已删除', itemStatus: items[index] && items[index].status || 'unavailable',
-    rating: review.rating, text: review.text || '', ateDate: review.ateDate || '', foodVerified: Boolean(review.foodVerified), status: review.status || 'published', moderationReason: review.moderationReason || '', updatedAt: review.updatedAt,
+    rating: review.rating, text: review.text || '', ateDate: review.ateDate || '', foodVerified: Boolean(review.foodVerified), status: review.status || 'published', moderationReason: review.moderationReason || '', updatedAt: review.updatedAt, reviewTag:review.reviewTag,reviewVersion:review.reviewVersion,adminEdited:review.adminEdited,reviewReason:review.reviewReason,
   }))
 }
 async function adminSetItemVisibility(id, payload) {
@@ -381,5 +383,5 @@ exports.dispatch=async(id,action,payload={})=>{
  if(id&&!['whoAmI','getMyProfile','submitFeedback','myFeedback','submitAccountAppeal','myAccountAppeals','feedbackReplySummary','readFeedbackReply','replyFeedback','archiveFeedback','clearReadFeedback'].includes(action))await requireAccountAccess(id);
  return decorateRoles(action,await handler(id,payload));
 };
-exports.dependencies={db,fail,text,now,chinaDay,requireProfile,profileFor,adminFor,requireAdmin,assertSafeText,hash:(...parts)=>crypto.createHash('sha256').update(JSON.stringify(parts)).digest('hex').slice(0,32)};
+exports.dependencies={rebuildItemRatings,db,fail,text,now,chinaDay,requireProfile,profileFor,adminFor,requireAdmin,assertSafeText,hash:(...parts)=>crypto.createHash('sha256').update(JSON.stringify(parts)).digest('hex').slice(0,32)};
 

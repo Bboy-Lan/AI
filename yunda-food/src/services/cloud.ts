@@ -9,7 +9,7 @@ export const cloudAuth=cloud?.auth()
 export type CloudProfile={display_name:string,hometown:string,avatar_key:string,preferences:Record<string,unknown>,account_status:string,moderation_reason:string,publishing_restricted?:boolean,publishing_reason?:string}
 export type CloudContext={profileId?:string,uid:string|null,isAdmin:boolean,profile:CloudProfile|null}
 let guestLogin:Promise<void>|undefined
-const reads=new Set(['forumTopics','forumTopic','forumReplies','forumMyReplies','adminForumList','forumNotifications','forumSummary','context','foods','food','reviews','myFoods','myFavorites','myReviews','cautions','caution','announcement','notificationSummary','publicProfile','adminProfileDetail','messages','feedback','myAppeals','adminFeedback','adminAppeals','adminFoods','adminReviews','adminProfiles','adminCautions','adminReports','mediaUrl','mediaUploadPath'])
+const reads=new Set(['forumOwnReply','adminReviewQueue','adminReviewDetail','adminReviewSummary','reviewNotifications','reviewSummary','forumTopics','forumTopic','forumReplies','forumMyReplies','adminForumList','forumNotifications','forumSummary','context','foods','food','reviews','myFoods','myFavorites','myReviews','cautions','caution','announcement','notificationSummary','publicProfile','adminProfileDetail','messages','feedback','myAppeals','adminFeedback','adminAppeals','adminFoods','adminReviews','adminProfiles','adminCautions','adminReports','mediaUrl','mediaUploadPath'])
 function completed<T>(action:string,data:T){if(!reads.has(action)&&typeof window!=='undefined')window.dispatchEvent(new Event('xsyj:data-changed'));return data}
 async function ensureClassicTransport(){
  if(!cloudAuth)return

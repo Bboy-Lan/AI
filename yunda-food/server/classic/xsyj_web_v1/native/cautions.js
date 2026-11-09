@@ -39,7 +39,8 @@ module.exports = function createCautions({ db, fail, text, now, chinaDay, requir
     const own = row.ownerOpenId === actor, admin = Boolean(await adminFor(actor))
     const result = { id: row._id, postId: row.postId || '', name: row.name || '', address: row.address || '', body: row.body, tags: row.tags || [], occurredOn: row.occurredOn || '', imageFileIds: row.imageFileIds || [], status: row.status, version: row.version, sequence: row.sequence, createdAt: row.createdAt, updatedAt: row.updatedAt, likeCount: row.likeCount || 0, own, author: await author(row.ownerOpenId) }
     if (own || admin) result.reason = row.reason || ''
-    return result
+    if(row.reviewTag==='deleted'&&!admin){result.body='此消费经历已删除，处理意见请查看互动消息。';result.imageFileIds=[]}
+    Object.assign(result,require('../moderation.cjs').fields(row));return result
   }
   async function visible(actor, id) {
     const row = await doc(db, C.posts, text(id, 100))
@@ -78,8 +79,9 @@ module.exports = function createCautions({ db, fail, text, now, chinaDay, requir
       if (p.id && !old) fail('原经历不存在。')
       if (old && old.ownerOpenId !== actor) fail('只能编辑自己的消费经历。')
       if (old && Number(p.version) !== old.version) fail('经历已更新，请重新打开后编辑。')
+      require('../review-policy.cjs').assertEditable(old,p,fail)
       await quota(tx, actor, '经历提交', 3)
-      await write(tx, C.posts, id, { ...old, ...data, ownerOpenId: actor, status: 'pending', reason: '', version: (old && old.version || 0) + 1, likeCount: old && old.likeCount || 0, sequence: old && old.sequence || await sequence(tx), createdAt: old && old.createdAt || now(), updatedAt: now() })
+      await write(tx, C.posts, id, { ...old, ...data, ownerOpenId: actor, status: 'pending', reason: '', version: (old && old.version || 0) + 1, likeCount: old && old.likeCount || 0, sequence: old && old.sequence || await sequence(tx), createdAt: old && old.createdAt || now(), updatedAt: now(), reviewTag:'pending',reviewVersion:old?.reviewVersion||0 })
       await write(tx, C.meta, receipt, { postId: id, fingerprint, ownerOpenId: actor })
     })
     return cautionGet(actor, { id })
