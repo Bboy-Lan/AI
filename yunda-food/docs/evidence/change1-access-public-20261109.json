@@ -1,0 +1,48 @@
+{
+  "base": "https://bboy-lan.github.io/AI/",
+  "checks": [
+    "正式根网址直接进入注册 false",
+    "无会话首屏不依赖云端或认证SDK false",
+    "首次入口无脚本异常 false",
+    "账号入口可切换 false",
+    "正式根网址直接进入注册 true",
+    "无会话首屏不依赖云端或认证SDK true",
+    "首次入口无脚本异常 true",
+    "账号入口可切换 true",
+    "主脚本失败有静态提示",
+    "失败后重试避开旧HTML缓存",
+    "脚本恢复后可进入真实注册页",
+    "主脚本慢请求可恢复进入",
+    "旧HTML缓存仍能加载旧主脚本和CSS",
+    "旧页面延迟认证SDK和依赖继续返回200"
+  ],
+  "metrics": [
+    {
+      "mobile": false,
+      "ms": 942,
+      "url": "https://bboy-lan.github.io/AI/"
+    },
+    {
+      "mobile": true,
+      "ms": 739,
+      "url": "https://bboy-lan.github.io/AI/"
+    },
+    {
+      "oldHtmlAssets": [
+        {
+          "url": "https://bboy-lan.github.io/AI/assets/index-dWl1eUNm.css",
+          "status": 200
+        },
+        {
+          "url": "https://bboy-lan.github.io/AI/assets/index-Cb3Cgi7J.js",
+          "status": 200
+        },
+        {
+          "url": "https://bboy-lan.github.io/AI/assets/index.esm-PqZdYHIs.js",
+          "status": 200
+        }
+      ]
+    }
+  ],
+  "realDevice": false
+}

@@ -1,0 +1,21 @@
+{
+  "runId": 42649373895,
+  "commit": "3f25ad6373a664e2b6321afe2d0c28d9ca3c29ff",
+  "jobs": [
+    {
+      "name": "build",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "deploy",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "report-build-status",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ]
+}

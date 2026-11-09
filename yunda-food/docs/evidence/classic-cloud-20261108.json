@@ -1,6 +1,6 @@
 {
   "date": "2026-11-09",
-  "executedAt": "2026-11-09T14:33:27.455Z",
+  "executedAt": "2026-11-09T15:51:03.496Z",
   "environment": "cloud-yunda-d5gxrar1s14b2ee0d",
   "mode": "real-classic-cloud",
   "checks": [
@@ -155,7 +155,7 @@
   "temporaryFiles": 4,
   "credentialsPersisted": false,
   "concurrentReplies": 8,
-  "concurrentRetries": 2,
+  "concurrentRetries": 4,
   "sharedAnnouncementWritten": false,
   "ledgerRemoved": true
 }

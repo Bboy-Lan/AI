@@ -1,0 +1,61 @@
+{
+  "checkedAt": "2026-11-09T15:57:02.336Z",
+  "checks": [
+    {
+      "url": "https://bboy-lan.github.io/AI/",
+      "status": 200,
+      "bundle": "/AI/assets/index-LRuu_61-.js",
+      "bundleStatus": 200,
+      "newNotices": true,
+      "cacheRetry": true
+    },
+    {
+      "url": "https://bboy-lan.github.io/AI/assets/index-dWl1eUNm.css",
+      "status": 200,
+      "previousRelease": true
+    },
+    {
+      "url": "https://bboy-lan.github.io/AI/assets/index-Cb3Cgi7J.js",
+      "status": 200,
+      "previousRelease": true
+    },
+    {
+      "url": "https://bboy-lan.github.io/AI/assets/index.esm-PqZdYHIs.js",
+      "status": 200,
+      "previousRelease": true
+    },
+    {
+      "url": "https://bboy-lan.github.io/AI/assets/repository-C1DuT8Uk.js",
+      "status": 200,
+      "previousRelease": true
+    },
+    {
+      "url": "https://cloud-ynnu-d6gs8ekf7dbcbe80e-1517920911.tcloudbaseapp.com/",
+      "status": 200,
+      "bundle": "/assets/index-DSOsA2fB.js",
+      "bundleStatus": 200,
+      "newNotices": true,
+      "cacheRetry": true
+    },
+    {
+      "url": "https://cloud-ynnu-d6gs8ekf7dbcbe80e-1517920911.tcloudbaseapp.com/assets/index-COxYGY3B.css",
+      "status": 200,
+      "previousRelease": true
+    },
+    {
+      "url": "https://cloud-ynnu-d6gs8ekf7dbcbe80e-1517920911.tcloudbaseapp.com/assets/index-B9DgitpQ.js",
+      "status": 200,
+      "previousRelease": true
+    },
+    {
+      "url": "https://cloud-ynnu-d6gs8ekf7dbcbe80e-1517920911.tcloudbaseapp.com/assets/index.esm-BsLtro8b.js",
+      "status": 200,
+      "previousRelease": true
+    },
+    {
+      "url": "https://cloud-ynnu-d6gs8ekf7dbcbe80e-1517920911.tcloudbaseapp.com/assets/repository-CwY7eLGB.js",
+      "status": 200,
+      "previousRelease": true
+    }
+  ]
+}

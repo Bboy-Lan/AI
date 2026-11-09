@@ -1,0 +1,28 @@
+{
+  "base": "https://bboy-lan.github.io/AI/",
+  "checks": [
+    "真实旧账号登录不重填资料或重弹已读 false",
+    "正式入口恢复云端身份 false",
+    "本地没有明文密码 false",
+    "已打开页面断网后仍可切换缓存主页面 false",
+    "断网后仍保留登录凭证 false",
+    "云请求失败不会清除旧会话 false",
+    "网络恢复后重试恢复真实账号 false",
+    "恢复后仍记得公告已读 false",
+    "新标签无需重登 false",
+    "退出真实账号成功 false",
+    "真实旧账号登录不重填资料或重弹已读 true",
+    "正式入口恢复云端身份 true",
+    "本地没有明文密码 true",
+    "已打开页面断网后仍可切换缓存主页面 true",
+    "断网后仍保留登录凭证 true",
+    "云请求失败不会清除旧会话 true",
+    "网络恢复后重试恢复真实账号 true",
+    "恢复后仍记得公告已读 true",
+    "新标签无需重登 true",
+    "退出真实账号成功 true"
+  ],
+  "realSession": true,
+  "realWeChatDevice": false,
+  "passwordPrinted": false
+}

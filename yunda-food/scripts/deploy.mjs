@@ -17,5 +17,6 @@ if(!integrity.ok)throw Error('Reference source integrity check failed')
 execFileSync(process.execPath,['scripts/initialize-review.mjs'],{stdio:'inherit'})
 call(['fn','deploy','xsyj_web_v1','--force','--install-dependency','true'])
 // Retain the existing H5 origin. The paid origin hosts Lijin administration and keeps signup denied.
+execFileSync(process.execPath,['scripts/prepare-hosting-release.mjs'],{stdio:'inherit'})
 const result=call(['hosting','deploy','./dist','--verify'],hostingEnv)
 console.log(JSON.stringify({backendEnvironment:env,hostingEnvironment:hostingEnv,verified:result.verified,url:result.url},null,2))
