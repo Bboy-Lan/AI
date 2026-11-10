@@ -10,8 +10,8 @@ const ORIGINS=[
  {id:'hosting',base:'https://cloud-ynnu-d6gs8ekf7dbcbe80e-1517920911.tcloudbaseapp.com/',ui:false},
 ]
 const legacyAssets={
- pages:['/AI/assets/index-B1taL3Pk.js','/AI/assets/index-2mIxrOBZ.css'],
- hosting:['/assets/index-DoRE9Ebs.js','/assets/index-2mIxrOBZ.css'],
+ pages:['/AI/assets/index-BIb016w1.js','/AI/assets/index-Mj3iGp3r.css'],
+ hosting:['/assets/index-CghoQdey.js','/assets/index-Mj3iGp3r.css'],
 }
 const results=[],consoleErrors=[],runtimeErrors=[]
 const record=(origin,name,ok,detail)=>{results.push({origin,name,ok,detail});console.log((ok?'PASS ':'FAIL ')+origin+' · '+name+(detail?' · '+detail:''))}
@@ -34,7 +34,7 @@ for(const origin of ORIGINS){
  await check(origin.id,'HTML 引用本轮新主包',async()=>{
   const script=html[origin.id].text.match(/src="([^"]*\/assets\/index-[^"]*\.js)"/)
   if(!script)throw new Error('HTML 未引用主脚本')
-  if(!/index-BIb016w1|index-CghoQdey/.test(script[1]))throw new Error('仍是旧主包：'+script[1])
+  if(!/index-CwrjmMmD|index-cuAQG5gO/.test(script[1]))throw new Error('仍是旧主包：'+script[1])
   return `status=${html[origin.id].status} ${script[1]}`
  })
 
@@ -145,6 +145,37 @@ for(const origin of ORIGINS){
   await page.waitForSelector('.avatar-zoom',{state:'detached',timeout:10000})
   if(page.url()!==before)throw new Error('放大头像时发生了跳转')
   return '弹层开合正常，URL 未变'
+ })
+
+ await check(origin.id,'推荐理由只在详情页展示，首页卡片不再占位',async()=>{
+  await page.goto(origin.base+'?demo=student#/',{waitUntil:'networkidle'})
+  await page.waitForSelector('.layout-switch button',{timeout:20000})
+  await page.locator('.layout-switch button',{hasText:'卡片'}).click()
+  await page.waitForSelector('.food-card',{timeout:15000})
+  const cardReasons=await page.locator('.food-card .food-reason').count()
+  const cards=await page.locator('.food-card').count()
+  if(cardReasons)throw new Error('首页卡片仍有 '+cardReasons+' 处推荐理由')
+  await page.goto(origin.base+'?demo=student#/detail/demo-food-1',{waitUntil:'networkidle'})
+  await page.waitForSelector('.detail-reasons .reason-chip',{timeout:15000})
+  const chips=await page.locator('.detail-reasons .reason-chip').count()
+  const first=(await page.locator('.detail-reasons .reason-chip').first().innerText()).trim()
+  if(!chips)throw new Error('详情页没有推荐理由')
+  return `${cards} 张卡片 0 理由 · 详情 ${chips} 条「${first}」`
+ })
+
+ await check(origin.id,'待处理用红色数字角标提示，与用户消息数字一致',async()=>{
+  await page.goto(origin.base+'?demo=student#/',{waitUntil:'networkidle'})
+  await page.waitForSelector('.tabbar .count-badge',{timeout:20000})
+  const tab=(await page.locator('.tabbar .count-badge').first().innerText()).trim()
+  const color=await page.locator('.tabbar .count-badge').first().evaluate(el=>getComputedStyle(el).backgroundColor)
+  if(!/^\d{1,3}\+?$/.test(tab))throw new Error('底部导航角标不是数字：'+tab)
+  if(color!=='rgb(233, 78, 60)')throw new Error('角标不是站内红色：'+color)
+  await page.goto(origin.base+'?demo=student#/me',{waitUntil:'networkidle'})
+  const entry=page.locator('.me .message-entry .count-badge').first()
+  await entry.waitFor({timeout:15000})
+  const messages=(await entry.innerText()).trim()
+  if(messages!==tab)throw new Error('互动消息数字与导航不一致：'+messages+' / '+tab)
+  return `导航 ${tab} · 互动消息 ${messages} · ${color}`
  })
 
  await check(origin.id,'页面运行无脚本错误',async()=>{

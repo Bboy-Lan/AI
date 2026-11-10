@@ -201,8 +201,40 @@ await check('真实 HEIC 照片可在浏览器内解码并转成通用格式',as
  return `HEIC → ${photo.type} ${photo.w}x${photo.h} ${(photo.bytes/1024).toFixed(0)}KB ${photo.extension} · 头像 ${(avatar.bytes/1024).toFixed(0)}KB ${avatar.extension}`
 })
 
+await check('推荐理由从首页卡片移到详情页',async()=>{
+ await page.goto(BASE+'?demo=student#/',{waitUntil:'networkidle'})
+ await page.waitForSelector('.layout-switch button',{timeout:15000})
+ await page.locator('.layout-switch button',{hasText:'卡片'}).click()
+ await page.waitForSelector('.food-card',{timeout:15000})
+ const inCard=await page.locator('.food-card .food-reason').count()
+ await page.goto(BASE+'?demo=student#/detail/demo-food-1',{waitUntil:'networkidle'})
+ await page.waitForSelector('.detail-reasons',{timeout:15000})
+ const chips=await page.locator('.detail-reasons .reason-chip').allInnerTexts()
+ if(inCard)throw new Error('首页卡片仍有推荐理由文字：'+inCard+' 处')
+ if(!chips.length)throw new Error('详情页没有推荐理由')
+ return '卡片 0 处 · 详情 ' + chips.join(' / ')
+})
+
+await check('未读与待办用红色数字角标提示用户与管理员',async()=>{
+ const read=async locator=>{const el=locator.first();const text=(await el.innerText()).trim();const color=await el.evaluate(node=>getComputedStyle(node).backgroundColor);if(!/^\d{1,3}\+?$/.test(text))throw new Error('角标不是数字：'+text);if(color!=='rgb(233, 78, 60)')throw new Error('角标底色不是站内红色：'+color);return text}
+ await page.goto(BASE+'?demo=student#/',{waitUntil:'networkidle'})
+ await page.waitForSelector('.tabbar .count-badge',{timeout:15000})
+ const tab=await read(page.locator('.tabbar .count-badge'))
+ await page.goto(BASE+'?demo=student#/me',{waitUntil:'networkidle'})
+ await page.waitForSelector('.me .message-entry .count-badge',{timeout:15000})
+ const message=await read(page.locator('.me .message-entry .count-badge'))
+ await page.goto(BASE+'?demo=admin#/me',{waitUntil:'networkidle'})
+ await page.waitForSelector('.me .admin-entry .count-badge',{timeout:15000})
+ const admin=await read(page.locator('.me .admin-entry .count-badge'))
+ await page.goto(BASE+'?demo=admin#/admin',{waitUntil:'networkidle'})
+ await page.waitForSelector('.page.admin .chip .count-badge',{timeout:15000})
+ const review=await read(page.locator('.page.admin .chip .count-badge'))
+ if(Number(review.replace('+',''))<1)throw new Error('审核台待审核数异常：'+review)
+ return `导航 ${tab} · 互动消息 ${message} · 用户治理 ${admin} · 集中审核台 ${review}`
+})
+
 await check('管理员可单张驳回配图，作者编辑页出现驳回占位并要求重传',async()=>{
- await page.goto(BASE+'?demo=admin#/review-admin',{waitUntil:'networkidle'})
+ await page.goto(BASE+'?demo=admin&reviewCase=bulk#/review-admin',{waitUntil:'networkidle'})
  await page.waitForSelector('.review-compact-row',{timeout:15000})
  const target=await page.evaluate(()=>{
   const rows=[...document.querySelectorAll('.review-compact-row')]

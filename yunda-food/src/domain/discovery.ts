@@ -32,6 +32,15 @@ export function normalize(food:Food){
  const places=food.locationType==='inside'?[food.school,food.campus,food.venue]:[food.region,food.venue,food.addressSummary]
  return {...food,price:integerPrice(price??undefined),taste:{spicy,sweet,tags,staple:taste.staple||'',temperature:taste.temperature||''},placeText:places.filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ')||food.placeText||'地点未标注',tasteText:[spicy==null?'':SPICY_LABELS[spicy],sweet==null?'':SWEET_LABELS[sweet],...tags,taste.temperature].filter(Boolean).join(' · ')||'口味未标注'}
 }
+// One rule for "why this recommendation fits you": the home list only ranks with it, the detail page shows it.
+export function reasonItems(item:Food,prefs:Partial<Preferences>={}):string[]{
+ const hometown=same(prefs.hometown,item.hometown),spicy=item.taste?item.taste.spicy:null,compatible=prefs.spicy!=null&&spicy!=null&&spicy<=Number(prefs.spicy),shared=(item.taste&&item.taste.tags||[]).filter(t=>(prefs.tags||[]).includes(t)),staple=Boolean(prefs.staple&&item.taste&&prefs.staple===item.taste.staple)
+ return [hometown?'同乡推荐（家乡自填）':'',compatible?`${SPICY_LABELS[spicy!]}在你的接受范围`:'',shared.length?shared.join('、')+'符合你偏好':'',staple?'你常吃的'+item.taste!.staple:''].filter(Boolean) as string[]
+}
+export function matchScore(item:Food,prefs:Partial<Preferences>={}):number{
+ const hometown=same(prefs.hometown,item.hometown),spicy=item.taste?item.taste.spicy:null,compatible=prefs.spicy!=null&&spicy!=null&&spicy<=Number(prefs.spicy),shared=(item.taste&&item.taste.tags||[]).filter(t=>(prefs.tags||[]).includes(t)),staple=Boolean(prefs.staple&&item.taste&&prefs.staple===item.taste.staple)
+ return (hometown?10:0)+(compatible?1:0)+shared.length+(staple?1:0)
+}
 export function filterItems(items:Food[],filters:Filters={},prefs:Partial<Preferences>={}){
  const words=String(filters.keyword||'').trim().toLowerCase(),budget=numeric(filters.budget),people=Number(filters.people)>0?Number(filters.people):1
  return items.map(normalize).filter(item=>{
@@ -45,8 +54,8 @@ export function filterItems(items:Food[],filters:Filters={},prefs:Partial<Prefer
   if(budget!=null&&(!['portion','person'].includes(item.priceBasis||'')||item.price==null||item.price<=0||item.price*people>budget))return false
   return !filters.hometownOnly||same(prefs.hometown,item.hometown)
  }).map(item=>{
-  const hometown=same(prefs.hometown,item.hometown),compatible=prefs.spicy!=null&&item.taste.spicy!=null&&item.taste.spicy<=Number(prefs.spicy),shared=item.taste.tags.filter(t=>(prefs.tags||[]).includes(t)),staple=Boolean(prefs.staple&&prefs.staple===item.taste.staple)
-  return {...item,sameHometown:hometown,reasons:[hometown?'同乡推荐（家乡自填）':'',compatible?`${SPICY_LABELS[item.taste.spicy!]}在你的接受范围`:'',shared.length?shared.join('、')+'符合你偏好':'',staple?'你常吃的'+item.taste.staple:''].filter(Boolean).join(' · '),orderScore:(hometown?10:0)+(compatible?1:0)+shared.length+(staple?1:0)}
+  const reasons=reasonItems(item,prefs)
+  return {...item,sameHometown:same(prefs.hometown,item.hometown),reasons:reasons.join(' · '),orderScore:matchScore(item,prefs)}
  }).sort((a,b)=>b.orderScore-a.orderScore)
 }
 export function dateLabel(value:unknown):string{

@@ -4,6 +4,9 @@ const PUBLIC=new Set(['forumTopics','forumTopic','forumReplies'])
 const ACTIONS=new Set([...PUBLIC,'forumOwnReply','editForumReply','forumMyReplies','saveForumTopic','saveForumReply','withdrawForumTopic','withdrawForumReply','reportForum','adminForumList','adminForumStatus','adminForumResolve','adminForumReportAction','forumNotifications','forumNotificationAction','forumSummary'])
 const C={topics:'xsyj_forum_topics',replies:'xsyj_forum_replies',reports:'xsyj_forum_reports',notifications:'xsyj_forum_notifications',meta:'xsyj_forum_meta',audit:'xsyj_forum_audit'}
 const categories=['同乡交流','校园生活','吃喝吐槽']
+// 待审核话题与楼层只对作者与管理员可见，与推荐使用同一条审核标签规则。
+const tagOf=require('./moderation.cjs').tag
+const hiddenFrom=(row,identity)=>!identity.admin&&row.ownerOpenId!==identity.uid&&tagOf(row)!=='approved'
 module.exports=function createForum(d){
  const {db,fail,now,hash,profileFor,requireProfile,requireAdmin,adminFor,chinaDay,imageReview}=d
  const get=async(store,name,id)=>{try{return (await store.collection(name).doc(id).get()).data||null}catch(e){if(/not.?found|not.?exist|不存在|DOCUMENT_NOT_FOUND/i.test(String(e.message||e.errMsg||'')))return null;throw e}}
@@ -19,11 +22,11 @@ module.exports=function createForum(d){
  const audit=(tx,uid,targetType,targetId,topicId,action,reason,snapshot)=>set(tx,C.audit,hash(uid,targetType,targetId,action,sequence()),{operatorOpenId:uid,targetType,targetId,topicId,action,reason,snapshot,createdAt:now()})
  async function author(uid,cache){if(!cache.has(uid))cache.set(uid,Promise.all([profileFor(uid),adminFor(uid)]));const [p,admin]=await cache.get(uid);return {profileId:p?._id||'',name:p?.foodieId||'同学',avatarKey:p?.avatarFileId||'',hometown:p?.hometown||'',isAdmin:Boolean(admin)}}
  async function topicDto(row,identity,cache=new Map()){if(row.reviewTag==='deleted'&&!identity.admin)row={...row,body:'此话题已删除，处理意见请查看互动消息。',images:[]};return {...require('./moderation.cjs').fields(row),id:row._id,title:row.title,body:row.body,category:row.category,hometown:row.hometown,images:row.images||[],status:row.status,version:row.version,replyCount:row.replyCount||0,sequence:row.sequence,createdAt:stamp(row.createdAt),updatedAt:stamp(row.updatedAt),own:row.ownerOpenId===identity.uid,rejectedImages:row.ownerOpenId===identity.uid||identity.admin?(row.rejectedImages||[]).map(v=>({fileId:v.fileId,reason:v.reason||''})):[],canEdit:row.ownerOpenId===identity.uid&&row.status!=='withdrawn'&&row.reviewTag!=='deleted',reason:row.ownerOpenId===identity.uid||identity.admin?row.reason||'':'',author:await author(row.ownerOpenId,cache)}}
- async function replyDto(row,identity,cache=new Map()){
-  const own=row.ownerOpenId===identity.uid,readBody=row.status==='public'||own||identity.admin,key='topic:'+row.topicId
+  async function replyDto(row,identity,cache=new Map()){
+  const own=row.ownerOpenId===identity.uid,pending=hiddenFrom(row,identity),readBody=(row.status==='public'&&!pending)||own||identity.admin,key='topic:'+row.topicId
   if(!cache.has(key))cache.set(key,get(db,C.topics,row.topicId))
   const topic=await cache.get(key)
-  return {...require('./moderation.cjs').fields(row),id:row._id,topicId:row.topicId,topicTitle:topic?.title||'已不可访问的话题',topicUnavailable:!topic||topic.status!=='public'&&topic.ownerOpenId!==identity.uid&&!identity.admin,body:readBody&&(row.reviewTag!=='deleted'||identity.admin)?row.body:'',status:row.status,floor:row.floor,replyToFloor:row.replyToFloor||0,version:row.version,sequence:row.sequence,own,reason:own||identity.admin?row.reason||'':'',createdAt:stamp(row.createdAt),author:await author(row.ownerOpenId,cache),isTopicAuthor:!!topic&&row.ownerOpenId===topic.ownerOpenId}
+  return {...require('./moderation.cjs').fields(row),id:row._id,topicId:row.topicId,topicTitle:topic?.title||'已不可访问的话题',topicUnavailable:!topic||topic.status!=='public'&&topic.ownerOpenId!==identity.uid&&!identity.admin,body:readBody&&(row.reviewTag!=='deleted'||identity.admin)?row.body:'',status:row.status,reviewPending:pending,floor:row.floor,replyToFloor:row.replyToFloor||0,version:row.version,sequence:row.sequence,own,reason:own||identity.admin?row.reason||'':'',createdAt:stamp(row.createdAt),author:await author(row.ownerOpenId,cache),isTopicAuthor:!!topic&&row.ownerOpenId===topic.ownerOpenId}
  }
  async function visible(id,identity,store=db){const row=await get(store,C.topics,id);if(!row||row.status!=='public'&&row.ownerOpenId!==identity.uid&&!identity.admin)fail('这条话题暂不可访问。');return row}
  async function page(name,where,after){if(after&& !/^\d{13}-[a-f0-9]{16}$/.test(after))fail('分页标识无效，请刷新列表。');const rows=(await db.collection(name).where({...where,...(after?{sequence:db.command.lt(after)}:{})}).orderBy('sequence','desc').limit(21).get()).data;return {rows:rows.slice(0,20),next:rows.length>20?rows[19].sequence:''}}
@@ -38,9 +41,9 @@ module.exports=function createForum(d){
   if(action==='forumTopics'){
    const where=p.mine?{ownerOpenId:uid}:{status:'public'}
    if(p.hometown){const home=hometown.parse(p.hometown);if(!home)fail('请先选择完整的家乡省市。');where.hometown=home.value}
-   const result=await page(C.topics,where,p.after),cache=new Map();return {rows:await Promise.all(result.rows.map(row=>topicDto(row,identity,cache))),next:result.next}
+   const result=await page(C.topics,where,p.after),cache=new Map(),shown=p.mine?result.rows:result.rows.filter(row=>!hiddenFrom(row,identity));return {rows:await Promise.all(shown.map(row=>topicDto(row,identity,cache))),next:result.next}
   }
-  if(action==='forumTopic')return topicDto(await visible(p.id,identity),identity)
+  if(action==='forumTopic'){const row=await visible(p.id,identity);if(hiddenFrom(row,identity))fail('这条话题暂不可访问。');return topicDto(row,identity)}
   if(action==='forumReplies'){
    await visible(p.id,identity);const after=Number(p.afterFloor||0);if(!Number.isInteger(after)||after<0)fail('楼层页码无效。')
    const rows=(await db.collection(C.replies).where({topicId:p.id,floor:db.command.gt(after)}).orderBy('floor','asc').limit(20).get()).data,cache=new Map()

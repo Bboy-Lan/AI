@@ -1,8 +1,10 @@
 import {REVIEW_KINDS,REVIEW_LABELS,type ReviewKind} from '../domain/moderation'
 import type {DemoState} from './fixtures'
 export const REVIEW_READS=['adminReviewQueue','adminReviewDetail','adminReviewSummary','reviewNotifications','reviewSummary']
+import {reviewTagOf} from '../domain/moderation'
 export const REVIEW_ACTIONS=new Set([...REVIEW_READS,'adminReviewApply','adminReviewBatch','adminRejectImage','reviewNotificationAction'])
-const tag=(r:any)=>r.status==='withdrawn'?'withdrawn':r.reviewTag||(r.status==='hidden'?'blocked':r.status==='returned'?'changes':'pending')
+// The demo must read the same tag rule as the server, or its badges and counts drift from the review desk.
+const tag=(r:any)=>reviewTagOf(r)
 const token=(r:any)=>{let h=2166136261;for(const c of JSON.stringify(r))h=Math.imul(h^c.charCodeAt(0),16777619);return String(h>>>0)}
 export function fillReviewCase(state:DemoState){
  const tags=['pending','approved','changes','blocked','deleted'] as const,sample=state.foods[0],caution=state.cautions[0],topic=state.forum?.topics[0];if(!sample||!caution||!topic)return

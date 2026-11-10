@@ -33,7 +33,7 @@ try{
  protectedBasic=await rpc('announcement')
 
  // Disposable identities: profile and avatar are prerequisites for notices and publishing.
- for(let i=0;i<2;i++){
+ for(let i=0;i<3;i++){
   const name='xsyj_ux_'+Date.now()+'_'+i,password='Aa1!'+crypto.randomBytes(12).toString('hex')
   call(['user','create',name,'--password',password,'--type','externalUser'])
   const account=call(['user','list','--name',name]).find(u=>u.Name===name);if(!account?.Uid)throw Error('Temporary account lookup failed')
@@ -47,14 +47,14 @@ try{
   const upload=await app.uploadFile({cloudPath:path,filePath:fs.readFileSync('public/assets/icons/avatar.png')})
   if(!upload.fileID)throw Error('Avatar upload failed')
   accounts[i].avatar=upload.fileID
-  await rpc('saveProfile',{name:'验收同学'+['甲','乙'][i],hometown:'云南省昆明市',avatarKey:upload.fileID},accounts[i].token)
+  await rpc('saveProfile',{name:'验收同学'+['甲','乙','丙'][i],hometown:'云南省昆明市',avatarKey:upload.fileID},accounts[i].token)
   const savedProfile=await rpc('context',{},accounts[i].token)
   accounts[i].profileId=savedProfile.profileId
   if(!accounts[i].profileId)throw Error('Profile document id missing')
   check(JSON.stringify((await rpc('context',{},accounts[i].token)).profile).includes(upload.fileID),'头像真实保存并在会话中读回 '+i)
   check((await rpc('mediaUrl',{key:upload.fileID},accounts[i].token)).startsWith('https://'),'本人头像可获得访问链接 '+i)
  }
- const [a,b]=accounts
+ const [a,b,c]=accounts
 
  // Administrator identity comes from the server-side grant table only, and must exist before the gate test.
  mongo('xsyj_admins',{insert:'xsyj_admins',documents:[{_id:'ux-admin-'+a.uid,openId:a.uid,enabled:true}]},'INSERT')
@@ -195,11 +195,34 @@ try{
  const topicAfter=await rpc('forumTopic',{id:topic.id},b.token)
  const topicOk=topicAfter.images.length===0&&String(topicAfter.rejectedImages?.[0]?.reason||'').includes('无关')
  check(topicOk,'树洞话题配图驳回后同样移除并保留原因'+(topicOk?'':'（实际：'+JSON.stringify({images:topicAfter.images,rejected:topicAfter.rejectedImages})+'）'))
+
+ // 13. 待审核内容只对作者与管理员可见，管理员角标必须立刻提示。
+ check((await rpc('myFoods',{},b.token)).some(r=>r.id===userFood.id),'作者自己的投稿列表仍能看到待审核推荐')
+ check(!(await rpc('foods')).some(r=>r.id===userFood.id),'待审核推荐不出现在游客的公开列表')
+ check(!(await rpc('foods',{},c.token)).some(r=>r.id===userFood.id),'待审核推荐不出现在其他账号的公开列表')
+ check(await rpc('food',{id:userFood.id},c.token)===null,'其他账号读取待审核推荐详情得到空结果')
+ check((await rpc('food',{id:userFood.id},b.token)).reviewTag==='pending','作者本人仍能打开自己的待审核推荐')
+ check(!(await rpc('forumTopics')).rows.some(r=>r.id===topic.id),'待审核话题不出现在公开话题列表')
+ await denied('forumTopic',{id:topic.id},c.token,/不可访问/,'其他账号打不开待审核话题')
+ check((await rpc('forumTopic',{id:topic.id},b.token)).reviewTag==='pending','作者本人仍能打开自己的待审核话题')
+ await denied('caution',{id:caution.id},c.token,/暂不可查看/,'待审核消费经历同样只对作者可见')
+
+ // 14. 管理员的发布默认已审核，待办角标覆盖集中审核台的全部待审内容。
+ const adminCaution=await rpc('saveCaution',{name:'临时验收管理员经历',address:'临时验收地点',date:'2026-11-01',body:'这条经历只用于验证管理员发布默认已审核，随后删除。',tags:['服务'],images:[],confirmed:true,requestId:crypto.randomUUID()},a.token)
+ const adminCautionRow=await rpc('caution',{id:adminCaution.id},a.token)
+ check(adminCautionRow.reviewTag==='approved'&&adminCautionRow.status==='public','管理员发布消费经历默认已审核并公开')
+ const adminTopic=await rpc('saveForumTopic',{title:'临时验收管理员话题',body:'这条话题只用于验证管理员发布默认已审核，随后删除。',category:'校园生活',images:[],clientRequestId:crypto.randomUUID()},a.token)
+ check(adminTopic.reviewTag==='approved','管理员发布话题默认已审核')
+ const adminSummary=await rpc('notificationSummary',{},a.token),reviewSummary=await rpc('adminReviewSummary',{},a.token)
+ check(reviewSummary.pending>0,'本轮真实待审核内容立即进入集中审核台')
+ check(adminSummary.pendingCount>=reviewSummary.pending,'管理员待办角标覆盖集中审核台的全部待审内容')
+ check((await rpc('notificationSummary',{},c.token)).pendingCount===0,'普通账号不会拿到管理员待办角标')
+ check((await rpc('myFoods',{},b.token)).every(r=>typeof r.reviewTag==='string'),'作者列表带审核标签，便于显示待审核数字')
 }catch(e){failure=e.message;console.log('FAIL '+failure)}finally{
  const cleanupErrors=[],uids=accounts.map(a=>a.uid)
  const tables=['profiles','food_items','favorites','reviews','admins','events','caution_posts','caution_likes','caution_reports','caution_messages','caution_meta','caution_audit','forum_topics','forum_replies','forum_reports','forum_notifications','forum_meta','forum_audit','review_audit','review_notifications'].map(n=>'xsyj_'+n)
  const attempt=fn=>{try{fn()}catch(e){cleanupErrors.push(e.message)}}
- if(accounts.length!==2||accounts.some(a=>!a.name.startsWith('xsyj_ux_')))cleanupErrors.push('Unexpected temporary account set')
+ if(accounts.length!==3||accounts.some(a=>!a.name.startsWith('xsyj_ux_')))cleanupErrors.push('Unexpected temporary account set')
  else{
   for(const id of inserted)attempt(()=>{const [table,_id]=id.split(':');mongo(table,{delete:table,deletes:[{q:{_id},limit:1}]},'DELETE')})
   for(const name of tables)attempt(()=>{const fields=['ownerOpenId','operatorOpenId','actor','openId','updatedBy'],filter={$or:fields.map(field=>({[field]:{$in:uids}}))},rows=mongo(name,{find:name,filter,limit:1000});if(rows.length)mongo(name,{delete:name,deletes:rows.map(row=>({q:{_id:row._id},limit:1}))},'DELETE')})
@@ -208,7 +231,7 @@ try{
  }
  cleanupFailure=cleanupErrors.join('; ')
  if(!cleanupFailure&&fs.existsSync(ledger))fs.unlinkSync(ledger)
- const result={date:new Date(Date.now()+8*3600e3).toISOString().slice(0,10),executedAt:new Date().toISOString(),environment:env,mode:'real-classic-cloud',scope:'storeName-image-review-tag-notice-avatar-image-rejection',checks,failure,cleanupFailure,temporaryAccounts:accounts.length,temporaryFiles:files.length,temporaryRecords:inserted.length,credentialsPersisted:false,sharedBasicNoticeWritten:false,ledgerRemoved:!fs.existsSync(ledger)}
+ const result={date:new Date(Date.now()+8*3600e3).toISOString().slice(0,10),executedAt:new Date().toISOString(),environment:env,mode:'real-classic-cloud',scope:'storeName-image-review-tag-notice-avatar-image-rejection-pending-visibility-badge',checks,failure,cleanupFailure,temporaryAccounts:accounts.length,temporaryFiles:files.length,temporaryRecords:inserted.length,credentialsPersisted:false,sharedBasicNoticeWritten:false,ledgerRemoved:!fs.existsSync(ledger)}
  fs.writeFileSync('docs/evidence/ux-cloud-20261110.json',JSON.stringify(result,null,2))
  console.log(JSON.stringify({checks:checks.length,failure,cleanupFailure}))
  process.exit(failure||cleanupFailure?1:0)
