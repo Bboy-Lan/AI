@@ -54,7 +54,7 @@ export function DirectMessages({profileId:initial=''}:{profileId?:string}){
    if(isAdmin)await loadThreads(active);else await loadMine()
   }catch(e){setError((e as Error).message)}finally{setBusy(false)}
  }
- const bubbles=<div className="dm-thread-list">{(messages.length?messages.map(m=><p key={m.id} className={'dm-bubble'+(mine(m)?' me':'')}><span>{m.body}</span><small>{m.fromAdmin?'管理员':'我'} · {dateLabel(m.createdAt)}</small></p>):[<div className="empty" key="empty">{isAdmin?'还没有消息，发出第一条私信吧。':'管理员还没有给你发过私信。'}</div>])}<div ref={tail}/></div>
+ const bubbles=<div className="dm-thread-list">{(messages.length?messages.map(m=><p key={m.id} className={'dm-bubble'+(mine(m)?' me':'')}><span>{m.body}</span><small>{(mine(m)?'我':isAdmin?'用户':'管理员')} · {dateLabel(m.createdAt)}</small></p>):[<div className="empty" key="empty">{isAdmin?'还没有消息，发出第一条私信吧。':'管理员还没有给你发过私信。'}</div>])}<div ref={tail}/></div>
  const composer=<form className="dm-composer" onSubmit={e=>{e.preventDefault();void send()}}><textarea value={text} maxLength={300} minLength={2} required onChange={e=>setText(e.target.value)} placeholder={isAdmin?'写一条私信，对方会在互动消息里看到':'回复管理员'} disabled={busy}/><button className="button primary" disabled={busy||(isAdmin&&!active)}>{busy?'正在发送…':'发送'}</button></form>
  if(!isAdmin)return <section className="card dm-panel"><h3>管理员私信</h3><p className="muted">只有管理员可以主动发起私信。这里显示管理员发给你的消息，你可以直接回复。</p>{error&&<p role="alert" className="notice">{error}</p>}{loading?<div className="empty">正在读取私信…</div>:bubbles}{!loading&&messages.length>0&&composer}</section>
  const thread=threads.find(t=>t.profileId===active)

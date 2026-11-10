@@ -101,6 +101,8 @@ test('消息页新增私信分组，管理员从用户资料发起', () => {
  // 管理员发起、用户只读回复：组件里不能出现用户侧的“新对话”入口。
  assert.match(direct(), /只有管理员可以主动发起私信/)
  assert.match(direct(), /isAdmin&&!messages\.length\?'sendDirectMessage':'replyDirectMessage'/)
+ // 气泡署名按当前视角算，管理员看自己的消息不能标成“管理员”。
+ assert.match(direct(), /\(mine\(m\)\?'我':isAdmin\?'用户':'管理员'\)/)
 })
 
 test('点开消息即已读，未读标签高对比显示', () => {

@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-11-10T05:47:41.315Z",
+  "checkedAt": "2026-11-10T06:13:29.608Z",
   "base": "http://127.0.0.1:5173/",
   "passed": 28,
   "failed": 0,
@@ -144,7 +144,7 @@
     {
       "name": "全页面无横向溢出与运行时错误",
       "ok": true,
-      "detail": "6 宽度 × 5 页面无溢出；pageerror=0"
+      "detail": "6 宽度 × 7 页面无溢出；pageerror=0"
     }
   ]
 }
