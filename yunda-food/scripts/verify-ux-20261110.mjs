@@ -201,6 +201,62 @@ await check('真实 HEIC 照片可在浏览器内解码并转成通用格式',as
  return `HEIC → ${photo.type} ${photo.w}x${photo.h} ${(photo.bytes/1024).toFixed(0)}KB ${photo.extension} · 头像 ${(avatar.bytes/1024).toFixed(0)}KB ${avatar.extension}`
 })
 
+await check('管理员可单张驳回配图，作者编辑页出现驳回占位并要求重传',async()=>{
+ await page.goto(BASE+'?demo=admin#/review-admin',{waitUntil:'networkidle'})
+ await page.waitForSelector('.review-compact-row',{timeout:15000})
+ const target=await page.evaluate(()=>{
+  const rows=[...document.querySelectorAll('.review-compact-row')]
+  const row=rows.find(r=>(r.getAttribute('data-review-key')||'').startsWith('food:')&&r.querySelector('.review-thumb small'))
+  return row?{key:row.getAttribute('data-review-key')||'',title:(row.querySelector('strong')||{}).textContent||''}:null
+ })
+ if(!target)throw new Error('审核队列里没有带多图的推荐记录')
+ await page.locator('.review-compact-row[data-review-key="'+target.key+'"] .review-row-open').click()
+ await page.waitForSelector('.review-image-moderate',{timeout:10000})
+ await page.waitForFunction(()=>document.querySelectorAll('.review-inspector-gallery img').length>0,null,{timeout:10000})
+ const before=await page.locator('.review-inspector-gallery img').count()
+ await page.locator('[aria-label="审核处理意见"]').fill('验收：这张照片与内容无关，请更换后重新上传。')
+ await page.locator('.review-image-moderate .chips .chip').first().click()
+ await page.getByRole('button',{name:'确认驳回这张照片'}).click()
+ await page.waitForFunction(count=>document.querySelectorAll('.review-inspector-gallery img').length<count,before,{timeout:10000})
+ const notice=await page.locator('.review-image-moderate .notice').innerText()
+ const after=await page.locator('.review-inspector-gallery img').count()
+ const photoId=target.key.slice(target.key.indexOf(':')+1)
+ await page.evaluate(next=>{location.hash=next},'/publish/'+photoId)
+ await page.waitForSelector('.gallery-reject-hint',{timeout:10000})
+ const hint=await page.locator('.gallery-reject-hint').innerText()
+ const placeholder=await page.locator('.photo-tile.is-rejected').count()
+ if(!placeholder)throw new Error('作者编辑页没有驳回占位')
+ if(!/重新上传/.test(hint))throw new Error('作者端没有要求重新上传：'+hint)
+ return `「${target.title.slice(0,10)}」图片 ${before}→${after} · 占位${placeholder} · ${notice.slice(0,16)}`
+})
+
+await check('管理员驳回头像后该账号回落到默认头像',async()=>{
+ await page.goto(BASE+'?demo=admin#/admin',{waitUntil:'networkidle'})
+ await page.waitForSelector('.page.admin',{timeout:10000})
+ await page.getByRole('button',{name:'用户',exact:true}).click()
+ await page.waitForSelector('.admin-record',{timeout:10000})
+ await page.locator('.admin-record').filter({hasText:'阿岚同学'}).first().locator('.managed-food').click()
+ await page.waitForSelector('.profile-panel header.profile',{timeout:8000})
+ await page.locator('.profile-panel textarea').fill('验收：头像含不适内容，请重新上传。')
+ await page.getByRole('button',{name:'驳回这张头像'}).click()
+ await page.waitForFunction(()=>[...document.querySelectorAll('.profile-panel .notice')].some(n=>/驳回/.test(n.textContent||'')),null,{timeout:10000})
+ const panelAvatar=await page.locator('.profile-panel header.profile .avatar').first().innerText()
+ if(panelAvatar.trim()!=='食')throw new Error('面板内没有回落到默认头像：'+panelAvatar)
+ await page.reload({waitUntil:'networkidle'})
+ await page.getByRole('button',{name:'用户',exact:true}).click()
+ await page.locator('.admin-record').filter({hasText:'阿岚同学'}).first().locator('.managed-food').click()
+ await page.waitForSelector('.profile-panel header.profile',{timeout:8000})
+ const afterReload=await page.locator('.profile-panel header.profile .avatar').first().innerText()
+ const disabled=await page.getByRole('button',{name:'驳回这张头像'}).isDisabled()
+ if(afterReload.trim()!=='食')throw new Error('刷新后头像没有保持默认：'+afterReload)
+ if(!disabled)throw new Error('没有头像时驳回入口仍可点')
+ await page.goto(BASE+'?demo=admin#/detail/demo-food-9',{waitUntil:'networkidle'})
+ await page.waitForSelector('.author-card',{timeout:10000})
+ const publicAvatar=await page.locator('.author-avatar').first().innerText()
+ if(publicAvatar.trim()!=='食')throw new Error('被驳回账号的公开投稿仍显示原头像：'+publicAvatar)
+ return '面板与公开投稿均回落默认头像 · 刷新后保持 · 无头像时入口禁用'
+})
+
 await check('全页面无横向溢出与运行时错误',async()=>{
  const pages=['?demo=student#/','?demo=student#/me','?demo=student#/export','?demo=student#/detail/demo-food-1','?demo=student#/treehole']
  const overflow=[]

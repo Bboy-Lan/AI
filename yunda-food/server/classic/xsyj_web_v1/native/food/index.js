@@ -74,7 +74,9 @@ async function saveProfile(id, payload) {
   assertSafeText(foodieId, '吃货昵称')
   const old = await profileFor(id); const savedAvatar = avatarFileId || old && old.avatarFileId || ''
   if (!savedAvatar.startsWith('cloud://')) fail('请选择并上传头像后再保存资料。')
-  const data = { foodieId, hometown: hometownValue, profileSchemaVersion: 2, defaultAreaId: defaultAreaId || 'ynu-chenggong', avatarFileId: savedAvatar, updatedAt: now() }
+  // A rejected avatar must stay rejected: the author has to upload a different photo, not re-pick the old one.
+  if (old && old.avatarRejected && old.avatarRejected.fileId === savedAvatar) fail('这张头像已被驳回，请重新上传另一张。')
+  const data = { foodieId, hometown: hometownValue, profileSchemaVersion: 2, defaultAreaId: defaultAreaId || 'ynu-chenggong', avatarFileId: savedAvatar, avatarRejected: old && old.avatarRejected && old.avatarRejected.fileId === savedAvatar ? old.avatarRejected : null, updatedAt: now() }
   if (old) await db.collection(C.profiles).doc(old._id).update({ data })
   else await db.collection(C.profiles).add({ data: { ...data, ownerOpenId: id, moderationStatus: 'active', moderationReason: '', createdAt: now() } })
   await db.collection(C.items).where({ ownerOpenId: id }).update({ data: { authorNickname: foodieId, authorHometown: hometownValue, authorAvatarFileId: data.avatarFileId, updatedAt: now() } })

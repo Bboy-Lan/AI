@@ -367,10 +367,16 @@ button:disabled{opacity:.5;cursor:default}
 .detail-summary>p{margin:8px 0;font-size:13px;overflow-wrap:anywhere}
 .detail-tags{margin-top:5px}
 .detail-copy{font-size:16px!important}
-.rating-line{color:#84928d}
-.rating-line b{color:#e94e3c;font-size:17px;letter-spacing:1px}
-.rating-line i{color:#d8d2b6;font-style:normal;font-size:17px}
-.rating-line strong{color:#44524b}
+.rating-line{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:9px 0;padding:7px 11px;border:1px solid #dfc883;border-radius:11px;background:#fff6d8;color:#7a6535}
+.rating-line .rating-stars{color:var(--yellow);font-size:18px;line-height:1;letter-spacing:2px;text-shadow:0 1px 0 #c79924}
+.rating-line .rating-score{color:var(--red);font-size:20px;font-weight:800;line-height:1}
+.rating-line .rating-unit{color:#7a6535;font-size:11px;font-weight:700}
+.rating-line small{margin-left:auto;color:#8a7a52;font-size:11px;white-space:nowrap}
+.rating-badge{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;padding:2px 8px;border:1px solid #d9b64e;border-radius:99px;background:#fff2c9;color:#7a6535;font-size:11px;font-weight:700;line-height:1.4;white-space:nowrap}
+.rating-badge b{color:#a9761a;font-size:11px;letter-spacing:.5px}
+.rating-badge small{color:#8a7a52;font-size:9px}
+.rating-badge.is-empty{border-color:#d3d7cc;background:#f3f4ec;color:#8a938a}
+.rating-badge.is-empty b,.rating-badge.is-empty small{color:#8a938a}
 .detail-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .detail-actions .button{margin:3px 0}
 .ticket-action{border-color:#c79924;background:var(--yellow);color:#1d5781;box-shadow:3px 3px 0 #b98b1d}
@@ -504,9 +510,10 @@ button:disabled{box-shadow:none}
 
 /* ---- 2026-11-10 image/UX round: layout switch, store name, avatar zoom, export ---- */
 .home-tools{display:flex;align-items:center;gap:7px;min-width:0;flex-wrap:wrap}
-.layout-switch{display:inline-flex;border:1px solid #8eabbc;border-radius:99px;overflow:hidden;background:#e3eef5}
-.layout-switch button{min-height:30px;padding:5px 8px;color:#1d5781;font-size:11px;font-weight:700;line-height:1.2;white-space:nowrap}
-.layout-switch button[aria-pressed="true"]{background:var(--blue);color:#fff}
+.layout-switch{display:inline-flex;gap:6px}
+.layout-switch button{min-height:30px;padding:5px 9px;border:1px solid #a6aaa0;border-radius:99px;background:var(--cream);color:#58625b;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap;transition:transform .12s,box-shadow .12s}
+.layout-switch button[aria-pressed="true"]{color:#fff;background:var(--blue);border-color:#1d5781;box-shadow:1px 1px 0 #1d5781}
+.layout-switch button:active{transform:translate(1px,1px);box-shadow:none}
 .food-grid-view{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-bottom:10px}
 .food-tile{display:flex;flex-direction:column;min-width:0;padding:0;text-align:left;border:1px solid #a6aaa0;border-radius:10px;background:var(--cream);overflow:hidden}
 .food-tile .food-media{flex:none;width:100%;height:96px;border-radius:0}
@@ -516,8 +523,8 @@ button:disabled{box-shadow:none}
 .food-row{display:flex;align-items:center;gap:9px;width:100%;margin:0 0 8px;padding:7px 8px;border:1px solid #a6aaa0;border-radius:10px;background:var(--cream);text-align:left}
 .food-row .food-media{flex:0 0 52px;height:52px;border-radius:7px}
 .food-row-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.food-row-title{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
-.food-row-title strong{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.food-row-title{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.food-row-title strong{flex:1 1 auto;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .food-row-body .food-location,.food-row-body small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .store-name{display:block;margin:1px 0 2px;color:#1d5781;font-size:12px;font-weight:700;overflow-wrap:anywhere}
 .food-row .store-name,.food-tile .store-name{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -554,4 +561,4 @@ button:disabled{box-shadow:none}
 .export-preview th{background:#e3eef5;color:#1d5781;position:sticky;top:0}
 .export-summary{position:sticky;bottom:calc(var(--nav-height) + env(safe-area-inset-bottom,0px) + 6px);z-index:5;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-top:10px;padding:9px 11px;border:1px solid #8eabbc;border-radius:10px;background:#e3eef5;font-size:12px}
 .export-summary b{overflow-wrap:anywhere}
-@media(max-width:360px){.export-field{grid-template-columns:auto minmax(0,1fr) auto auto}.layout-switch button{padding:5px 6px}}
+@media(max-width:360px){.export-field{grid-template-columns:auto minmax(0,1fr) auto auto}.layout-switch{gap:4px}.layout-switch button{padding:4px 7px;font-size:11px}}

@@ -10,8 +10,8 @@ const ORIGINS=[
  {id:'hosting',base:'https://cloud-ynnu-d6gs8ekf7dbcbe80e-1517920911.tcloudbaseapp.com/',ui:false},
 ]
 const legacyAssets={
- pages:['/AI/assets/index-LRuu_61-.js','/AI/assets/index-COxYGY3B.css'],
- hosting:['/assets/index-DSOsA2fB.js','/assets/index-COxYGY3B.css'],
+ pages:['/AI/assets/index-B1taL3Pk.js','/AI/assets/index-2mIxrOBZ.css'],
+ hosting:['/assets/index-DoRE9Ebs.js','/assets/index-2mIxrOBZ.css'],
 }
 const results=[],consoleErrors=[],runtimeErrors=[]
 const record=(origin,name,ok,detail)=>{results.push({origin,name,ok,detail});console.log((ok?'PASS ':'FAIL ')+origin+' · '+name+(detail?' · '+detail:''))}
@@ -34,7 +34,7 @@ for(const origin of ORIGINS){
  await check(origin.id,'HTML 引用本轮新主包',async()=>{
   const script=html[origin.id].text.match(/src="([^"]*\/assets\/index-[^"]*\.js)"/)
   if(!script)throw new Error('HTML 未引用主脚本')
-  if(!/index-B1taL3Pk|index-DoRE9Ebs/.test(script[1]))throw new Error('仍是旧主包：'+script[1])
+  if(!/index-BIb016w1|index-CghoQdey/.test(script[1]))throw new Error('仍是旧主包：'+script[1])
   return `status=${html[origin.id].status} ${script[1]}`
  })
 
@@ -116,6 +116,21 @@ for(const origin of ORIGINS){
   await page.setViewportSize({width:390,height:844})
   if(bad.length)throw new Error(bad.join(' ; '))
   return widths.join('/')+' px 五颗星完整'
+ })
+
+ await check(origin.id,'评分信息与排列按钮按新版呈现',async()=>{
+  await page.goto(origin.base+'?demo=student#/',{waitUntil:'networkidle'})
+  await page.waitForSelector('.food-card',{timeout:20000})
+  const badge=(await page.locator('.food-card .rating-badge').first().innerText()).replace(/\s+/g,' ').trim()
+  const radius=await page.locator('.layout-switch button').first().evaluate(el=>getComputedStyle(el).borderRadius)
+  if(!badge.includes('★'))throw new Error('卡片评分未按新版呈现：'+badge)
+  if(!/99px|9999px/.test(radius))throw new Error('排列按钮没有统一为胶囊画风：'+radius)
+  await page.goto(origin.base+'?demo=student#/detail/demo-food-1',{waitUntil:'networkidle'})
+  await page.waitForSelector('.rating-line .rating-score',{timeout:20000})
+  const score=(await page.locator('.rating-line .rating-score').innerText()).trim()
+  const stars=await page.locator('.rating-line .rating-stars').innerText()
+  if(!score||stars.replace(/[★☆\s]/g,'')!=='')throw new Error('详情评分条不完整：'+score+' / '+stars)
+  return `卡片「${badge}」 · 详情 ${score} 分 · 排列按钮圆角 ${radius}`
  })
 
  await check(origin.id,'头像可放大且不跳转',async()=>{

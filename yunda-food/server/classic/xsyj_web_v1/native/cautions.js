@@ -38,7 +38,7 @@ module.exports = function createCautions({ db, fail, text, now, chinaDay, requir
   async function expose(row, actor) {
     const own = row.ownerOpenId === actor, admin = Boolean(await adminFor(actor))
     const result = { id: row._id, postId: row.postId || '', name: row.name || '', address: row.address || '', body: row.body, tags: row.tags || [], occurredOn: row.occurredOn || '', imageFileIds: row.imageFileIds || [], status: row.status, version: row.version, sequence: row.sequence, createdAt: row.createdAt, updatedAt: row.updatedAt, likeCount: row.likeCount || 0, own, author: await author(row.ownerOpenId) }
-    if (own || admin) result.reason = row.reason || ''
+    if (own || admin) { result.reason = row.reason || ''; result.rejectedImages = (row.rejectedImages || []).map(v => ({ fileId: v.fileId, reason: v.reason || '' })) }
     if(row.reviewTag==='deleted'&&!admin){result.body='此消费经历已删除，处理意见请查看互动消息。';result.imageFileIds=[]}
     Object.assign(result,require('../moderation.cjs').fields(row));return result
   }

@@ -2,9 +2,10 @@ const cloudbase=require('@cloudbase/node-sdk')
 const app=cloudbase.init({env:cloudbase.SYMBOL_CURRENT_ENV})
 const native=require('./native/food/index')
 const cautions=require('./native/cautions')(native.dependencies)
-const forum=require('./forum.cjs')(native.dependencies)
+const imageReview=require('./image-review.cjs')(native.dependencies)
+const forum=require('./forum.cjs')({...native.dependencies,imageReview})
 const moderation=require('./moderation.cjs')(native.dependencies)
-const service=require('./service.cjs')({dispatch:native.dispatch,dependencies:{...native.dependencies,mediaUrl:async file=>{const result=await app.getTempFileURL({fileList:[file]});const row=result.fileList?.[0];if(!row?.tempFileURL)throw Error('Photo unavailable');return row.tempFileURL}},cautions,forum,moderation})
+const service=require('./service.cjs')({dispatch:native.dispatch,dependencies:{...native.dependencies,mediaUrl:async file=>{const result=await app.getTempFileURL({fileList:[file]});const row=result.fileList?.[0];if(!row?.tempFileURL)throw Error('Photo unavailable');return row.tempFileURL}},cautions,forum,moderation,imageReview})
 exports.main=async event=>{
  try{
   const caller=app.auth().getUserInfo()

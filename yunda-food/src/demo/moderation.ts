@@ -1,7 +1,7 @@
 import {REVIEW_KINDS,REVIEW_LABELS,type ReviewKind} from '../domain/moderation'
 import type {DemoState} from './fixtures'
 export const REVIEW_READS=['adminReviewQueue','adminReviewDetail','adminReviewSummary','reviewNotifications','reviewSummary']
-export const REVIEW_ACTIONS=new Set([...REVIEW_READS,'adminReviewApply','adminReviewBatch','reviewNotificationAction'])
+export const REVIEW_ACTIONS=new Set([...REVIEW_READS,'adminReviewApply','adminReviewBatch','adminRejectImage','reviewNotificationAction'])
 const tag=(r:any)=>r.status==='withdrawn'?'withdrawn':r.reviewTag||(r.status==='hidden'?'blocked':r.status==='returned'?'changes':'pending')
 const token=(r:any)=>{let h=2166136261;for(const c of JSON.stringify(r))h=Math.imul(h^c.charCodeAt(0),16777619);return String(h>>>0)}
 export function fillReviewCase(state:DemoState){
@@ -18,6 +18,26 @@ export function demoModeration(state:DemoState,action:string,p:any):any{
  const dto=(kind:ReviewKind,r:any,detail=false)=>({kind,id:r.id,version:r.version,title:title(kind,r)||'未命名内容',body:r[bodyKey(kind)]||'',images:r.images||[],status:r.status,category:r.category||'',author:state.profiles.find(p=>p.uid===r.owner_uid)?.display_name||'同学',createdAt:r.createdAt||'2026-11-09',reviewTag:tag(r),reviewVersion:r.reviewVersion||0,adminEdited:!!r.adminEdited,reviewToken:token(r),reviewReason:r.reviewReason||'',path:path(kind,r),editPath:editPath(kind,r),...(detail?{audit:(s.reviewAudit||[]).filter((a:any)=>a.kind===kind&&a.targetId===r.id).slice(-20).reverse()}:{})})
  const get=(k:string,id:string)=>{const row=lists[k]?.find((r:any)=>r.id===id);if(!row)throw Error('内容不存在。');return row}
  if(action.startsWith('admin')&&!actor.isAdmin)throw Error('无管理员权限。')
+ // Rejecting a single photo removes it from the demo record and tells the author to upload another one.
+ if(action==='adminRejectImage'){
+  const kind=String(p.kind||'avatar'),reason=String(p.reason||'').trim(),fileId=String(p.fileId||'')
+  if(reason.length<2)throw Error('请填写至少2字的驳回说明。')
+  if(kind==='avatar'){
+   const owner=state.profiles.find(x=>x.uid===p.id)||state.profiles.find(x=>x.avatar_key===fileId)
+   if(!owner||owner.avatar_key!==fileId)throw Error('这张照片已不是当前头像。')
+   owner.avatar_key='';owner.avatar_rejected={fileId,reason}
+   state.messages.unshift({id:'review:'+crypto.randomUUID(),owner_uid:owner.uid,kind:'content_review',target_type:'review_action',target_id:owner.uid,path:'/me',editPath:'/onboarding',body:'你的头像未通过审核，已移除，请重新上传一张。驳回说明：'+reason,read:false,archived:false,created_at:new Date().toISOString()})
+   return {kind:'avatar',id:owner.uid,fileId,remaining:0}
+  }
+  if(!['food','caution','topic'].includes(kind))throw Error('图片类型无效。')
+  const r=get(kind,p.id),images=(r.images||[]) as string[]
+  if(!images.includes(fileId))throw Error('这张照片已不在该内容中。')
+  r.images=images.filter(value=>value!==fileId)
+  r.rejectedImages=[...(r.rejectedImages||[]),{fileId,reason}]
+  const routes:any={food:['/detail/','/publish/'],caution:['/tree-detail/','/tree-compose/'],topic:['/forum/','/forum-compose/']}
+  state.messages.unshift({id:'review:'+crypto.randomUUID(),owner_uid:r.owner_uid,kind:'content_review',target_type:'review_action',target_id:r.id,path:routes[kind][0]+r.id,editPath:routes[kind][1]+r.id,body:'你的'+({food:'推荐',caution:'消费经历',topic:'话题'} as any)[kind]+'「'+(title(kind,r)||'内容')+'」有 1 张照片未通过审核，已移除，请重新上传。驳回说明：'+reason,read:false,archived:false,created_at:new Date().toISOString()})
+  return {kind,id:r.id,fileId,remaining:(r.images||[]).length}
+ }
  if(action==='adminReviewQueue'){let rows=Object.entries(lists).flatMap(([kind,list]:any)=>list.map((r:any)=>dto(kind as ReviewKind,r))).filter((r:any)=>(p.kind==='all'||!p.kind||r.kind===p.kind)&&(!p.tag||p.tag==='all'||r.reviewTag===p.tag)&&(!p.reportedOnly||state.reports.some(x=>x.status==='pending'&&!x.archived&&x.target_type===r.kind&&x.target_id===r.id)||(state.forum?.reports||[]).some((x:any)=>x.status==='pending'&&!x.archived&&x.target===r.kind&&x.targetId===r.id))&&(!p.query||[r.title,r.body,r.category].join(' ').toLowerCase().includes(p.query.toLowerCase())));const after=Number(p.after||0);return {rows:rows.slice(after,after+20),next:rows.length>after+20?String(after+20):''}}
  if(action==='adminReviewDetail')return dto(p.kind,get(p.kind,p.id),true)
  if(action==='adminReviewSummary'){const result:any={pending:0,changes:0,blocked:0};for(const rows of Object.values(lists) as any[])for(const r of rows)if(tag(r) in result)result[tag(r)]++;return result}

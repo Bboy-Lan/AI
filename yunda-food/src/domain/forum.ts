@@ -1,7 +1,7 @@
 export const FORUM_CATEGORIES=['同乡交流','校园生活','吃喝吐槽'] as const
 export type ForumStatus='public'|'hidden'|'withdrawn'
 export type ForumAuthor={profileId:string,name:string,avatarKey:string,hometown:string,isAdmin?:boolean}
-export type ForumTopic=import('./moderation').ReviewFields & {id:string,title:string,body:string,category:string,hometown:string,images:string[],status:ForumStatus,version:number,replyCount:number,sequence:string,createdAt:string,updatedAt:string,own:boolean,canEdit:boolean,reason:string,author:ForumAuthor}
+export type ForumTopic=import('./moderation').ReviewFields & {id:string,title:string,body:string,category:string,hometown:string,images:string[],status:ForumStatus,version:number,replyCount:number,sequence:string,createdAt:string,updatedAt:string,own:boolean,canEdit:boolean,reason:string,rejectedImages?:{fileId:string,reason:string}[],author:ForumAuthor}
 export type ForumReply=import('./moderation').ReviewFields & {id:string,topicId:string,topicTitle:string,topicUnavailable:boolean,isTopicAuthor?:boolean,body:string,status:ForumStatus,floor:number,replyToFloor:number,version:number,sequence:string,own:boolean,reason:string,createdAt:string,author:ForumAuthor}
 export type ForumPage<T>={rows:T[],next?:string,afterFloor?:number}
 export type ForumReport={id:string,target:'topic'|'reply',targetId:string,topicId:string,floor:number,status:'pending'|'resolved',reason:string,resolution:string,read:boolean,snapshot:{title:string,body:string,images?:string[],version?:number},created_at:string,sequence:string,reporter:ForumAuthor}

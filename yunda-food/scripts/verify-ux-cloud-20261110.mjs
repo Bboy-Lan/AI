@@ -21,7 +21,7 @@ const saveLedger=()=>fs.writeFileSync(ledger,JSON.stringify({environment:env,acc
 let guestToken='',failure='',cleanupFailure='',protectedBasic
 const check=(ok,label)=>{if(!ok)throw Error(label);checks.push(label);console.log('PASS '+label)}
 async function rpc(action,payload={},token=guestToken){const r=await fetch('https://'+env+'.api.tcloudbasegateway.com/v1/functions/xsyj_web_v1',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({action,payload})});const result=await r.json();if(!r.ok||!result.ok)throw Error(action+': '+(result.message||'Cloud request failed'));return result.data}
-async function denied(action,payload,token,pattern,label){let message='';try{await rpc(action,payload,token)}catch(e){message=e.message}check(pattern.test(message),label+(message?'':'：没有收到预期拒绝'))}
+async function denied(action,payload,token,pattern,label){let message='';try{await rpc(action,payload,token)}catch(e){message=e.message}check(pattern.test(message),label+(message?'（实际：'+message.slice(0,60)+'）':'（没有收到任何拒绝）'))}
 const store='临时验收米线店'
 
 try{
@@ -48,6 +48,9 @@ try{
   if(!upload.fileID)throw Error('Avatar upload failed')
   accounts[i].avatar=upload.fileID
   await rpc('saveProfile',{name:'验收同学'+['甲','乙'][i],hometown:'云南省昆明市',avatarKey:upload.fileID},accounts[i].token)
+  const savedProfile=await rpc('context',{},accounts[i].token)
+  accounts[i].profileId=savedProfile.profileId
+  if(!accounts[i].profileId)throw Error('Profile document id missing')
   check(JSON.stringify((await rpc('context',{},accounts[i].token)).profile).includes(upload.fileID),'头像真实保存并在会话中读回 '+i)
   check((await rpc('mediaUrl',{key:upload.fileID},accounts[i].token)).startsWith('https://'),'本人头像可获得访问链接 '+i)
  }
@@ -131,6 +134,67 @@ try{
  let directReadAllowed=false
  try{await app.database().collection('xsyj_food_items').get();directReadAllowed=true}catch{}
  check(!directReadAllowed,'客户端不能绕过云函数直读业务集合')
+
+ // 10. One rejected recommendation photo leaves the record, tells the author, and can never be reused.
+ const rejectReason='验收：照片与内容无关，请重新上传。'
+ const {path:userPhotoPath}=await rpc('mediaUploadPath',{extension:'webp'},b.token)
+ files.push(userPhotoPath);saveLedger()
+ const userPhoto=await app.uploadFile({cloudPath:userPhotoPath,filePath:fs.readFileSync('public/assets/icons/avatar.png')})
+ const userFood=await rpc('saveFood',{...payload,name:'临时验收驳回用例',storeName:'',images:[userPhoto.fileID],clientRequestId:crypto.randomUUID()},b.token)
+ check(JSON.stringify((await rpc('food',{id:userFood.id},b.token)).images)===JSON.stringify([userPhoto.fileID]),'待驳回的普通用户推荐已真实保存配图')
+ await denied('adminRejectImage',{kind:'food',id:userFood.id,fileId:userPhoto.fileID,reason:rejectReason,clientRequestId:crypto.randomUUID()},b.token,/管理员/,'普通账号不能驳回图片')
+ await denied('adminRejectImage',{kind:'food',id:userFood.id,fileId:userPhoto.fileID,reason:'短',clientRequestId:crypto.randomUUID()},a.token,/2～120/,'驳回必须填写2～120字说明')
+ await denied('adminRejectImage',{kind:'food',id:userFood.id,fileId:'cloud://'+env+'.bucket/xsyj-media/'+crypto.randomUUID()+'.webp',reason:rejectReason,clientRequestId:crypto.randomUUID()},a.token,/不在该内容/,'只能驳回该内容里真实存在的照片')
+ await denied('adminRejectImage',{kind:'profile',id:userFood.id,fileId:userPhoto.fileID,reason:rejectReason,clientRequestId:crypto.randomUUID()},a.token,/类型/,'图片类型只接受头像与三类内容配图')
+ const rejectId=crypto.randomUUID()
+ const rejected=await rpc('adminRejectImage',{kind:'food',id:userFood.id,fileId:userPhoto.fileID,reason:rejectReason,clientRequestId:rejectId},a.token)
+ check(rejected.fileId===userPhoto.fileID&&rejected.remaining===0,'驳回后该配图从推荐中移除')
+ const authorView=await rpc('food',{id:userFood.id},b.token)
+ check(authorView.images.length===0&&String(authorView.rejectedImages?.[0]?.reason||'').includes('无关'),'作者能看到被驳回的照片与原因')
+ check((await rpc('food',{id:userFood.id},a.token)).rejectedImages.length===1,'管理员同样能看到驳回记录')
+ await denied('mediaUrl',{key:userPhoto.fileID},b.token,/已被驳回/,'被驳回的照片不再签发访问链接')
+ await denied('saveFood',{...payload,id:userFood.id,name:'临时验收驳回用例',images:[userPhoto.fileID],clientRequestId:crypto.randomUUID()},b.token,/已被驳回/,'作者不能把同一张被驳回照片重新提交')
+ const replay=await rpc('adminRejectImage',{kind:'food',id:userFood.id,fileId:userPhoto.fileID,reason:rejectReason,clientRequestId:rejectId},a.token)
+ check(replay.fileId===userPhoto.fileID,'同一提交编号重放返回原结果')
+ await denied('adminRejectImage',{kind:'food',id:userFood.id,fileId:userPhoto.fileID,reason:'验收：换成另一段说明。',clientRequestId:rejectId},a.token,/不一致/,'同一提交编号改内容被拒绝')
+ const rejectedNotices=(await rpc('messages',{},b.token)).filter(m=>String(m.body||'').includes('未通过审核'))
+ check(rejectedNotices.length===1,'作者只收到一次附图驳回通知，重放不会重复打扰')
+
+ // 11. A rejected avatar is emptied on the profile, so every surface falls back to the default avatar.
+ check((await rpc('context',{},b.token)).profile.avatar_key===b.avatar,'驳回头像前该账号仍使用原头像')
+ await denied('adminRejectImage',{kind:'avatar',id:b.profileId,fileId:b.avatar,reason:'验收：头像含不适内容，请更换。',clientRequestId:crypto.randomUUID()},b.token,/管理员/,'普通账号不能驳回自己的头像逃避审核')
+ const avatarReject=await rpc('adminRejectImage',{kind:'avatar',id:b.profileId,fileId:b.avatar,reason:'验收：头像含不适内容，请更换。',clientRequestId:crypto.randomUUID()},a.token)
+ check(avatarReject.kind==='avatar','头像驳回按头像类型处理')
+ const emptied=await rpc('context',{},b.token)
+ check(emptied.profile.avatar_key==='','驳回头像后资料头像为空，前端显示默认头像')
+ check(String(emptied.profile.avatar_rejected?.reason||'').includes('不适'),'作者能看到头像驳回原因')
+ await denied('mediaUrl',{key:b.avatar},b.token,/已被驳回/,'被驳回的头像不再签发访问链接')
+ await denied('saveProfile',{name:'验收同学乙',hometown:'云南省昆明市',avatarKey:b.avatar},b.token,/已被驳回/,'不能把被驳回的头像重新设为头像')
+ const {path:newAvatarPath}=await rpc('mediaUploadPath',{extension:'png'},b.token)
+ files.push(newAvatarPath);saveLedger()
+ const newAvatar=await app.uploadFile({cloudPath:newAvatarPath,filePath:fs.readFileSync('public/assets/icons/avatar.png')})
+ await rpc('saveProfile',{name:'验收同学乙',hometown:'云南省昆明市',avatarKey:newAvatar.fileID},b.token)
+ const repaired=await rpc('context',{},b.token)
+ check(repaired.profile.avatar_key===newAvatar.fileID&&!repaired.profile.avatar_rejected,'重新上传新头像后立即恢复且清掉驳回标记')
+ check((await rpc('messages',{},b.token)).some(m=>String(m.body||'').includes('头像')&&String(m.body||'').includes('未通过审核')),'头像驳回同样向作者发出通知')
+
+ // 12. The same authority covers caution evidence photos and forum topic images.
+ const {path:cautionPhotoPath}=await rpc('mediaUploadPath',{extension:'webp'},b.token)
+ files.push(cautionPhotoPath);saveLedger()
+ const cautionPhoto=await app.uploadFile({cloudPath:cautionPhotoPath,filePath:fs.readFileSync('public/assets/icons/avatar.png')})
+ const cautionWithPhoto=await rpc('saveCaution',{name:'临时验收驳回店铺',address:'临时验收地点',date:'2026-11-01',body:'这条记录只用于验收黑榜配图驳回，随后删除。',tags:['服务'],images:[cautionPhoto.fileID],confirmed:true,requestId:crypto.randomUUID()},b.token)
+ await rpc('adminRejectImage',{kind:'caution',id:cautionWithPhoto.id,fileId:cautionPhoto.fileID,reason:'验收：照片与经历不符。',clientRequestId:crypto.randomUUID()},a.token)
+ const cautionAfter=await rpc('caution',{id:cautionWithPhoto.id},b.token)
+ const cautionOk=cautionAfter.images.length===0&&String(cautionAfter.rejectedImages?.[0]?.reason||'').includes('不符')
+ check(cautionOk,'黑榜照片驳回后同样移除并保留原因'+(cautionOk?'':'（实际：'+JSON.stringify({images:cautionAfter.images,rejected:cautionAfter.rejectedImages})+'）'))
+ const {path:topicPhotoPath}=await rpc('mediaUploadPath',{extension:'webp'},b.token)
+ files.push(topicPhotoPath);saveLedger()
+ const topicPhoto=await app.uploadFile({cloudPath:topicPhotoPath,filePath:fs.readFileSync('public/assets/icons/avatar.png')})
+ const topic=await rpc('saveForumTopic',{title:'临时验收话题驳回',body:'这条话题只用于验收树洞配图驳回，随后删除。',category:'校园生活',images:[topicPhoto.fileID],clientRequestId:crypto.randomUUID()},b.token)
+ await rpc('adminRejectImage',{kind:'topic',id:topic.id,fileId:topicPhoto.fileID,reason:'验收：话题配图与内容无关。',clientRequestId:crypto.randomUUID()},a.token)
+ const topicAfter=await rpc('forumTopic',{id:topic.id},b.token)
+ const topicOk=topicAfter.images.length===0&&String(topicAfter.rejectedImages?.[0]?.reason||'').includes('无关')
+ check(topicOk,'树洞话题配图驳回后同样移除并保留原因'+(topicOk?'':'（实际：'+JSON.stringify({images:topicAfter.images,rejected:topicAfter.rejectedImages})+'）'))
 }catch(e){failure=e.message;console.log('FAIL '+failure)}finally{
  const cleanupErrors=[],uids=accounts.map(a=>a.uid)
  const tables=['profiles','food_items','favorites','reviews','admins','events','caution_posts','caution_likes','caution_reports','caution_messages','caution_meta','caution_audit','forum_topics','forum_replies','forum_reports','forum_notifications','forum_meta','forum_audit','review_audit','review_notifications'].map(n=>'xsyj_'+n)
@@ -144,7 +208,7 @@ try{
  }
  cleanupFailure=cleanupErrors.join('; ')
  if(!cleanupFailure&&fs.existsSync(ledger))fs.unlinkSync(ledger)
- const result={date:new Date(Date.now()+8*3600e3).toISOString().slice(0,10),executedAt:new Date().toISOString(),environment:env,mode:'real-classic-cloud',scope:'storeName-image-review-tag-notice-avatar',checks,failure,cleanupFailure,temporaryAccounts:accounts.length,temporaryFiles:files.length,temporaryRecords:inserted.length,credentialsPersisted:false,sharedBasicNoticeWritten:false,ledgerRemoved:!fs.existsSync(ledger)}
+ const result={date:new Date(Date.now()+8*3600e3).toISOString().slice(0,10),executedAt:new Date().toISOString(),environment:env,mode:'real-classic-cloud',scope:'storeName-image-review-tag-notice-avatar-image-rejection',checks,failure,cleanupFailure,temporaryAccounts:accounts.length,temporaryFiles:files.length,temporaryRecords:inserted.length,credentialsPersisted:false,sharedBasicNoticeWritten:false,ledgerRemoved:!fs.existsSync(ledger)}
  fs.writeFileSync('docs/evidence/ux-cloud-20261110.json',JSON.stringify(result,null,2))
  console.log(JSON.stringify({checks:checks.length,failure,cleanupFailure}))
  process.exit(failure||cleanupFailure?1:0)

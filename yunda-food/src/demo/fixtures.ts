@@ -1,7 +1,7 @@
 import type {Food,Review,Caution} from '../services/local-repository'
 import type {CloudProfile} from '../services/cloud'
 export type DemoCase='admin'|'student'|'empty'
-export type DemoProfile=CloudProfile&{uid:string,isAdmin:boolean}
+export type DemoProfile=CloudProfile&{uid:string,isAdmin:boolean,avatar_rejected?:{fileId:string,reason:string}|null}
 export type DemoFood=Food&{owner_uid:string}
 export type DemoCaution=Caution&{owner_uid:string,sequence:string}
 export type DemoReview=Review&{owner_uid:string,status:'public'|'hidden'}
