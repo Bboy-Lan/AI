@@ -1,0 +1,83 @@
+{
+  "checkedAt": "2026-11-10T02:41:36.995Z",
+  "passed": 12,
+  "failed": 0,
+  "consoleErrors": [
+    "hosting: Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "runtimeErrors": [],
+  "results": [
+    {
+      "origin": "pages",
+      "name": "HTML 引用本轮新主包",
+      "ok": true,
+      "detail": "status=200 /AI/assets/index-B1taL3Pk.js"
+    },
+    {
+      "origin": "pages",
+      "name": "新主包与懒加载分块可实际下载",
+      "ok": true,
+      "detail": "2 个首屏资源 HTTP 200"
+    },
+    {
+      "origin": "pages",
+      "name": "旧缓存 HTML 引用的分块仍在（升级不被白屏）",
+      "ok": true,
+      "detail": "旧版 JS/CSS 均 HTTP 200"
+    },
+    {
+      "origin": "pages",
+      "name": "我的页面导出入口与真实 xlsx 下载",
+      "ok": true,
+      "detail": "已选 2 / 2 条 · 小食云记-我的投稿-20261110.xlsx"
+    },
+    {
+      "origin": "pages",
+      "name": "首页无审核徽章且三种排列可切换",
+      "ok": true,
+      "detail": "0 徽章 · 刷新后仍为格子视图"
+    },
+    {
+      "origin": "pages",
+      "name": "五颗评分星在窄屏与宽屏均完整",
+      "ok": true,
+      "detail": "320/1440 px 五颗星完整"
+    },
+    {
+      "origin": "pages",
+      "name": "头像可放大且不跳转",
+      "ok": true,
+      "detail": "弹层开合正常，URL 未变"
+    },
+    {
+      "origin": "pages",
+      "name": "页面运行无脚本错误",
+      "ok": true,
+      "detail": "consoleErrors=0 pageErrors=0"
+    },
+    {
+      "origin": "hosting",
+      "name": "HTML 引用本轮新主包",
+      "ok": true,
+      "detail": "status=200 /assets/index-DoRE9Ebs.js"
+    },
+    {
+      "origin": "hosting",
+      "name": "新主包与懒加载分块可实际下载",
+      "ok": true,
+      "detail": "2 个首屏资源 HTTP 200"
+    },
+    {
+      "origin": "hosting",
+      "name": "旧缓存 HTML 引用的分块仍在（升级不被白屏）",
+      "ok": true,
+      "detail": "旧版 JS/CSS 均 HTTP 200"
+    },
+    {
+      "origin": "hosting",
+      "name": "备用域名对全新浏览器返回风险提醒，不作为无提示入口",
+      "ok": true,
+      "detail": "HTTP 404 · 风险提醒页（已知边界）"
+    }
+  ]
+}
