@@ -22,9 +22,10 @@ for(const origin of ORIGINS){
  const response=await fetch(origin.base+'?release=ux-20261110',{headers:{'Cache-Control':'no-cache'}})
  html[origin.id]={status:response.status,text:await response.text()}
 }
-const browser=await chromium.launch({channel:'msedge',headless:true,args:['--no-proxy-server']})
 
 for(const origin of ORIGINS){
+ // One browser per origin: a heavy demo page in the previous origin must not take the next one down.
+ const browser=await chromium.launch({channel:'msedge',headless:true,args:['--no-proxy-server']})
  const context=await browser.newContext({viewport:{width:390,height:844},acceptDownloads:true,locale:'zh-CN'})
  const page=await context.newPage()
  page.on('console',message=>{if(message.type()==='error')consoleErrors.push(origin.id+': '+message.text())})
@@ -34,7 +35,7 @@ for(const origin of ORIGINS){
  await check(origin.id,'HTML 引用本轮新主包',async()=>{
   const script=html[origin.id].text.match(/src="([^"]*\/assets\/index-[^"]*\.js)"/)
   if(!script)throw new Error('HTML 未引用主脚本')
-  if(!/index-CJ4CPwd0|index-B_HOo9zM/.test(script[1]))throw new Error('仍是旧主包：'+script[1])
+  if(!/index-DXznGj5m|index-DMkA7puj|index-CJ4CPwd0|index-B_HOo9zM/.test(script[1]))throw new Error('仍是旧主包：'+script[1])
   return `status=${html[origin.id].status} ${script[1]}`
  })
 
@@ -67,6 +68,7 @@ for(const origin of ORIGINS){
    return 'HTTP '+response.status()+' · 风险提醒页（已知边界）'
   })
   await context.close()
+  await browser.close()
   continue
  }
  await page.goto(origin.base+'?demo=student#/me',{waitUntil:'networkidle'})
@@ -250,15 +252,97 @@ for(const origin of ORIGINS){
   return `${rows.length} 条 · 头像→昵称 ${Math.round(rows[0].gap)}px · 分数距右 ${Math.round(rows[0].scoreToRight)}px`
  })
 
+ await check(origin.id,'卡片缩略图贴满卡片高度，图片下方不再留白',async()=>{
+  await page.goto(origin.base+'?demo=student#/',{waitUntil:'networkidle'})
+  await page.waitForSelector('.layout-switch button',{timeout:20000})
+  await page.locator('.layout-switch button',{hasText:'卡片'}).click()
+  await page.waitForSelector('.food-card',{timeout:15000})
+  const cards=await page.evaluate(()=>[...document.querySelectorAll('.food-card')].map(card=>{
+   const box=card.getBoundingClientRect(),media=card.querySelector('.food-media').getBoundingClientRect(),style=getComputedStyle(card)
+   const innerTop=box.top+parseFloat(style.paddingTop)+parseFloat(style.borderTopWidth)
+   const innerBottom=box.bottom-parseFloat(style.paddingBottom)-parseFloat(style.borderBottomWidth)
+   return {width:Math.round(media.width),height:Math.round(media.height),below:Math.round(innerBottom-media.bottom),above:Math.round(media.top-innerTop)}
+  }))
+  if(!cards.length)throw new Error('首页没有卡片')
+  const bad=cards.filter(c=>c.below>1||c.above>1)
+  if(bad.length)throw new Error(bad.length+' 张卡片图片仍有留白：'+bad.map(c=>'上'+c.above+'/下'+c.below).join(','))
+  return `${cards.length} 张 · 图 ${cards[0].width}×${cards[0].height}px 贴满 · 留白 0`
+ })
+
+ await check(origin.id,'“只看同乡”只剩一行主文案且与筛选同排',async()=>{
+  const state=await page.evaluate(()=>{
+   const toggle=document.querySelector('.hometown-toggle'),filter=document.querySelector('.filter-toggle')
+   const box=el=>{const r=el.getBoundingClientRect();return {top:Math.round(r.top),height:Math.round(r.height),text:(el.innerText||'').replace(/\s+/g,' ').trim(),small:el.querySelectorAll('small').length}}
+   return {toggle:box(toggle),filter:box(filter),scroll:document.documentElement.scrollWidth,inner:innerWidth}
+  })
+  if(state.toggle.small)throw new Error('按钮里还留着副标题')
+  if(state.toggle.top!==state.filter.top)throw new Error('同乡按钮与筛选不在同一行')
+  if(Math.abs(state.toggle.height-state.filter.height)>1)throw new Error('两个按钮不等高')
+  if(state.scroll>state.inner+1)throw new Error('工具行横向溢出')
+  return `「${state.toggle.text}」${state.toggle.height}px 同排`
+ })
+
+ await check(origin.id,'评价超过三条折叠，可展开再收起',async()=>{
+  await page.goto(origin.base+'?demo=student#/detail/demo-food-1',{waitUntil:'networkidle'})
+  await page.waitForSelector('.review-card',{timeout:20000})
+  if(await page.locator('.review-fold').count())throw new Error('三条以内的评价也出现折叠条')
+  await page.goto(origin.base+'?demo=student&reviewCase=bulk#/detail/bulk-food-000',{waitUntil:'networkidle'})
+  await page.waitForSelector('.review-fold',{timeout:20000})
+  const folded=await page.locator('.review-card').count()
+  const label=(await page.locator('.review-fold').innerText()).replace(/\s+/g,' ')
+  if(folded!==3)throw new Error('默认没有折叠到 3 条：'+folded)
+  await page.locator('.review-fold').click()
+  await page.waitForFunction(()=>document.querySelectorAll('.review-card').length>3,null,{timeout:10000})
+  const expanded=await page.locator('.review-card').count()
+  await page.locator('.review-fold').click()
+  await page.waitForFunction(()=>document.querySelectorAll('.review-card').length===3,null,{timeout:10000})
+  return `${folded} 条（${label}）→ 展开 ${expanded} 条 → 收起`
+ })
+
+ await check(origin.id,'详情页点赞计数可增减，收藏等同下次想吃',async()=>{
+  await page.goto(origin.base+'?demo=student#/detail/demo-food-1',{waitUntil:'networkidle'})
+  await page.waitForSelector('.detail-actions',{timeout:20000})
+  const read=()=>page.evaluate(()=>{const like=document.querySelector('.like-action'),fav=document.querySelector('.favorite-action');return {like:like.innerText.replace(/\s+/g,' ').trim(),pressed:like.getAttribute('aria-pressed'),fav:fav.innerText.replace(/\s+/g,' ').trim(),buttons:document.querySelectorAll('.detail-actions .button').length}})
+  const initial=await read()
+  if(initial.buttons!==3)throw new Error('方框里不是三个按钮：'+initial.buttons)
+  await page.locator('.like-action').click()
+  await page.waitForFunction(()=>document.querySelector('.like-action')?.getAttribute('aria-pressed')==='true',null,{timeout:10000})
+  const liked=await read()
+  await page.locator('.like-action').click()
+  await page.waitForFunction(()=>document.querySelector('.like-action')?.getAttribute('aria-pressed')==='false',null,{timeout:10000})
+  const back=await read()
+  await page.locator('.favorite-action').click()
+  await page.waitForFunction(()=>document.querySelector('.favorite-action')?.getAttribute('aria-pressed')==='true',null,{timeout:10000})
+  const fav=await read()
+  if(liked.like===initial.like)throw new Error('点赞没有更新计数：'+liked.like)
+  if(back.like!==initial.like)throw new Error('取消点赞没有回到原值：'+back.like)
+  if(!/已收藏/.test(fav.fav))throw new Error('收藏没有回显：'+fav.fav)
+  if(!/想吃/.test(initial.fav))throw new Error('收藏按钮丢了“想吃”口径：'+initial.fav)
+  await page.locator('.favorite-action').click()
+  return `点赞 ${initial.like} → ${liked.like} → ${back.like} · 收藏 ${fav.fav}`
+ })
+
+ await check(origin.id,'导出新增“全部美食”且排在最前',async()=>{
+  await page.goto(origin.base+'?demo=student#/export',{waitUntil:'networkidle'})
+  await page.waitForSelector('.export-page',{timeout:20000})
+  const chips=await page.locator('.export-card').first().locator('.chips').first().locator('button').allInnerTexts()
+  if(!/^全部美食/.test(chips[0]||''))throw new Error('全部美食没有排在最前：'+chips.join(' | '))
+  if(!chips.some(t=>/我的投稿/.test(t))||!chips.some(t=>/我的收藏/.test(t)))throw new Error('原有范围缺失：'+chips.join(' | '))
+  await page.getByRole('button',{name:/全选当前筛选结果/}).click()
+  const [download]=await Promise.all([page.waitForEvent('download',{timeout:30000}),page.getByRole('button',{name:'生成并下载 .xlsx'}).click()])
+  const name=download.suggestedFilename()
+  if(!/全部美食/.test(name))throw new Error('文件名没有体现全部美食：'+name)
+  return `${chips.join(' | ')} · ${name}`
+ })
+
  await check(origin.id,'页面运行无脚本错误',async()=>{
   const errors=consoleErrors.filter(e=>e.startsWith(origin.id+':')).concat(runtimeErrors.filter(e=>e.startsWith(origin.id+':')))
   if(errors.length)throw new Error(errors.slice(0,3).join(' | '))
   return 'consoleErrors=0 pageErrors=0'
  })
  await context.close()
+ await browser.close()
 }
-
-await browser.close()
 const summary={checkedAt:new Date().toISOString(),passed:results.filter(r=>r.ok).length,failed:results.filter(r=>!r.ok).length,consoleErrors,runtimeErrors,results}
 mkdirSync('docs/evidence',{recursive:true})
 writeFileSync('docs/evidence/ux-public-20261110.json',JSON.stringify(summary,null,2))

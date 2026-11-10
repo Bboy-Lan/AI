@@ -1,6 +1,6 @@
 {
-  "checkedAt": "2026-11-10T04:43:18.098Z",
-  "passed": 19,
+  "checkedAt": "2026-11-10T05:32:52.783Z",
+  "passed": 24,
   "failed": 0,
   "consoleErrors": [
     "hosting: Failed to load resource: the server responded with a status of 404 (Not Found)"
@@ -11,7 +11,7 @@
       "origin": "pages",
       "name": "HTML 引用本轮新主包",
       "ok": true,
-      "detail": "status=200 /AI/assets/index-CJ4CPwd0.js"
+      "detail": "status=200 /AI/assets/index-DMkA7puj.js"
     },
     {
       "origin": "pages",
@@ -29,7 +29,7 @@
       "origin": "pages",
       "name": "我的页面导出入口与真实 xlsx 下载",
       "ok": true,
-      "detail": "已选 2 / 2 条 · 小食云记-我的投稿-20261110.xlsx"
+      "detail": "已选 7 / 7 条 · 小食云记-全部美食-20261110.xlsx"
     },
     {
       "origin": "pages",
@@ -93,6 +93,36 @@
     },
     {
       "origin": "pages",
+      "name": "卡片缩略图贴满卡片高度，图片下方不再留白",
+      "ok": true,
+      "detail": "7 张 · 图 88×115px 贴满 · 留白 0"
+    },
+    {
+      "origin": "pages",
+      "name": "“只看同乡”只剩一行主文案且与筛选同排",
+      "ok": true,
+      "detail": "「只看同乡」30px 同排"
+    },
+    {
+      "origin": "pages",
+      "name": "评价超过三条折叠，可展开再收起",
+      "ok": true,
+      "detail": "3 条（展开全部 4 条评价 还有 1 条）→ 展开 4 条 → 收起"
+    },
+    {
+      "origin": "pages",
+      "name": "详情页点赞计数可增减，收藏等同下次想吃",
+      "ok": true,
+      "detail": "点赞 点赞 0 → 点赞 1 → 点赞 0 · 收藏 已收藏"
+    },
+    {
+      "origin": "pages",
+      "name": "导出新增“全部美食”且排在最前",
+      "ok": true,
+      "detail": "全部美食 7 | 我的投稿 2 | 我的收藏 2 · 小食云记-全部美食-20261110.xlsx"
+    },
+    {
+      "origin": "pages",
       "name": "页面运行无脚本错误",
       "ok": true,
       "detail": "consoleErrors=0 pageErrors=0"
@@ -101,7 +131,7 @@
       "origin": "hosting",
       "name": "HTML 引用本轮新主包",
       "ok": true,
-      "detail": "status=200 /assets/index-B_HOo9zM.js"
+      "detail": "status=200 /assets/index-DXznGj5m.js"
     },
     {
       "origin": "hosting",
