@@ -29,8 +29,10 @@ export function normalize(food:Food){
  const sweet=drink?level(taste.sweet??legacySweet[food.sweet||'']):null
  const tags=Array.isArray(taste.tags)?taste.tags.filter(t=>READABLE_TAGS.includes(t)).slice(0,2):food.tags.filter(t=>READABLE_TAGS.includes(t)).slice(0,2)
  const price=numeric(food.price)
- const places=food.locationType==='inside'?[food.school,food.campus,food.venue]:[food.region,food.venue,food.addressSummary]
- return {...food,price:integerPrice(price??undefined),taste:{spicy,sweet,tags,staple:taste.staple||'',temperature:taste.temperature||''},placeText:places.filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ')||food.placeText||'地点未标注',tasteText:[spicy==null?'':SPICY_LABELS[spicy],sweet==null?'':SWEET_LABELS[sweet],...tags,taste.temperature].filter(Boolean).join(' · ')||'口味未标注'}
+ const places=(food.locationType==='inside'?[food.school,food.campus,food.venue]:[food.region,food.venue]).map(value=>String(value||'').trim()).filter(Boolean)
+ // 同一段地址只留最具体的一条：填了“云南大学东陆校区”就不再重复“云南大学”。
+ const unique=places.filter((value,index,list)=>list.indexOf(value)===index),compact=unique.filter(value=>!unique.some(other=>other!==value&&other.includes(value)))
+ return {...food,price:integerPrice(price??undefined),taste:{spicy,sweet,tags,staple:taste.staple||'',temperature:taste.temperature||''},placeText:compact.join(' · ')||food.placeText||'地点未标注',tasteText:[spicy==null?'':SPICY_LABELS[spicy],sweet==null?'':SWEET_LABELS[sweet],...tags,taste.temperature].filter(Boolean).join(' · ')||'口味未标注'}
 }
 // One rule for "why this recommendation fits you": the home list only ranks with it, the detail page shows it.
 export function reasonItems(item:Food,prefs:Partial<Preferences>={}):string[]{

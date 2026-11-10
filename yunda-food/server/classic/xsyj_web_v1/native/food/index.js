@@ -112,6 +112,8 @@ async function submitItem(id, payload) {
   if (latitude != null && (latitude < -90 || latitude > 90)) fail('位置纬度无效。')
   if (longitude != null && (longitude < -180 || longitude > 180)) fail('位置经度无效。')
   const imageFileIds = Array.isArray(payload.imageFileIds) ? payload.imageFileIds.map((value) => text(value, 300)).filter(Boolean).slice(0, 3) : []
+  if (!imageFileIds.length) fail('请至少上传 1 张实拍照片。')
+  if (description.length < 10) fail('请写至少 10 个字的推荐理由。')
   const authorAte = Boolean(payload.authorAte)
   const authorAteDate = chinaDay()
   if (!authorAte) fail('只接收投稿人亲自吃过的真实推荐。')
@@ -153,6 +155,8 @@ async function updateItem(id, payload) {
   if (latitude != null && (latitude < -90 || latitude > 90)) fail('位置纬度无效。')
   if (longitude != null && (longitude < -180 || longitude > 180)) fail('位置经度无效。')
   const imageFileIds = Array.isArray(payload.imageFileIds) ? payload.imageFileIds.map((value) => text(value, 300)).filter(Boolean).slice(0, 3) : item.imageFileIds || []
+  if (!imageFileIds.length) fail('请至少上传 1 张实拍照片。')
+  if (description.length < 10) fail('请写至少 10 个字的推荐理由。')
   if (extra.itemSchemaVersion === 2 || item.itemSchemaVersion === 2) validateNewSubmission(payload, imageFileIds, latitude, longitude)
   await db.runTransaction(async tx=>{const ref=tx.collection(C.items).doc(itemId),current=(await ref.get()).data;reviewPolicy.assertEditable(current,payload,fail);await ref.update({ data: {
     name, storeName, venue, areaId, price, category, description, imageFileIds, authorAte, authorAteDate,

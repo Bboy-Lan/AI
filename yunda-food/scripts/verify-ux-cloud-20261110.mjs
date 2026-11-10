@@ -75,10 +75,16 @@ try{
  await denied('mediaUploadPath',{extension:'heic'},b.token,/格式/,'服务端拒绝 HEIC 直传，必须由前端转码后上传')
 
  // 4. Store name travels through submit, list, detail, edit and explicit clearing.
- const payload={name:'临时验收米线',storeName:store,venue:'临时验收窗口',price:12,category:'正餐',locationType:'inside',priceBasis:'portion',school:'云南大学',campus:'呈贡校区',taste:{spicy:1,tags:[],staple:'米线'},images:[],authorAte:true,clientRequestId:crypto.randomUUID()}
+ // 4a. A photo is now required on every save, so upload the real sample before the first submit.
+ const {path:photoPath}=await rpc('mediaUploadPath',{extension:'webp'},a.token)
+ files.push(photoPath);saveLedger()
+ const photoUpload=await app.uploadFile({cloudPath:photoPath,filePath:fs.readFileSync('public/assets/icons/avatar.png')})
+ const payload={name:'临时验收米线',storeName:store,venue:'临时验收窗口',price:12,category:'正餐',locationType:'inside',priceBasis:'portion',school:'云南大学',campus:'呈贡校区',taste:{spicy:1,tags:[],staple:'米线'},images:[photoUpload.fileID],description:'临时验收用推荐理由，验证必填与导出列。',authorAte:true,clientRequestId:crypto.randomUUID()}
  const food=await rpc('saveFood',payload,a.token)
  check(food.storeName===store,'管理员投稿返回服务端保存的店名')
  check(food.reviewTag==='approved','管理员推荐免审仍按服务端身份判定')
+ await denied('saveFood',{...payload,images:[],clientRequestId:crypto.randomUUID()},a.token,/实拍照片/,'缺少实拍照片被服务端拒绝')
+ await denied('saveFood',{...payload,description:'太短',clientRequestId:crypto.randomUUID()},a.token,/推荐理由/,'推荐理由不足十个字被服务端拒绝')
  check((await rpc('food',{id:food.id})).storeName===store,'详情接口读回同一店名')
  check((await rpc('foods')).some(r=>r.id===food.id&&r.storeName===store),'公开列表携带店名，可供首页与搜索使用')
  await denied('saveFood',{...payload,storeName:'店',clientRequestId:crypto.randomUUID()},a.token,/店名/,'单字店名被服务端拒绝')
@@ -89,11 +95,7 @@ try{
  const cleared=await rpc('saveFood',{...payload,id:food.id,storeName:'',clientRequestId:crypto.randomUUID()},a.token)
  check(cleared.storeName==='','作者可以显式清空店名')
 
- // 5. Recommendation photo uses the pipeline's real output type and stays authorization-scoped.
- const {path:photoPath}=await rpc('mediaUploadPath',{extension:'webp'},a.token)
- files.push(photoPath);saveLedger()
- const photoUpload=await app.uploadFile({cloudPath:photoPath,filePath:fs.readFileSync('public/assets/icons/avatar.png')})
- const withPhoto=await rpc('saveFood',{...payload,id:food.id,storeName:store,images:[photoUpload.fileID],clientRequestId:crypto.randomUUID()},a.token)
+ const withPhoto=await rpc('saveFood',{...payload,id:food.id,storeName:store,clientRequestId:crypto.randomUUID()},a.token)
  check((await rpc('food',{id:withPhoto.id})).images.length===1,'推荐配图按转码后的通用格式真实落库')
  check((await rpc('mediaUrl',{key:photoUpload.fileID})).startsWith('https://'),'公开推荐的配图可取得访问链接')
 
@@ -124,8 +126,11 @@ try{
  check(!pendingQueue.rows.some(r=>r.id===legacyId),'公开老记录不再出现在待审核队列')
 
  // 7. Real pending content keeps its real state.
- const caution=await rpc('saveCaution',{name:'临时验收店铺',address:'临时验收地点',date:'2026-11-01',body:'这是只用于本轮验收先审后公开功能的临时经历。',tags:['服务'],images:[],confirmed:true,requestId:crypto.randomUUID()},b.token)
+ const caution=await rpc('saveCaution',{name:'临时验收店铺',dish:'临时验收米线',address:'临时验收地点',body:'这是只用于本轮验收先审后公开功能的临时经历。',tags:['服务'],images:[],confirmed:true,requestId:crypto.randomUUID()},b.token)
  check(caution.status==='pending','普通用户黑榜仍为先审后发')
+ const cautionDetail=await rpc('caution',{id:caution.id},b.token)
+ check(cautionDetail.dish==='临时验收米线'&&!cautionDetail.date,'消费经历只保留店铺、美食与具体地址，不再要求消费日期')
+ await denied('saveCaution',{name:'临时验收店铺',dish:'',address:'临时验收地点',body:'缺少美食名称时不应写入，这段文字用于验证服务端必填。',tags:['服务'],images:[],confirmed:true,requestId:crypto.randomUUID()},b.token,/美食名称/,'缺少美食名称被服务端拒绝')
  check((await rpc('caution',{id:caution.id},b.token)).reviewTag==='pending','待审黑榜的标签如实返回给作者')
  check((await rpc('adminReviewQueue',{kind:'caution',tag:'pending',query:'临时验收店铺'},a.token)).rows.some(r=>r.id===caution.id),'待审核队列包含真实待审黑榜')
 
@@ -196,7 +201,7 @@ try{
  const {path:cautionPhotoPath}=await rpc('mediaUploadPath',{extension:'webp'},b.token)
  files.push(cautionPhotoPath);saveLedger()
  const cautionPhoto=await app.uploadFile({cloudPath:cautionPhotoPath,filePath:fs.readFileSync('public/assets/icons/avatar.png')})
- const cautionWithPhoto=await rpc('saveCaution',{name:'临时验收驳回店铺',address:'临时验收地点',date:'2026-11-01',body:'这条记录只用于验收黑榜配图驳回，随后删除。',tags:['服务'],images:[cautionPhoto.fileID],confirmed:true,requestId:crypto.randomUUID()},b.token)
+ const cautionWithPhoto=await rpc('saveCaution',{name:'临时验收驳回店铺',dish:'临时验收豆米火锅',address:'临时验收地点',body:'这条记录只用于验收黑榜配图驳回，随后删除。',tags:['服务'],images:[cautionPhoto.fileID],confirmed:true,requestId:crypto.randomUUID()},b.token)
  await rpc('adminRejectImage',{kind:'caution',id:cautionWithPhoto.id,fileId:cautionPhoto.fileID,reason:'验收：照片与经历不符。',clientRequestId:crypto.randomUUID()},a.token)
  const cautionAfter=await rpc('caution',{id:cautionWithPhoto.id},b.token)
  const cautionOk=cautionAfter.images.length===0&&String(cautionAfter.rejectedImages?.[0]?.reason||'').includes('不符')
@@ -222,7 +227,7 @@ try{
  await denied('caution',{id:caution.id},c.token,/暂不可查看/,'待审核消费经历同样只对作者可见')
 
  // 14. 管理员的发布默认已审核，待办角标覆盖集中审核台的全部待审内容。
- const adminCaution=await rpc('saveCaution',{name:'临时验收管理员经历',address:'临时验收地点',date:'2026-11-01',body:'这条经历只用于验证管理员发布默认已审核，随后删除。',tags:['服务'],images:[],confirmed:true,requestId:crypto.randomUUID()},a.token)
+ const adminCaution=await rpc('saveCaution',{name:'临时验收管理员经历',dish:'临时验收酸汤鱼',address:'临时验收地点',body:'这条经历只用于验证管理员发布默认已审核，随后删除。',tags:['服务'],images:[],confirmed:true,requestId:crypto.randomUUID()},a.token)
  const adminCautionRow=await rpc('caution',{id:adminCaution.id},a.token)
  check(adminCautionRow.reviewTag==='approved'&&adminCautionRow.status==='public','管理员发布消费经历默认已审核并公开')
  const adminTopic=await rpc('saveForumTopic',{title:'临时验收管理员话题',body:'这条话题只用于验证管理员发布默认已审核，随后删除。',category:'校园生活',images:[],clientRequestId:crypto.randomUUID()},a.token)

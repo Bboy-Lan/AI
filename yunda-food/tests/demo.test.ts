@@ -69,7 +69,7 @@ test('演示投稿、评价、收藏和审核走页面相同契约并支持重�
  assert.equal(repo.rpc<any[]>('myReviews').length,1)
  repo.rpc('favorite',{id:'demo-food-9',favorite:true});repo.rpc('favorite',{id:'demo-food-9',favorite:true})
  assert.equal(repo.rpc<any[]>('myFavorites').filter(f=>f.id==='demo-food-9').length,1)
- const payload={name:'演示新投稿',venue:'示例窗口',price:12,category:'正餐',locationType:'inside',priceBasis:'portion',taste:{spicy:1,tags:[],staple:'米线'},images:[],authorAte:true,clientRequestId:'new-food-request-0001'}
+ const payload={name:'演示新投稿',venue:'示例窗口',price:12,category:'正餐',locationType:'inside',priceBasis:'portion',school:'云南大学',campus:'东陆校区',taste:{spicy:1,tags:[],staple:'米线'},images:['/assets/demo/noodles.svg'],description:'演示推荐理由，至少十个字，用于验证必填规则。',authorAte:true,clientRequestId:'new-food-request-0001'}
  const one=repo.rpc<any>('saveFood',payload),two=repo.rpc<any>('saveFood',payload);assert.equal(one.id,two.id)
  assert.throws(()=>repo.rpc('saveFood',{...payload,clientRequestId:'new-food-invalid',taste:{}}),/辣度/)
  const admin=createDemoRepository(createDemoState('admin'))
@@ -78,4 +78,4 @@ test('演示投稿、评价、收藏和审核走页面相同契约并支持重�
  assert.throws(()=>admin.rpc('adminCautionStatus',{id:'demo-caution-2',version:1,status:'hidden',reason:'旧版本操作'}),/版本/)
 })
 
-test('演示与服务端一致：管理员新黑榜直接已审核，普通用户仍待审',()=>{const p={name:'演示免审店铺',address:'示例街道窗口',date:'2026-11-01',body:'真实消费情况的完整隔离演示内容。',tags:['服务'],images:[],confirmed:true,requestId:'demo-admin-exempt-01'};for(const role of ['admin','student'] as const){const repo=createDemoRepository(createDemoState(role)),saved=repo.rpc<any>('saveCaution',p),row=repo.rpc<any>('caution',{id:saved.id});assert.equal(row.status,role==='admin'?'public':'pending');assert.equal(row.reviewTag,role==='admin'?'approved':'pending');assert.equal(row.authorRole,role==='admin'?'admin':'user')}})
+test('演示与服务端一致：管理员新黑榜直接已审核，普通用户仍待审',()=>{const p={name:'演示免审店铺',dish:'演示豆米火锅',address:'示例街道窗口',body:'真实消费情况的完整隔离演示内容。',tags:['服务'],images:[],confirmed:true,requestId:'demo-admin-exempt-01'};for(const role of ['admin','student'] as const){const repo=createDemoRepository(createDemoState(role)),saved=repo.rpc<any>('saveCaution',p),row=repo.rpc<any>('caution',{id:saved.id});assert.equal(row.status,role==='admin'?'public':'pending');assert.equal(row.reviewTag,role==='admin'?'approved':'pending');assert.equal(row.authorRole,role==='admin'?'admin':'user')}})

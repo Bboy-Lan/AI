@@ -31,7 +31,7 @@ test('待审核与需修改只对本人或管理员可见，已审核公开内�
 // 管理员自己的发布默认就是已审核：服务端按运行时身份给 approved，前端不再重复标记待审。
 test('管理员发布的内容默认按已审核处理',()=>{
  const admin=createDemoRepository(createDemoState('admin'))
- const saved=admin.rpc<any>('saveFood',{name:'验收：管理员免审推荐',venue:'临时窗口',price:12,category:'正餐',locationType:'inside',priceBasis:'portion',school:'云南大学',campus:'呈贡校区',taste:{spicy:1,tags:[],staple:'米线'},images:[],authorAte:true,clientRequestId:'demo-admin-approve-01'})
+ const saved=admin.rpc<any>('saveFood',{name:'验收：管理员免审推荐',venue:'临时窗口',price:12,category:'正餐',locationType:'inside',priceBasis:'portion',school:'云南大学',campus:'呈贡校区',taste:{spicy:1,tags:[],staple:'米线'},images:['/assets/demo/noodles.svg'],description:'管理员发布演示，推荐理由至少十个字。',authorAte:true,clientRequestId:'demo-admin-approve-01'})
  assert.equal(saved.reviewTag,'approved')
  assert.equal(reviewBadgeVisible(reviewTagOf(saved),{own:true}),false)
 })

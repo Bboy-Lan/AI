@@ -19,14 +19,14 @@ page.on('pageerror',error=>runtimeErrors.push(String(error.message||error)))
 await page.goto(BASE+'?demo=student#/me',{waitUntil:'networkidle'})
 await page.waitForSelector('.page',{timeout:15000})
 
-await check('我的页面出现导出 Excel 入口',async()=>{
- const button=page.getByRole('button',{name:/导出 Excel/})
+await check('我的页面出现导出表格 入口',async()=>{
+ const button=page.getByRole('button',{name:/导出表格/})
  await button.waitFor({timeout:8000})
  return await button.innerText()
 })
 
 await check('导出页可筛选、全选并显示已选数量',async()=>{
- await page.getByRole('button',{name:/导出 Excel/}).click()
+ await page.getByRole('button',{name:/导出表格/}).click()
  await page.waitForSelector('.export-page',{timeout:8000})
  const items=await page.locator('.export-item').count()
  await page.getByRole('button',{name:/全选当前筛选结果/}).click()
@@ -227,8 +227,8 @@ await check('未读与待办用红色数字角标提示用户与管理员',async
  await page.waitForSelector('.me .admin-entry .count-badge',{timeout:15000})
  const admin=await read(page.locator('.me .admin-entry .count-badge'))
  await page.goto(BASE+'?demo=admin#/admin',{waitUntil:'networkidle'})
- await page.waitForSelector('.page.admin .chip .count-badge',{timeout:15000})
- const review=await read(page.locator('.page.admin .chip .count-badge'))
+ await page.waitForSelector('.page.admin .admin-entry .admin-entry-badge',{timeout:15000})
+ const review=await read(page.locator('.page.admin .admin-entry .admin-entry-badge'))
  if(Number(review.replace('+',''))<1)throw new Error('审核台待审核数异常：'+review)
  return `导航 ${tab} · 互动消息 ${message} · 用户治理 ${admin} · 集中审核台 ${review}`
 })

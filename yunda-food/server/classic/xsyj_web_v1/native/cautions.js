@@ -24,12 +24,13 @@ module.exports = function createCautions({ db, fail, text, now, chinaDay, requir
   }
   const clean = (value, min, max, label, quoting = false) => { const v = text(value, max + 1); if (v.length < min || v.length > max) fail(`${label}需${min}至${max}个字。`); if (!quoting) assertSafeText(v, label); return v }
   function content(actor, p) {
-    const name = clean(p.name, 1, 50, '店铺名称'), address = clean(p.address, 2, 120, '文字地点'), body = clean(p.body, 10, 1000, '消费经历')
+    const name = clean(p.name, 1, 50, '店铺名称'), dish = clean(p.dish, 1, 40, '美食名称'), address = clean(p.address, 2, 120, '具体地址'), body = clean(p.body, 10, 1000, '消费经历')
+    // 消费日期不再是必填项；老记录带日期时仍校验格式，避免脏数据写回。
     const occurredOn = text(p.occurredOn, 10)
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(occurredOn) || !Number.isFinite(Date.parse(occurredOn)) || new Date(occurredOn).toISOString().slice(0, 10) !== occurredOn || occurredOn > chinaDay()) fail('请选择有效的消费日期，不能晚于今天。')
+    if (occurredOn && (!/^\d{4}-\d{2}-\d{2}$/.test(occurredOn) || !Number.isFinite(Date.parse(occurredOn)) || new Date(occurredOn).toISOString().slice(0, 10) !== occurredOn || occurredOn > chinaDay())) fail('请选择有效的消费日期，不能晚于今天。')
     if (!Array.isArray(p.tags) || p.tags.length < 1 || p.tags.length > 3 || p.tags.some(v => !tags.includes(v))) fail('请选择1至3项具体问题。')
     if (p.confirmed !== true) fail('请确认亲自消费并如实描述。')
-    return { name, address, body, occurredOn, tags: [...new Set(p.tags)], imageFileIds: images(actor, p.imageFileIds || []) }
+    return { name, dish, address, body, occurredOn, tags: [...new Set(p.tags)], imageFileIds: images(actor, p.imageFileIds || []) }
   }
   async function author(actor) {
     const p = await profileFor(actor)
@@ -37,7 +38,7 @@ module.exports = function createCautions({ db, fail, text, now, chinaDay, requir
   }
   async function expose(row, actor) {
     const own = row.ownerOpenId === actor, admin = Boolean(await adminFor(actor))
-    const result = { id: row._id, postId: row.postId || '', name: row.name || '', address: row.address || '', body: row.body, tags: row.tags || [], occurredOn: row.occurredOn || '', imageFileIds: row.imageFileIds || [], status: row.status, version: row.version, sequence: row.sequence, createdAt: row.createdAt, updatedAt: row.updatedAt, likeCount: row.likeCount || 0, own, author: await author(row.ownerOpenId) }
+    const result = { id: row._id, postId: row.postId || '', name: row.name || '', dish: row.dish || '', address: row.address || '', body: row.body, tags: row.tags || [], occurredOn: row.occurredOn || '', imageFileIds: row.imageFileIds || [], status: row.status, version: row.version, sequence: row.sequence, createdAt: row.createdAt, updatedAt: row.updatedAt, likeCount: row.likeCount || 0, own, author: await author(row.ownerOpenId) }
     if (own || admin) { result.reason = row.reason || ''; result.rejectedImages = (row.rejectedImages || []).map(v => ({ fileId: v.fileId, reason: v.reason || '' })) }
     if(row.reviewTag==='deleted'&&!admin){result.body='此消费经历已删除，处理意见请查看互动消息。';result.imageFileIds=[]}
     Object.assign(result,require('../moderation.cjs').fields(row));return result
@@ -121,7 +122,7 @@ module.exports = function createCautions({ db, fail, text, now, chinaDay, requir
       const parent = target
       if (!parent || parent.status !== 'published') fail('该经历暂不可举报。')
       await quota(tx, actor, '举报', 10)
-      await write(tx, C.reports, id, { ownerOpenId: actor, postId: parent._id, targetId: target._id, target: type, snapshot: { name: parent.name, body: target.body, address: parent.address, tags: target.tags || [], imageFileIds: target.imageFileIds || [], version: target.version, authorOpenId: target.ownerOpenId }, reason, status: 'pending', read: false, archived: false, resolution: '', sequence: await sequence(tx), createdAt: now() })
+      await write(tx, C.reports, id, { ownerOpenId: actor, postId: parent._id, targetId: target._id, target: type, snapshot: { name: parent.name, dish: parent.dish || '', body: target.body, address: parent.address, tags: target.tags || [], imageFileIds: target.imageFileIds || [], version: target.version, authorOpenId: target.ownerOpenId }, reason, status: 'pending', read: false, archived: false, resolution: '', sequence: await sequence(tx), createdAt: now() })
       return { id, status: 'pending' }
     })
   }
