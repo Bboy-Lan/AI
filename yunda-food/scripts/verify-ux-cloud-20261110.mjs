@@ -213,6 +213,13 @@ try{
  check(adminCautionRow.reviewTag==='approved'&&adminCautionRow.status==='public','管理员发布消费经历默认已审核并公开')
  const adminTopic=await rpc('saveForumTopic',{title:'临时验收管理员话题',body:'这条话题只用于验证管理员发布默认已审核，随后删除。',category:'校园生活',images:[],clientRequestId:crypto.randomUUID()},a.token)
  check(adminTopic.reviewTag==='approved','管理员发布话题默认已审核')
+ // 管理员自己写的评价同样免审：不进待审队列、别人也能立刻看到、也不给自己发审核提醒。
+ const noticesBefore=mongo('xsyj_review_notifications',{find:'xsyj_review_notifications',filter:{ownerOpenId:a.uid},limit:100}).length
+ await rpc('saveReview',{id:userFood.id,rating:5,text:'临时验收：管理员评价免审，随后清理。',ate:true},a.token)
+ const adminReviewRow=(await rpc('reviews',{id:userFood.id},a.token)).find(r=>r.own)
+ check(adminReviewRow&&adminReviewRow.reviewTag==='approved','管理员写评价默认已审核')
+ check((await rpc('reviews',{id:userFood.id},c.token)).find(r=>r.rating===5)?.reviewTag==='approved','管理员评价在其他账号看来也是已审核')
+ check(mongo('xsyj_review_notifications',{find:'xsyj_review_notifications',filter:{ownerOpenId:a.uid},limit:100}).length===noticesBefore,'管理员操作不给自己产生审核提醒')
  const adminSummary=await rpc('notificationSummary',{},a.token),reviewSummary=await rpc('adminReviewSummary',{},a.token)
  check(reviewSummary.pending>0,'本轮真实待审核内容立即进入集中审核台')
  check(adminSummary.pendingCount>=reviewSummary.pending,'管理员待办角标覆盖集中审核台的全部待审内容')

@@ -81,7 +81,7 @@ module.exports = function createImageReview(d) {
       await set(tx, EVENTS, auditId, { type: 'image_rejection', targetKind: kind, targetId, fileId, ownerOpenId: row.ownerOpenId || '', reason, operatorOpenId: uid, createdAt: now() })
       const result = { kind, id: targetId, fileId, remaining }
       await set(tx, EVENTS, receiptId, { type: 'image_reject_receipt', operatorOpenId: uid, ownerOpenId: row.ownerOpenId || '', signature, result, createdAt: now() })
-      if (row.ownerOpenId) {
+      if (row.ownerOpenId && row.ownerOpenId !== uid) {
         const name = String(row[target.title] || '').trim() || '你的内容'
         const body = '你的' + target.label + '「' + name + '」有 1 张照片未通过审核，已从内容中移除，请重新上传一张。驳回说明：' + reason
         await set(tx, NOTICES, noticeId, { ownerOpenId: row.ownerOpenId, actor: uid, targetKind: kind, targetId, path: target.path(targetId), editPath: target.edit(targetId), tag: 'changes', kind: 'content_review', body, read: false, archived: false, createdAt: now() })

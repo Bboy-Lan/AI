@@ -1,6 +1,6 @@
 {
   "date": "2026-11-10",
-  "executedAt": "2026-11-10T03:54:18.592Z",
+  "executedAt": "2026-11-10T04:56:39.319Z",
   "environment": "cloud-yunda-d5gxrar1s14b2ee0d",
   "mode": "real-classic-cloud",
   "scope": "storeName-image-review-tag-notice-avatar-image-rejection-pending-visibility-badge",
@@ -80,6 +80,9 @@
     "待审核消费经历同样只对作者可见（实际：caution: 这条经历暂不可查看。）",
     "管理员发布消费经历默认已审核并公开",
     "管理员发布话题默认已审核",
+    "管理员写评价默认已审核",
+    "管理员评价在其他账号看来也是已审核",
+    "管理员操作不给自己产生审核提醒",
     "本轮真实待审核内容立即进入集中审核台",
     "管理员待办角标覆盖集中审核台的全部待审内容",
     "普通账号不会拿到管理员待办角标",

@@ -220,7 +220,9 @@ async function upsertReview(id, payload) {
   if (!old && await dailyCount(C.reviews, id, chinaDay(), 10) >= 10) fail('每位用户每天最多新增 10 条评价，请稍后再试。')
   const data = { itemId, ownerOpenId: id, authorNickname: profile.foodieId, authorHometown: profile.hometown, authorAvatarFileId: profile.avatarFileId || '', rating, text: reviewText, ateDate, foodVerified: Boolean(payload.foodVerified), status: 'published', submissionDay: old && old.submissionDay || chinaDay(), updatedAt: now() }
   const reviewId=old?old._id:crypto.createHash('sha256').update(id+':'+itemId).digest('hex').slice(0,32)
-  await db.runTransaction(async tx=>{const ref=tx.collection(C.reviews).doc(reviewId);const current=await ref.get().then(r=>r.data).catch(()=>null);reviewPolicy.assertEditable(current,payload,fail);const {_id,...kept}=current||{};await ref.set({data:{...kept,...data,...reviewPolicy.resubmit(current),createdAt:current?.createdAt||now()}})})
+  // 管理员自己写评价不需要别人审，和其他四类内容同一口径。
+  const verifiedAdmin=Boolean(await adminFor(id))
+  await db.runTransaction(async tx=>{const ref=tx.collection(C.reviews).doc(reviewId);const current=await ref.get().then(r=>r.data).catch(()=>null);reviewPolicy.assertEditable(current,payload,fail);const {_id,...kept}=current||{};await ref.set({data:{...kept,...data,...reviewPolicy.resubmit(current,verifiedAdmin),createdAt:current?.createdAt||now()}})})
   await rebuildItemRatings(itemId)
   return { ok: true }
 }

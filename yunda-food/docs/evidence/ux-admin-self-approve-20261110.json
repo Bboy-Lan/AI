@@ -1,0 +1,44 @@
+{
+  "checkedAt": "2026-11-10T04:57:00.396Z",
+  "environment": "cloud-yunda-d5gxrar1s14b2ee0d",
+  "mode": "dry-run",
+  "administrators": 1,
+  "collections": {
+    "xsyj_food_items": {
+      "label": "推荐",
+      "table": "xsyj_food_items",
+      "pending": 0,
+      "approved": 0,
+      "samples": []
+    },
+    "xsyj_caution_posts": {
+      "label": "经历",
+      "table": "xsyj_caution_posts",
+      "pending": 0,
+      "approved": 0,
+      "samples": []
+    },
+    "xsyj_forum_topics": {
+      "label": "话题",
+      "table": "xsyj_forum_topics",
+      "pending": 0,
+      "approved": 0,
+      "samples": []
+    },
+    "xsyj_forum_replies": {
+      "label": "楼层",
+      "table": "xsyj_forum_replies",
+      "pending": 0,
+      "approved": 0,
+      "samples": []
+    },
+    "xsyj_reviews": {
+      "label": "评价",
+      "table": "xsyj_reviews",
+      "pending": 0,
+      "approved": 0,
+      "samples": []
+    }
+  },
+  "changed": 0
+}
