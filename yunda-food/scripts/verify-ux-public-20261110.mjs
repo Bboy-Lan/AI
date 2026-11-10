@@ -10,8 +10,8 @@ const ORIGINS=[
  {id:'hosting',base:'https://cloud-ynnu-d6gs8ekf7dbcbe80e-1517920911.tcloudbaseapp.com/',ui:false},
 ]
 const legacyAssets={
- pages:['/AI/assets/index-BIb016w1.js','/AI/assets/index-Mj3iGp3r.css'],
- hosting:['/assets/index-CghoQdey.js','/assets/index-Mj3iGp3r.css'],
+ pages:['/AI/assets/index-CwrjmMmD.js','/AI/assets/index-BCArHfDK.css'],
+ hosting:['/assets/index-cuAQG5gO.js','/assets/index-BCArHfDK.css'],
 }
 const results=[],consoleErrors=[],runtimeErrors=[]
 const record=(origin,name,ok,detail)=>{results.push({origin,name,ok,detail});console.log((ok?'PASS ':'FAIL ')+origin+' · '+name+(detail?' · '+detail:''))}
@@ -34,7 +34,7 @@ for(const origin of ORIGINS){
  await check(origin.id,'HTML 引用本轮新主包',async()=>{
   const script=html[origin.id].text.match(/src="([^"]*\/assets\/index-[^"]*\.js)"/)
   if(!script)throw new Error('HTML 未引用主脚本')
-  if(!/index-CwrjmMmD|index-cuAQG5gO/.test(script[1]))throw new Error('仍是旧主包：'+script[1])
+  if(!/index-CBMNg-Wo|index-CyIvN0AA/.test(script[1]))throw new Error('仍是旧主包：'+script[1])
   return `status=${html[origin.id].status} ${script[1]}`
  })
 
@@ -176,6 +176,23 @@ for(const origin of ORIGINS){
   const messages=(await entry.innerText()).trim()
   if(messages!==tab)throw new Error('互动消息数字与导航不一致：'+messages+' / '+tab)
   return `导航 ${tab} · 互动消息 ${messages} · ${color}`
+ })
+
+ await check(origin.id,'管理员用户列表按头像摘要紧凑排布，一行两个',async()=>{
+  await page.goto(origin.base+'?demo=admin#/admin',{waitUntil:'networkidle'})
+  await page.waitForSelector('.page.admin',{timeout:20000})
+  await page.getByRole('button',{name:'用户',exact:true}).click()
+  await page.waitForSelector('.admin-people .admin-person',{timeout:20000})
+  const state=await page.evaluate(()=>{
+   const cards=[...document.querySelectorAll('.admin-people .admin-person')],tops=new Map()
+   for(const card of cards){const top=Math.round(card.getBoundingClientRect().top);tops.set(top,(tops.get(top)||0)+1)}
+   return {count:cards.length,perRow:[...tops.values()],avatars:cards.filter(c=>c.querySelector('.admin-person-avatar img')).length,tallest:Math.max(...cards.map(c=>Math.round(c.getBoundingClientRect().height))),tags:cards.map(c=>(c.querySelector('.admin-person-tag')?.textContent||'').trim())}
+  })
+  if(!state.count)throw new Error('线上用户页没有用户卡片')
+  if(state.perRow.some(n=>n<2||n>3))throw new Error('每行不是2～3个：'+state.perRow.join(','))
+  if(state.avatars!==state.count)throw new Error('有卡片缺少缩略头像：'+state.avatars+'/'+state.count)
+  if(state.tallest>80)throw new Error('卡片仍然过高：'+state.tallest+'px')
+  return `${state.count} 位 · 每行 ${state.perRow.join('/')} · 最高 ${state.tallest}px · ${[...new Set(state.tags)].join('/')}`
  })
 
  await check(origin.id,'页面运行无脚本错误',async()=>{

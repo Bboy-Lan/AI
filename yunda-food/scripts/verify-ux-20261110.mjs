@@ -233,6 +233,31 @@ await check('未读与待办用红色数字角标提示用户与管理员',async
  return `导航 ${tab} · 互动消息 ${message} · 用户治理 ${admin} · 集中审核台 ${review}`
 })
 
+await check('管理员用户列表改用缩略头像摘要，一行两个不再留白',async()=>{
+ await page.goto(BASE+'?demo=admin#/admin',{waitUntil:'networkidle'})
+ await page.getByRole('button',{name:'用户',exact:true}).click()
+ await page.waitForSelector('.admin-people .admin-person',{timeout:15000})
+ const state=await page.evaluate(()=>{
+  const cards=[...document.querySelectorAll('.admin-people .admin-person')],rows=new Map()
+  for(const card of cards){const top=Math.round(card.getBoundingClientRect().top);rows.set(top,(rows.get(top)||0)+1)}
+  return {
+   count:cards.length,perRow:[...rows.values()],
+   avatars:cards.filter(c=>c.querySelector('.admin-person-avatar img')||(c.querySelector('.admin-person-avatar')?.textContent||'').trim()).length,
+   tallest:Math.max(...cards.map(c=>Math.round(c.getBoundingClientRect().height))),
+   titles:cards.map(c=>(c.querySelector('b')?.textContent||'').trim()),
+   tags:cards.map(c=>(c.querySelector('.admin-person-tag')?.textContent||'').trim()),
+   fallbackBlank:cards.filter(c=>!(c.querySelector('.admin-person-avatar img')||(c.querySelector('.admin-person-avatar')?.textContent||'').trim())).length,
+   width:Math.round(cards[0].getBoundingClientRect().width)
+  }
+ })
+ if(!state.count)throw new Error('用户页没有渲染任何用户卡片')
+ if(state.perRow.some(n=>n<2||n>3))throw new Error('每行不是2～3个：'+state.perRow.join(','))
+ if(state.fallbackBlank)throw new Error(state.fallbackBlank+' 张卡片没有头像或默认头像')
+ if(state.tallest>80)throw new Error('卡片仍然过高：'+state.tallest+'px')
+ if(!state.tags.every(t=>['正常','已封禁','限制发布'].includes(t)))throw new Error('状态标签异常：'+state.tags.join('/'))
+ return `${state.count} 位 · 每行 ${state.perRow.join('/')} · 卡片最高 ${state.tallest}px / 宽 ${state.width}px · ${state.titles.slice(0,2).join('、')} · ${[...new Set(state.tags)].join('/')}`
+})
+
 await check('管理员可单张驳回配图，作者编辑页出现驳回占位并要求重传',async()=>{
  await page.goto(BASE+'?demo=admin&reviewCase=bulk#/review-admin',{waitUntil:'networkidle'})
  await page.waitForSelector('.review-compact-row',{timeout:15000})
@@ -266,8 +291,8 @@ await check('管理员驳回头像后该账号回落到默认头像',async()=>{
  await page.goto(BASE+'?demo=admin#/admin',{waitUntil:'networkidle'})
  await page.waitForSelector('.page.admin',{timeout:10000})
  await page.getByRole('button',{name:'用户',exact:true}).click()
- await page.waitForSelector('.admin-record',{timeout:10000})
- await page.locator('.admin-record').filter({hasText:'阿岚同学'}).first().locator('.managed-food').click()
+ await page.waitForSelector('.admin-people .admin-person',{timeout:10000})
+ await page.locator('.admin-person').filter({hasText:'阿岚同学'}).first().click()
  await page.waitForSelector('.profile-panel header.profile',{timeout:8000})
  await page.locator('.profile-panel textarea').fill('验收：头像含不适内容，请重新上传。')
  await page.getByRole('button',{name:'驳回这张头像'}).click()
@@ -276,7 +301,7 @@ await check('管理员驳回头像后该账号回落到默认头像',async()=>{
  if(panelAvatar.trim()!=='食')throw new Error('面板内没有回落到默认头像：'+panelAvatar)
  await page.reload({waitUntil:'networkidle'})
  await page.getByRole('button',{name:'用户',exact:true}).click()
- await page.locator('.admin-record').filter({hasText:'阿岚同学'}).first().locator('.managed-food').click()
+ await page.locator('.admin-person').filter({hasText:'阿岚同学'}).first().click()
  await page.waitForSelector('.profile-panel header.profile',{timeout:8000})
  const afterReload=await page.locator('.profile-panel header.profile .avatar').first().innerText()
  const disabled=await page.getByRole('button',{name:'驳回这张头像'}).isDisabled()
