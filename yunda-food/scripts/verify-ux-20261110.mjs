@@ -363,6 +363,34 @@ await check('出发点弹窗支持高德链接粘贴解析并回填地点名与�
  return `${coord.replace(/\s+/g,' ')} · 回填「${nameValue}」 · ${notes.length} 处距离提示`
 })
 
+await check('评价昵称紧挨头像，分数贴右对齐',async()=>{
+ const measure=()=>page.evaluate(()=>[...document.querySelectorAll('.review-card')].map(card=>{
+  const rect=el=>el?el.getBoundingClientRect():null
+  const avatar=card.querySelector('.review-avatar'),name=card.querySelector('.review-card>div>.link')||card.querySelector('div>.link'),badge=card.querySelector('.role-badge'),score=card.querySelector('em'),row=card.querySelector('div')
+  return {gap:rect(name).left-rect(avatar).right,badgeGap:badge?rect(badge).left-rect(name).right:null,scoreToRight:rect(card).right-rect(score).right,rowHeight:Math.round(rect(row).height),nameHeight:Math.round(rect(name).height)}
+ }))
+ const detail=BASE+'?demo=admin#/detail/demo-food-1'
+ await page.goto(detail,{waitUntil:'networkidle'})
+ await page.waitForSelector('.review-card',{timeout:10000})
+ const wide=await measure()
+ if(!wide.length)throw new Error('详情页没有评价卡片')
+ // 昵称曾经被“管理此评价”那种 margin-left:auto 顶到中间，这里守住间距不被撑开。
+ const loose=wide.filter(x=>x.gap>12||x.gap<-1)
+ if(loose.length)throw new Error('头像与昵称间距异常：'+loose.map(x=>Math.round(x.gap)+'px').join(','))
+ const unaligned=wide.filter(x=>x.scoreToRight<4||x.scoreToRight>24)
+ if(unaligned.length)throw new Error('分数没有贴右边：'+unaligned.map(x=>Math.round(x.scoreToRight)).join(','))
+ if(wide.some(x=>x.nameHeight>30))throw new Error('昵称被挤成多行')
+ await page.setViewportSize({width:320,height:844})
+ await page.goto(detail,{waitUntil:'networkidle'})
+ await page.waitForSelector('.review-card',{timeout:10000})
+ const narrow=await measure()
+ const narrowLoose=narrow.filter(x=>x.gap>12||x.gap<-1)
+ if(narrowLoose.length)throw new Error('320px 下头像与昵称间距异常：'+narrowLoose.map(x=>Math.round(x.gap)+'px').join(','))
+ await page.setViewportSize({width:390,height:844})
+ const gaps=wide.map(x=>Math.round(x.gap))
+ return `${wide.length} 条 · 390px 头像→昵称 ${Math.min(...gaps)}–${Math.max(...gaps)}px · 320px ${Math.round(narrow[0].gap)}px · 行高 ${wide[0].rowHeight}px`
+})
+
 await check('全页面无横向溢出与运行时错误',async()=>{
  const pages=['?demo=student#/','?demo=student#/me','?demo=student#/export','?demo=student#/detail/demo-food-1','?demo=student#/treehole']
  const overflow=[]

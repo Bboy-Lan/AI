@@ -10,8 +10,8 @@ const ORIGINS=[
  {id:'hosting',base:'https://cloud-ynnu-d6gs8ekf7dbcbe80e-1517920911.tcloudbaseapp.com/',ui:false},
 ]
 const legacyAssets={
- pages:['/AI/assets/index-CBMNg-Wo.js','/AI/assets/index-IgASAuXo.css'],
- hosting:['/assets/index-CyIvN0AA.js','/assets/index-IgASAuXo.css'],
+ pages:['/AI/assets/index-BWgSAIDG.js','/AI/assets/index-Cffx27Pj.css'],
+ hosting:['/assets/index-DRtJZsBK.js','/assets/index-Cffx27Pj.css'],
 }
 const results=[],consoleErrors=[],runtimeErrors=[]
 const record=(origin,name,ok,detail)=>{results.push({origin,name,ok,detail});console.log((ok?'PASS ':'FAIL ')+origin+' · '+name+(detail?' · '+detail:''))}
@@ -34,7 +34,7 @@ for(const origin of ORIGINS){
  await check(origin.id,'HTML 引用本轮新主包',async()=>{
   const script=html[origin.id].text.match(/src="([^"]*\/assets\/index-[^"]*\.js)"/)
   if(!script)throw new Error('HTML 未引用主脚本')
-  if(!/index-BWgSAIDG|index-DRtJZsBK/.test(script[1]))throw new Error('仍是旧主包：'+script[1])
+  if(!/index-CJ4CPwd0|index-B_HOo9zM/.test(script[1]))throw new Error('仍是旧主包：'+script[1])
   return `status=${html[origin.id].status} ${script[1]}`
  })
 
@@ -231,6 +231,23 @@ for(const origin of ORIGINS){
   await page.locator('.map-picker-overlay .announcement-heading button').click()
   await page.waitForSelector('.map-picker-overlay',{state:'detached',timeout:10000})
   return `${coord} · 回填「${name}」`
+ })
+
+ await check(origin.id,'评价昵称紧挨头像，分数贴右对齐',async()=>{
+  await page.goto(origin.base+'?demo=admin#/detail/demo-food-1',{waitUntil:'networkidle'})
+  await page.waitForSelector('.review-card',{timeout:20000})
+  const rows=await page.evaluate(()=>[...document.querySelectorAll('.review-card')].map(card=>{
+   const rect=el=>el?el.getBoundingClientRect():null
+   const avatar=card.querySelector('.review-avatar'),name=card.querySelector('.review-card>div>.link')||card.querySelector('div>.link'),score=card.querySelector('em')
+   return {gap:rect(name).left-rect(avatar).right,scoreToRight:rect(card).right-rect(score).right,nameHeight:Math.round(rect(name).height)}
+  }))
+  if(!rows.length)throw new Error('详情页没有评价卡片')
+  const loose=rows.filter(x=>x.gap>12||x.gap<-1)
+  if(loose.length)throw new Error('头像与昵称间距异常：'+loose.map(x=>Math.round(x.gap)+'px').join(','))
+  const unaligned=rows.filter(x=>x.scoreToRight<4||x.scoreToRight>24)
+  if(unaligned.length)throw new Error('分数没有贴右边：'+unaligned.map(x=>Math.round(x.scoreToRight)).join(','))
+  if(rows.some(x=>x.nameHeight>30))throw new Error('昵称被挤成多行')
+  return `${rows.length} 条 · 头像→昵称 ${Math.round(rows[0].gap)}px · 分数距右 ${Math.round(rows[0].scoreToRight)}px`
  })
 
  await check(origin.id,'页面运行无脚本错误',async()=>{
