@@ -10,8 +10,8 @@ const ORIGINS=[
  {id:'hosting',base:'https://cloud-ynnu-d6gs8ekf7dbcbe80e-1517920911.tcloudbaseapp.com/',ui:false},
 ]
 const legacyAssets={
- pages:['/AI/assets/index-DMkA7puj.js','/AI/assets/index-gm0iCXwR.css'],
- hosting:['/assets/index-DXznGj5m.js','/assets/index-gm0iCXwR.css'],
+ pages:['/AI/assets/index-DJNTHebY.js','/AI/assets/index-BUnYOHWK.css'],
+ hosting:['/assets/index-DZQTh9yM.js','/assets/index-BUnYOHWK.css'],
 }
 const results=[],consoleErrors=[],runtimeErrors=[]
 const record=(origin,name,ok,detail)=>{results.push({origin,name,ok,detail});console.log((ok?'PASS ':'FAIL ')+origin+' · '+name+(detail?' · '+detail:''))}
@@ -35,7 +35,7 @@ for(const origin of ORIGINS){
  await check(origin.id,'HTML 引用本轮新主包',async()=>{
   const script=html[origin.id].text.match(/src="([^"]*\/assets\/index-[^"]*\.js)"/)
   if(!script)throw new Error('HTML 未引用主脚本')
-  if(!/index-DJNTHebY|index-DZQTh9yM|index-DdTdkLRc|index-DXznGj5m|index-DMkA7puj|index-CJ4CPwd0|index-B_HOo9zM/.test(script[1]))throw new Error('仍是旧主包：'+script[1])
+  if(!/index-DVLEUcS7|index-3tv12hP3/.test(script[1]))throw new Error('仍是旧主包：'+script[1])
   return `status=${html[origin.id].status} ${script[1]}`
  })
 
@@ -75,7 +75,7 @@ for(const origin of ORIGINS){
  await page.waitForSelector('.page',{timeout:20000})
 
  await check(origin.id,'我的页面导出入口与真实 xlsx 下载',async()=>{
-  await page.getByRole('button',{name:/导出 Excel/}).click()
+  await page.getByRole('button',{name:/导出表格/}).click()
   await page.waitForSelector('.export-page',{timeout:10000})
   await page.getByRole('button',{name:/全选当前筛选结果/}).click()
   const summary=await page.locator('.export-selection span').innerText()
@@ -379,6 +379,30 @@ for(const origin of ORIGINS){
   const hint=await page.locator('.dm-panel .muted').innerText()
   if(!/只有管理员可以主动发起私信/.test(hint))throw new Error('用户侧说明缺失')
   return threads+' 个对话 · 管理员已发送 · 用户侧只读可回'
+ })
+
+ await check(origin.id,'地址去重与店名缩进按本轮口径显示',async()=>{
+  await page.goto(origin.base+'?demo=admin#/detail/demo-food-1',{waitUntil:'networkidle'})
+  await page.waitForSelector('.food-location',{timeout:20000})
+  const place=(await page.locator('.food-location span').innerText()).trim()
+  if((place.match(/云南大学/g)||[]).length!==1)throw new Error('学校名重复：'+place)
+  const indent=await page.locator('.store-name').evaluate(node=>parseFloat(getComputedStyle(node).paddingLeft))
+  if(indent<6)throw new Error('店名没有缩进：'+indent)
+  return place+' · 店名缩进 '+indent+'px'
+ })
+
+ await check(origin.id,'避雷只保留店铺、美食与具体地址，卡片带头像',async()=>{
+  await page.goto(origin.base+'?demo=admin#/tree-compose',{waitUntil:'networkidle'})
+  await page.waitForSelector('.form-page',{timeout:20000})
+  const form=await page.locator('.form-page').innerText()
+  if(!form.includes('美食名称')||form.includes('消费日期'))throw new Error('表单字段不是三字段口径')
+  await page.goto(origin.base+'?demo=admin#/treehole?tab=black',{waitUntil:'networkidle'})
+  await page.waitForSelector('.caution-card',{timeout:20000})
+  const card=page.locator('.caution-card').first()
+  if(!await card.locator('.caution-byline img, .caution-byline span').count())throw new Error('卡片没有作者头像')
+  const dish=await card.locator('.caution-body>strong').innerText()
+  const store=(await card.locator('.store-name').innerText()).replace(/\s+/g,' ')
+  return dish+' · '+store
  })
 
  await check(origin.id,'页面运行无脚本错误',async()=>{

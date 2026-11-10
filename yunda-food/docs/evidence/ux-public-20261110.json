@@ -1,6 +1,6 @@
 {
-  "checkedAt": "2026-11-10T06:17:46.191Z",
-  "passed": 27,
+  "checkedAt": "2026-11-10T10:34:13.205Z",
+  "passed": 29,
   "failed": 0,
   "consoleErrors": [
     "hosting: Failed to load resource: the server responded with a status of 404 (Not Found)"
@@ -11,7 +11,7 @@
       "origin": "pages",
       "name": "HTML 引用本轮新主包",
       "ok": true,
-      "detail": "status=200 /AI/assets/index-DJNTHebY.js"
+      "detail": "status=200 /AI/assets/index-DVLEUcS7.js"
     },
     {
       "origin": "pages",
@@ -95,7 +95,7 @@
       "origin": "pages",
       "name": "卡片缩略图贴满卡片高度，图片下方不再留白",
       "ok": true,
-      "detail": "7 张 · 图 88×115px 贴满 · 留白 0"
+      "detail": "7 张 · 图 88×134px 贴满 · 留白 0"
     },
     {
       "origin": "pages",
@@ -141,6 +141,18 @@
     },
     {
       "origin": "pages",
+      "name": "地址去重与店名缩进按本轮口径显示",
+      "ok": true,
+      "detail": "云南大学东陆校区 · 兰苑二楼 · 示例窗口 · 店名缩进 8px"
+    },
+    {
+      "origin": "pages",
+      "name": "避雷只保留店铺、美食与具体地址，卡片带头像",
+      "ok": true,
+      "detail": "豆米火锅 · 店名示例店铺 A"
+    },
+    {
+      "origin": "pages",
       "name": "页面运行无脚本错误",
       "ok": true,
       "detail": "consoleErrors=0 pageErrors=0"
@@ -149,7 +161,7 @@
       "origin": "hosting",
       "name": "HTML 引用本轮新主包",
       "ok": true,
-      "detail": "status=200 /assets/index-DZQTh9yM.js"
+      "detail": "status=200 /assets/index-3tv12hP3.js"
     },
     {
       "origin": "hosting",
