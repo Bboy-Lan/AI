@@ -10,10 +10,10 @@ const exportPage = () => readFileSync('src/pages/ExportPage.tsx', 'utf8')
 const service = () => readFileSync('server/classic/xsyj_web_v1/service.cjs', 'utf8')
 const native = () => readFileSync('server/classic/xsyj_web_v1/native/food/index.js', 'utf8')
 
-test('首页卡片缩略图跟着卡片高度拉满，图片下方不再留空白', () => {
+test('首页卡片缩略图统一为固定正方形并垂直居中，避免随内容高低而大小不一', () => {
  const rules = css()
- assert.match(rules, /\.food-card \.food-media\{[^}]*align-self:stretch[^}]*\}/, '卡片图片没有拉满高度')
- assert.match(rules, /\.food-card \.food-media\{[^}]*min-height:88px[^}]*\}/, '卡片图片缺少最小高度，窄屏会压扁')
+ assert.match(rules, /\.food-card \.food-media\{[^}]*height:88px[^}]*\}/, '卡片图片应为固定高度')
+ assert.ok(!/\.food-card \.food-media\{[^}]*align-self:stretch[^}]*\}/.test(rules), '卡片图片不应再随高度拉伸')
  // 紧凑列表与格子视图的尺寸不能被这条规则带跑。
  assert.match(rules, /\.food-row \.food-media\{flex:0 0 52px;height:52px/)
  assert.match(rules, /\.food-tile \.food-media\{flex:none;width:100%;height:96px/)

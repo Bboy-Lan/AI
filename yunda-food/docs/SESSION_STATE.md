@@ -1,3 +1,19 @@
+# 当前完成：导出精简、图片放大仅管理员、投稿补全提醒、卡片统一（2026-11-10）
+
+按用户两张截图与五点要求落地：
+
+1. **导出页精简 + 备注双列**：`ExportPage.tsx` 顶部说明与各分区提示精简；「本次备注」由逐条竖排改为 `.export-notes` 双列网格 + `max-height:42svh` 滚动，食物名作小标签、占位「留空用原理由」，选中美食再多也不再一长串堆叠。
+2. **用户治理按钮底色统一**：根因是 `CloudMe`/`Me` 的「用户治理」class `admin-entry` 与后台「用户治理 → 入口网格」的 `.admin-entry{display:grid;background:#f4f0e3}` 撞名，导致它被套上米白底+网格样式。改为 `govern-entry`（`CloudPages.tsx`、`App.tsx`），CSS 同步 `.me>.govern-entry`、`.govern-entry`；三按钮（问题反馈/导出表格/用户治理）底色现一致为 `#e3eef5`，顺带修掉后台入口网格被误加 22px margin 的隐患。
+3. **图片放大仅管理员**：`MediaImage` 的 `zoomable` 与 `Gallery` 的 lightbox 预览都加 `repository.context.isAdmin` 门控——普通用户头像/图片点击不再放大，管理员保留（审核台查看是否违规再处罚）。
+4. **投稿补全提醒**：`CloudMe` 计算 `incomplete=repository.mine.filter(f=>!f.images?.length||!f.storeName?.trim())`，渲染 `.completion-reminder`（米黄卡片 + chips 跳 `/publish/:id`），提示新版本需店名+实拍图、补齐后重新提交进管理员审核。
+5. **卡片统一标准化**：`.food-card .food-media` 由 `align-self:stretch;height:auto`（图片随卡片内容高低而变化）改为固定正方形 `align-self:center;height:88px`；占位图「食 · 暂未配图」简化为「食」。实测 390px 视口 7 张卡片图片均 88×88、卡片高均 152px、名称→店名间距统一 3px。
+
+验证：自动测试 **158 项全过**（`tests/detail-actions.test.ts` 卡片缩略图断言由「stretch 拉满」改为「固定 88px 且无 stretch」）；`tsc -b`、根路径与 `/AI/` 双构建通过；本地 msedge 截图复核导出两列、按钮底色一致、普通/管理员放大权限、卡片尺寸统一。备用站 `index-CiMesFjj.js`（托管 26+1 文件 verified=true）；正式站 `/AI/assets/index-BY5PIleh.js`。gh-pages `4142a7d`，main 本轮同步。
+
+已知边界：本轮只改前端源码与一处测试，未改后端 `service.cjs`/native 校验；补全提醒仅在「我的」页呈现、按缺图或缺店名判断；图片放大门控按运行时管理员身份（演示 `?demo=admin` 亦为管理员）。
+
+---
+
 # 当前完成：地址两段式精简、店名层级、用户治理两栏、避雷三字段（2026-11-10）
 
 1. **推荐地址只留必要字段**：高校内=学校（必填）+ 校区（选填）+ 食堂/楼/窗口（必填）；高校外=区域/街道（选填）+ 店铺/摊位（必填）。删除"地点细节补充"。`normalize()` 与发布页用同一套合并去重规则：完全相同只留一条，一段包含另一段时只留更具体的（"云南大学"+"云南大学东陆校区"→只显示后者）。地图卡不再重复整段文字地址。

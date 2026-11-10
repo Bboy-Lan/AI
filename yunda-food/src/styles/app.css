@@ -82,8 +82,8 @@ h2{font-size:18px}
 .food-card{display:flex;width:100%;gap:9px;margin:0 2px 9px 0;padding:8px;text-align:left;border:1px solid #44524b;border-radius:11px;background:var(--cream);box-shadow:2px 2px 0 #44524b}
 .food-media,.detail-photo,.ticket-photo{display:flex;align-items:center;justify-content:center;overflow:hidden;background:repeating-linear-gradient(-45deg,#fcf0cf,#fcf0cf 9px,#f6e6b7 9px,#f6e6b7 18px);color:var(--blue);font-size:26px;font-weight:800}
 .food-media{flex:0 0 88px;height:88px;border-radius:7px}
-/* 卡片缩略图跟着卡片高度拉满，图片下方不再留一条空白（宽度仍是 88px，保持竖版比例）。 */
-.food-card .food-media{align-self:stretch;height:auto;min-height:88px}
+/* 缩略图统一为固定正方形并垂直居中，避免随卡片内容高低而大小不一。 */
+.food-card .food-media{align-self:center;height:88px;min-height:0}
 .food-card .food-media img{object-position:50% 55%}
 .food-media img,.detail-photo img,.ticket-photo img,.grid img,.caution-cover img{width:100%;height:100%;object-fit:cover}
 .food-body{min-width:0;flex:1}
@@ -174,7 +174,7 @@ h2{font-size:18px}
 .grid em{position:absolute;right:6px;bottom:24px;padding:2px 5px;border:1px solid #edb6a5;border-radius:5px;background:#fff0e8;color:#c33c29;font-size:12px;font-style:normal;font-weight:800}
 .hidden-label{color:#a33d31}
 .more-link{display:block;margin:12px auto 0;color:var(--blue);font-size:15px;font-weight:800}
-.admin-entry{margin-top:22px}
+.govern-entry{margin-top:22px}
 .caution-head>p{margin-bottom:5px;color:var(--blue);font-size:11px;letter-spacing:1px}
 .caution-head>div,.toolbar,.message-tools,.admin-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .caution-head h1{margin:0;font-size:23px}
@@ -509,9 +509,13 @@ button:disabled{box-shadow:none}
 .me .preferences-row>div{display:flex;align-items:center;flex:none;gap:11px}
 .me .preferences-row .link{margin:0;padding:9px 0;font-size:12px;font-weight:700}
 .me>.button.secondary{min-height:44px;box-shadow:none;font-size:14px}
-.me>.admin-entry{margin-top:11px}
+.me>.govern-entry{margin-top:11px}
 .me .empty{padding:21px 11px;font-size:13px}
 .me .draft-row{padding:6px 0;border-bottom:1px solid #c9c5b0}
+.completion-reminder{margin:12px 0;padding:11px 12px;border:1px solid #d8bb64;border-radius:10px;background:#fcf0cf;color:#5a4212}
+.completion-reminder b{font-size:13px}
+.completion-reminder p{margin:4px 0 8px;font-size:12px;line-height:1.55}
+.completion-reminder .chips{margin-top:2px;row-gap:6px}
 .submission-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .submission-tile{display:block;min-width:0;overflow:hidden;padding:0;text-align:left;border:1px solid #a6aaa0;border-radius:9px;background:#fffdf5}
 .submission-thumb{display:block;width:100%;aspect-ratio:2.85;height:auto;object-fit:cover;background:#ede6d0}
@@ -634,6 +638,10 @@ button:disabled{box-shadow:none}
 .export-preview th{background:#e3eef5;color:#1d5781;position:sticky;top:0}
 .export-summary{position:sticky;bottom:calc(var(--nav-height) + env(safe-area-inset-bottom,0px) + 6px);z-index:5;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-top:10px;padding:9px 11px;border:1px solid #8eabbc;border-radius:10px;background:#e3eef5;font-size:12px}
 .export-summary b{overflow-wrap:anywhere}
+.export-notes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;max-height:42svh;overflow:auto;padding-right:2px}
+.export-notes label{display:flex;flex-direction:column;gap:3px;min-width:0}
+.export-notes label>span{font-size:11.5px;color:#58625b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.export-notes input{font-size:12px;padding:7px 8px}
 @media(max-width:360px){.export-field{grid-template-columns:auto minmax(0,1fr) auto auto}.layout-switch{gap:4px}.layout-switch button{padding:4px 7px;font-size:11px}}
 .read-tag{flex:0 0 auto;padding:2px 8px;border-radius:99px;border:1px solid #a6aaa0;background:#eceae0;color:#5c645d;font-size:11px;font-weight:800;letter-spacing:.02em}
 .read-tag.is-unread{background:var(--red);border-color:#b23a2c;color:#fff;box-shadow:1px 1px 0 #b23a2c}
