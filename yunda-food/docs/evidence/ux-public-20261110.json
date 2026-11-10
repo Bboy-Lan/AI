@@ -1,6 +1,6 @@
 {
-  "checkedAt": "2026-11-10T02:41:36.995Z",
-  "passed": 12,
+  "checkedAt": "2026-11-10T03:30:35.645Z",
+  "passed": 13,
   "failed": 0,
   "consoleErrors": [
     "hosting: Failed to load resource: the server responded with a status of 404 (Not Found)"
@@ -11,7 +11,7 @@
       "origin": "pages",
       "name": "HTML 引用本轮新主包",
       "ok": true,
-      "detail": "status=200 /AI/assets/index-B1taL3Pk.js"
+      "detail": "status=200 /AI/assets/index-BIb016w1.js"
     },
     {
       "origin": "pages",
@@ -45,6 +45,12 @@
     },
     {
       "origin": "pages",
+      "name": "评分信息与排列按钮按新版呈现",
+      "ok": true,
+      "detail": "卡片「★ 4.0 1 人」 · 详情 4.0 分 · 排列按钮圆角 99px"
+    },
+    {
+      "origin": "pages",
       "name": "头像可放大且不跳转",
       "ok": true,
       "detail": "弹层开合正常，URL 未变"
@@ -59,7 +65,7 @@
       "origin": "hosting",
       "name": "HTML 引用本轮新主包",
       "ok": true,
-      "detail": "status=200 /assets/index-DoRE9Ebs.js"
+      "detail": "status=200 /assets/index-CghoQdey.js"
     },
     {
       "origin": "hosting",

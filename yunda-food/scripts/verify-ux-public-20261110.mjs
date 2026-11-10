@@ -120,7 +120,9 @@ for(const origin of ORIGINS){
 
  await check(origin.id,'评分信息与排列按钮按新版呈现',async()=>{
   await page.goto(origin.base+'?demo=student#/',{waitUntil:'networkidle'})
-  await page.waitForSelector('.food-card',{timeout:20000})
+  await page.waitForSelector('.layout-switch button',{timeout:20000})
+  await page.locator('.layout-switch button',{hasText:'卡片'}).click()
+  await page.waitForSelector('.food-card',{timeout:15000})
   const badge=(await page.locator('.food-card .rating-badge').first().innerText()).replace(/\s+/g,' ').trim()
   const radius=await page.locator('.layout-switch button').first().evaluate(el=>getComputedStyle(el).borderRadius)
   if(!badge.includes('★'))throw new Error('卡片评分未按新版呈现：'+badge)
