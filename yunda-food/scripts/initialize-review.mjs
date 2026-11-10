@@ -5,7 +5,7 @@ const require=createRequire(import.meta.url),cli=require.resolve('@cloudbase/cli
 const call=args=>{let r=JSON.parse(execFileSync(process.execPath,[cli,...args,'-e',env,'--json'],{encoding:'utf8',maxBuffer:5e6}));if(r.error)throw Error(r.error.message);while(r.data&&!Array.isArray(r))r=r.data;return r}
 const api=(action,body)=>call(['api','tcb',action,'--body',JSON.stringify({EnvId:env,...body})])
 const target=call(['env','detail']);if(target.EnvId!==env||target.PostgreSQL?.length||target.PackageId!=='baas_personal')throw Error('Unexpected target')
-const defs={xsyj_review_audit:[['recordType','kind','targetId','createdAt']],xsyj_review_notifications:[['ownerOpenId','archived','_id'],['ownerOpenId','read','archived']]},existing=api('DescribeTables',{MgoLimit:100,MgoOffset:0}).Tables,result=[]
+const defs={xsyj_review_audit:[['recordType','kind','targetId','createdAt']],xsyj_review_notifications:[['ownerOpenId','archived','_id'],['ownerOpenId','read','archived']],xsyj_direct_messages:[['userUid','createdAt'],['fromAdmin','createdAt']]},existing=api('DescribeTables',{MgoLimit:100,MgoOffset:0}).Tables,result=[]
 for(const [name,indexes]of Object.entries(defs)){
  const created=!existing.some(t=>t.TableName===name);if(created){api('CreateTable',{TableName:name});api('ModifySafeRule',{CollectionName:name,AclTag:'ADMINONLY'})}
  if(api('DescribeSafeRule',{CollectionName:name}).AclTag!=='ADMINONLY')throw Error('Refuse to overwrite non-private '+name)

@@ -239,14 +239,36 @@ try{
  check(adminSummary.pendingCount>=reviewSummary.pending,'管理员待办角标覆盖集中审核台的全部待审内容')
  check((await rpc('notificationSummary',{},c.token)).pendingCount===0,'普通账号不会拿到管理员待办角标')
  check((await rpc('myFoods',{},b.token)).every(r=>typeof r.reviewTag==='string'),'作者列表带审核标签，便于显示待审核数字')
+
+ // 15. 管理员私信：只有管理员能发起，用户只能读自己那条对话并回复，未读并入消息汇总。
+ const directBefore=(await rpc('notificationSummary',{},b.token)).unreadCount
+ await denied('sendDirectMessage',{profileId:a.profileId,body:'普通用户尝试发起私信'},b.token,/管理/,'普通用户不能主动发起私信')
+ await rpc('sendDirectMessage',{profileId:b.profileId,body:'验收私信：请补充窗口位置。',clientRequestId:crypto.randomUUID()},a.token)
+ const thread=await rpc('adminDirectThread',{profileId:b.profileId},a.token)
+ check(thread.messages.at(-1)?.body==='验收私信：请补充窗口位置。'&&thread.messages.at(-1)?.fromAdmin===true,'管理员私信写进对应用户的对话')
+ check(!JSON.stringify(thread).includes(b.uid),'私信接口不向客户端暴露用户 openid')
+ const directUnread=(await rpc('notificationSummary',{},b.token)).unreadCount
+ check(directUnread===directBefore+1,'用户收到管理员私信后消息汇总未读+1')
+ const myDirect=await rpc('myDirectMessages',{},b.token)
+ check(myDirect.some(m=>!m.read&&m.fromAdmin),'用户能看到管理员私信且为未读')
+ await rpc('readDirectMessages',{},b.token)
+ check((await rpc('notificationSummary',{},b.token)).unreadCount===directBefore,'用户读过私信后未读回落')
+ await rpc('replyDirectMessage',{profileId:c.profileId,body:'越权回复：伪造别人的主页编号。',clientRequestId:crypto.randomUUID()},b.token)
+ check(!(await rpc('myDirectMessages',{},c.token)).some(m=>String(m.body).includes('越权回复')),'用户伪造主页编号也写不进别人的对话')
+ await rpc('replyDirectMessage',{body:'验收回复：已经补充窗口位置。',clientRequestId:crypto.randomUUID()},b.token)
+ const adminThreads=await rpc('adminDirectThreads',{},a.token)
+ const adminThread=adminThreads.find(t=>t.profileId===b.profileId)
+ check(Boolean(adminThread)&&adminThread.unread>=2,'管理员看到用户回复并计入未读')
+ await rpc('readDirectMessages',{profileId:b.profileId},a.token)
+ check((await rpc('adminDirectThreads',{},a.token)).find(t=>t.profileId===b.profileId).unread===0,'管理员打开对话后未读清零')
 }catch(e){failure=e.message;console.log('FAIL '+failure)}finally{
  const cleanupErrors=[],uids=accounts.map(a=>a.uid)
- const tables=['profiles','food_items','favorites','food_likes','reviews','admins','events','caution_posts','caution_likes','caution_reports','caution_messages','caution_meta','caution_audit','forum_topics','forum_replies','forum_reports','forum_notifications','forum_meta','forum_audit','review_audit','review_notifications'].map(n=>'xsyj_'+n)
+ const tables=['profiles','food_items','favorites','food_likes','reviews','admins','events','direct_messages','caution_posts','caution_likes','caution_reports','caution_messages','caution_meta','caution_audit','forum_topics','forum_replies','forum_reports','forum_notifications','forum_meta','forum_audit','review_audit','review_notifications'].map(n=>'xsyj_'+n)
  const attempt=fn=>{try{fn()}catch(e){cleanupErrors.push(e.message)}}
  if(accounts.length!==3||accounts.some(a=>!a.name.startsWith('xsyj_ux_')))cleanupErrors.push('Unexpected temporary account set')
  else{
   for(const id of inserted)attempt(()=>{const [table,_id]=id.split(':');mongo(table,{delete:table,deletes:[{q:{_id},limit:1}]},'DELETE')})
-  for(const name of tables)attempt(()=>{const fields=['ownerOpenId','operatorOpenId','actor','openId','updatedBy'],filter={$or:fields.map(field=>({[field]:{$in:uids}}))},rows=mongo(name,{find:name,filter,limit:1000});if(rows.length)mongo(name,{delete:name,deletes:rows.map(row=>({q:{_id:row._id},limit:1}))},'DELETE')})
+  for(const name of tables)attempt(()=>{const fields=['ownerOpenId','operatorOpenId','actor','openId','updatedBy','userUid','senderUid'],filter={$or:fields.map(field=>({[field]:{$in:uids}}))},rows=mongo(name,{find:name,filter,limit:1000});if(rows.length)mongo(name,{delete:name,deletes:rows.map(row=>({q:{_id:row._id},limit:1}))},'DELETE')})
   for(const path of files)attempt(()=>{if(!path.startsWith('xsyj-media/'))throw Error('Unexpected cleanup path');call(['storage','rm',path,'--force'])})
   for(const account of accounts)attempt(()=>call(['user','delete',account.uid,'--yes']))
  }

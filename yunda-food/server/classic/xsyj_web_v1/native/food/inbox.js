@@ -90,6 +90,80 @@ module.exports = function createInbox({ db, C, requireAdmin, fail, text, now }) 
     })
     return { deletedIds: [...new Set(deletedIds)], deletedCount: new Set(deletedIds).size }
   }
-  return { clearReadInteractions, adminClearReadIssues, listMyInteractions, myInteractionSummary, readInteraction, deleteInteraction, adminListIssues, adminIssueSummary, adminResolveIssue, adminReadIssue, adminArchiveIssue }
+  // ── 管理员私信 ────────────────────────────────────────────────
+  // 只有一个方向能发起：管理员找用户。用户只能在自己那条对话里回复，不能新建对话。
+  const direct = () => db.collection(C.direct)
+  const directBody = value => { const body = text(value, 300); if (body.length < 2) fail('请填写至少2个字的内容。'); return body }
+  const isAdmin = async id => { try { await requireAdmin(id); return true } catch { return false } }
+  // 客户端只传主页 profileId，openid 始终留在服务端。
+  async function profileRow(profileId) { const key = text(profileId, 100); if (!key) fail('缺少对话用户。'); const row = await db.collection(C.profiles).doc(key).get().then(r => r.data).catch(() => null); if (!row || !row.ownerOpenId) fail('找不到这位用户。'); return row }
+  // 新集合不依赖复合索引：取回后在内存里按时间排序。集合尚未创建时按空对话处理，避免拖垮消息汇总。
+  const missing = error => /not.?exist|不存在|COLLECTION_NOT_EXIST/i.test(String(error && (error.errMsg || error.message) || ''))
+  async function directQuery(run) { try { return await run() } catch (error) { if (missing(error)) return { data: [] }; throw error } }
+  async function directRows(userUid) { return (await directQuery(() => direct().where({ userUid }).limit(100).get())).data }
+  const directDto = (row, admin) => ({ id: row._id, body: row.body || '', fromAdmin: Boolean(row.fromAdmin), read: admin ? Boolean(row.adminRead) : Boolean(row.userRead), createdAt: row.createdAt })
+  const threadOrder = (a, b) => time(a.createdAt) - time(b.createdAt)
+  async function writeDirect(payload) {
+    const data = { userUid: payload.userUid, senderUid: payload.senderUid, fromAdmin: Boolean(payload.fromAdmin), body: payload.body, userRead: Boolean(payload.userRead), adminRead: Boolean(payload.adminRead), createdAt: now() }
+    const requestId = String(payload.clientRequestId || '')
+    if (/^[a-zA-Z0-9-]{8,80}$/.test(requestId)) {
+      const documentId = 'dm_' + hash(payload.threadId + ':' + requestId)
+      const ref = direct().doc(documentId); const old = await ref.get().then(r => r.data).catch(() => null)
+      if (old && old.userUid === data.userUid && old.body === data.body) return old._id
+      await ref.set({ data }); return documentId
+    }
+    const saved = await direct().add({ data }); return saved._id
+  }
+  async function myDirectMessages(id) {
+    const rows = (await directRows(id)).filter(row => !row.userHidden)
+    return rows.map(row => directDto(row, false)).sort(threadOrder)
+  }
+  async function adminDirectThreads(id) {
+    await requireAdmin(id)
+    const rows = (await directQuery(() => direct().limit(200).get())).data.filter(row => !row.adminHidden).sort((a, b) => time(b.createdAt) - time(a.createdAt))
+    const threads = new Map()
+    for (const row of rows) {
+      if (!threads.has(row.userUid)) threads.set(row.userUid, { openId: row.userUid, lastBody: row.body || '', lastAt: row.createdAt, unread: 0 })
+      if (!row.fromAdmin && !row.adminRead) threads.get(row.userUid).unread++
+    }
+    const profiles = await actorProfiles([...threads.keys()])
+    return [...threads.values()].map(thread => { const p = profiles.get(thread.openId); return { profileId: p && p._id || '', name: p && p.foodieId || '同学', avatar: p && p.avatarFileId || '', lastBody: thread.lastBody, lastAt: thread.lastAt, unread: thread.unread } }).filter(thread => thread.profileId)
+  }
+  async function adminDirectThread(id, payload) {
+    await requireAdmin(id)
+    const row = await profileRow(payload.profileId)
+    const rows = (await directRows(row.ownerOpenId)).filter(item => !item.adminHidden)
+    return { profileId: row._id, name: row.foodieId || '同学', avatar: row.avatarFileId || '', messages: rows.map(item => directDto(item, true)).sort(threadOrder) }
+  }
+  async function sendDirectMessage(id, payload) {
+    await requireAdmin(id)
+    const row = await profileRow(payload.profileId), userUid = row.ownerOpenId
+    if (userUid === id) fail('不需要给自己发私信。')
+    const body = directBody(payload.body)
+    await writeDirect({ threadId: userUid, userUid, senderUid: id, fromAdmin: true, body, userRead: false, adminRead: true, clientRequestId: payload.clientRequestId })
+    return { ok: true }
+  }
+  async function replyDirectMessage(id, payload) {
+    const admin = await isAdmin(id), userUid = admin ? (await profileRow(payload.profileId)).ownerOpenId : id
+    if (!userUid) fail('缺少对话用户。')
+    const body = directBody(payload.body)
+    // 用户的回复只能落在自己那条对话里，管理员回复则写回对应用户的对话。
+    await writeDirect({ threadId: userUid, userUid, senderUid: id, fromAdmin: admin, body, userRead: !admin, adminRead: admin, clientRequestId: payload.clientRequestId })
+    return { ok: true }
+  }
+  async function readDirectMessages(id, payload) {
+    const admin = await isAdmin(id), userUid = admin ? (await profileRow(payload.profileId)).ownerOpenId : id
+    if (!userUid) fail('缺少对话用户。')
+    const rows = (await directRows(userUid)).filter(row => (admin ? (!row.adminRead && !row.fromAdmin) : (!row.userRead && row.fromAdmin)))
+    for (const row of rows) await direct().doc(row._id).update({ data: admin ? { adminRead: true, adminReadAt: now() } : { userRead: true, userReadAt: now() } })
+    return { read: rows.length }
+  }
+  async function directSummary(id) {
+    const admin = await isAdmin(id)
+    if (admin) { const rows = (await directQuery(() => direct().where({ fromAdmin: false }).limit(100).get())).data; return { unreadCount: rows.filter(row => !row.adminHidden && !row.adminRead).length } }
+    const rows = await directRows(id)
+    return { unreadCount: rows.filter(row => !row.userHidden && row.fromAdmin && !row.userRead).length }
+  }
+  return { clearReadInteractions, adminClearReadIssues, listMyInteractions, myInteractionSummary, readInteraction, deleteInteraction, adminListIssues, adminIssueSummary, adminResolveIssue, adminReadIssue, adminArchiveIssue, myDirectMessages, adminDirectThreads, adminDirectThread, sendDirectMessage, replyDirectMessage, readDirectMessages, directSummary }
 }
 

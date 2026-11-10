@@ -507,8 +507,85 @@ await check('导出新增“全部美食”并排在前面，导出文件名与�
  return `${chips.join(' | ')} · ${name} · ${rows} 行 · 首页公开 ${publicFoods} 条`
 })
 
+await check('首页可切换排布方式：点赞最多 / 最新发布 / 评分最高',async()=>{
+ await page.setViewportSize({width:390,height:844})
+ await page.goto(BASE+'?demo=student#/',{waitUntil:'networkidle'})
+ await page.waitForSelector('.sort-row .sort-chip',{timeout:8000})
+ const chips=await page.locator('.sort-row .sort-chip').allInnerTexts()
+ if(chips.join('|')!=='推荐顺序|点赞最多|最新发布|评分最高')throw new Error('排布按钮不对：'+chips.join('|'))
+ const names=()=>page.locator('.food-card .food-title-row strong').allInnerTexts()
+ const likes=()=>page.locator('.food-card').evaluateAll(cards=>cards.map(card=>{const text=card.querySelector('.like-mini')?.textContent||'';return Number((text.match(/(\d+)/)||[])[1]||0)}))
+ const defaultOrder=await names()
+ await page.locator('.sort-chip').filter({hasText:'点赞最多'}).click()
+ await page.waitForTimeout(200)
+ const likeCounts=await likes()
+ for(let i=1;i<likeCounts.length;i++)if(likeCounts[i]>likeCounts[i-1])throw new Error('点赞没有从高到低：'+likeCounts.join(','))
+ await page.locator('.sort-chip').filter({hasText:'最新发布'}).click()
+ await page.waitForTimeout(200)
+ const newOrder=await names()
+ if(newOrder[0]===defaultOrder[0])throw new Error('最新发布没有改变顺序')
+ await page.locator('.sort-chip').filter({hasText:'评分最高'}).click()
+ await page.waitForTimeout(200)
+ const ratingOrder=await names()
+ if(ratingOrder[0]!=='酸汤猪脚')throw new Error('评分最高第一条不是评分最高的投稿：'+ratingOrder[0])
+ return chips.join(' / ')+' · 赞 '+likeCounts.join('>')+' · 最新 '+newOrder[0]+' · 评分 '+ratingOrder[0]
+})
+
+await check('点开互动消息的原文即自动标记已读',async()=>{
+ await page.goto(BASE+'?demo=student#/messages',{waitUntil:'networkidle'})
+ await page.waitForSelector('.message',{timeout:8000})
+ const before=await page.locator('.read-tag.is-unread').count()
+ if(!before)throw new Error('演示数据里没有未读消息')
+ const tag=await page.locator('.read-tag.is-unread').first().innerText()
+ await page.locator('.message.unread .message-item').first().click()
+ await page.waitForTimeout(500)
+ await page.goto(BASE+'?demo=student#/messages',{waitUntil:'networkidle'})
+ await page.waitForSelector('.message',{timeout:8000})
+ const after=await page.locator('.read-tag.is-unread').count()
+ if(after>=before)throw new Error('点开后仍未标记已读：'+before+' → '+after)
+ return '未读标签“'+tag+'” '+before+' → '+after
+})
+
+await check('用户侧只能查看并回复管理员私信，不能主动发起',async()=>{
+ await page.goto(BASE+'?demo=student#/messages?mode=direct',{waitUntil:'networkidle'})
+ await page.waitForSelector('.dm-panel',{timeout:8000})
+ if(await page.locator('.dm-threads').count())throw new Error('用户侧不该出现发起对话的用户列表')
+ const hint=await page.locator('.dm-panel .muted').innerText()
+ if(!/只有管理员可以主动发起私信/.test(hint))throw new Error('缺少用户侧说明')
+ if(!await page.locator('.dm-bubble').count())throw new Error('没有看到管理员私信')
+ await page.locator('.dm-composer textarea').fill('演示环境：收到管理员私信并回复。')
+ await page.getByRole('button',{name:'发送'}).click()
+ await page.waitForTimeout(600)
+ const last=await page.locator('.dm-bubble').last().innerText()
+ if(!/收到管理员私信并回复/.test(last))throw new Error('回复没有出现：'+last)
+ return '管理员私信可见 · 回复已发送'
+})
+
+await check('管理员从用户资料发起私信，并按对话查看与发送',async()=>{
+ await page.goto(BASE+'?demo=admin#/messages?mode=direct',{waitUntil:'networkidle'})
+ await page.waitForSelector('.dm-thread',{timeout:8000})
+ const threads=await page.locator('.dm-thread').count()
+ if(threads<2)throw new Error('对话列表不完整：'+threads)
+ await page.locator('.dm-thread').filter({hasText:'阿岚同学'}).click()
+ await page.waitForTimeout(400)
+ await page.locator('.dm-composer textarea').fill('演示环境：管理员私信测试。')
+ await page.getByRole('button',{name:'发送'}).click()
+ await page.waitForTimeout(600)
+ const own=await page.locator('.dm-bubble.me').last().innerText()
+ if(!/管理员私信测试/.test(own))throw new Error('管理员消息没有显示在右侧：'+own)
+ // 用户资料面板里必须能进来
+ await page.goto(BASE+'?demo=admin#/admin',{waitUntil:'networkidle'})
+ await page.getByRole('button',{name:'用户',exact:true}).click()
+ await page.waitForSelector('.admin-person',{timeout:8000})
+ await page.locator('.admin-person').filter({hasText:'阿岚同学'}).click()
+ await page.getByRole('button',{name:'发私信'}).click()
+ await page.waitForSelector('.dm-panel',{timeout:8000})
+ if(!/mode=direct/.test(await page.evaluate(()=>location.hash)))throw new Error('没有跳到私信页')
+ return threads+' 个对话 · 面板入口可用'
+})
+
 await check('全页面无横向溢出与运行时错误',async()=>{
- const pages=['?demo=student#/','?demo=student#/me','?demo=student#/export','?demo=student#/detail/demo-food-1','?demo=student#/treehole']
+ const pages=['?demo=student#/','?demo=student#/me','?demo=student#/export','?demo=student#/detail/demo-food-1','?demo=student#/treehole','?demo=student#/messages?mode=direct','?demo=admin#/messages?mode=direct']
  const overflow=[]
  for(const width of [320,360,390,414,768,1440]){
   await page.setViewportSize({width,height:844})
@@ -520,7 +597,7 @@ await check('全页面无横向溢出与运行时错误',async()=>{
  }
  if(overflow.length)throw new Error(overflow.slice(0,4).join(' ; '))
  if(runtimeErrors.length)throw new Error('运行时错误：'+runtimeErrors.slice(0,2).join(' | '))
- return '6 宽度 × 5 页面无溢出；pageerror=0'
+ return '6 宽度 × '+pages.length+' 页面无溢出；pageerror=0'
 })
 
 await browser.close()

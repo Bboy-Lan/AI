@@ -58,6 +58,34 @@ export function filterItems(items:Food[],filters:Filters={},prefs:Partial<Prefer
   return {...item,sameHometown:same(prefs.hometown,item.hometown),reasons:reasons.join(' · '),orderScore:matchScore(item,prefs)}
  }).sort((a,b)=>b.orderScore-a.orderScore)
 }
+// 排布方式：默认沿用匹配度（同乡/口味相近的靠前），另提供点赞、时间、评分三种客观排序。
+export type SortMode='recommend'|'likes'|'newest'|'rating'
+export const SORT_OPTIONS:[SortMode,string][]=[['recommend','推荐顺序'],['likes','点赞最多'],['newest','最新发布'],['rating','评分最高']]
+export const SORT_LABELS:Record<SortMode,string>={recommend:'推荐顺序',likes:'点赞最多',newest:'最新发布',rating:'评分最高'}
+const publishedTime=(item:Food)=>{
+ const raw=(item as {createdAt?:unknown,updatedAt?:unknown}).createdAt??(item as {updatedAt?:unknown}).updatedAt
+ if(raw==null)return 0
+ if(typeof raw==='object'){const object=raw as {$date?:string|number,_seconds?:number};const value=object.$date??(object._seconds!=null?object._seconds*1000:null);return value==null?0:new Date(value).getTime()||0}
+ const time=new Date(raw as string|number).getTime();return Number.isFinite(time)?time:0
+}
+const likeCount=(item:Food)=>Math.max(0,Number(item.likeCount)||0)
+const ratingValue=(item:Food)=>{const rating=Number(item.rating);return Number.isFinite(rating)&&rating>0?rating:0}
+const ratingCount=(item:Food)=>Math.max(0,Number(item.ratingCount)||0)
+// 稳定排序：同分时按发布时间新的靠前，再保持传入顺序，避免每次渲染顺序跳动。
+export function sortFoods(items:Food[],mode:SortMode='recommend'):Food[]{
+ if(mode==='recommend'||!items.length)return items
+ const compared=items.map((item,index)=>({item,index}))
+ const timeOf=(row:{item:Food})=>publishedTime(row.item)
+ compared.sort((a,b)=>{
+  const tie=()=>timeOf(b)-timeOf(a)||a.index-b.index
+  if(mode==='likes')return likeCount(b.item)-likeCount(a.item)||tie()
+  if(mode==='newest')return timeOf(b)-timeOf(a)||a.index-b.index
+  // 评分：有评价的排在没有评分的之前，同分看人数，再看点赞。
+  const rated=Number(ratingCount(b.item)>0)-Number(ratingCount(a.item)>0)
+  return rated||ratingValue(b.item)-ratingValue(a.item)||ratingCount(b.item)-ratingCount(a.item)||likeCount(b.item)-likeCount(a.item)||tie()
+ })
+ return compared.map(row=>row.item)
+}
 export function dateLabel(value:unknown):string{
  if(!value)return ''
  if(typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value))return value

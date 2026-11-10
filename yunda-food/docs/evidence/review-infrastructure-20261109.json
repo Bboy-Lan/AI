@@ -10,6 +10,11 @@
       "name": "xsyj_review_notifications",
       "created": false,
       "acl": "ADMINONLY"
+    },
+    {
+      "name": "xsyj_direct_messages",
+      "created": false,
+      "acl": "ADMINONLY"
     }
   ],
   "existingContentModified": false

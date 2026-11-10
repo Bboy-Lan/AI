@@ -93,6 +93,8 @@ h2{font-size:18px}
 .food-location{margin:5px 0;color:#657268;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .food-location em,.detail em{margin-right:4px;padding:1px 4px;border:1px solid #95afbd;border-radius:4px;background:#e3eef5;color:#1d5781;font-size:10px;font-style:normal}
 .food-author{margin:5px 0 0;padding-top:5px;border-top:1px dashed #c9c5b0;color:#768075;font-size:10px}
+/* 卡片上的点赞数：排序切到“点赞最多”时能直接对上号。 */
+.like-mini{color:#1d5781;font-weight:750}
 .footer-note{text-align:center;color:#8c9388;font-size:11px}
 .tabbar{position:fixed;z-index:20;bottom:0;left:50%;display:flex;width:100%;max-width:var(--app-width);height:calc(var(--nav-height) + env(safe-area-inset-bottom,0px));transform:translateX(-50%);border-top:1.5px solid rgba(28,43,45,.85);background:rgba(255,253,245,.97);padding-bottom:env(safe-area-inset-bottom)}
 .tab{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:rgba(28,43,45,.42);font-size:11.5px;font-weight:500}
@@ -568,6 +570,12 @@ button:disabled{box-shadow:none}
 
 /* ---- 2026-11-10 image/UX round: layout switch, store name, avatar zoom, export ---- */
 .home-tools{display:flex;align-items:center;gap:7px;min-width:0;flex:1 1 auto;justify-content:flex-end;flex-wrap:wrap}
+/* 排布方式：一行胶囊，默认推荐顺序，另可切到点赞/时间/评分。 */
+.sort-row{display:flex;align-items:center;gap:6px;margin:-2px 0 10px;overflow-x:auto;overscroll-behavior-x:contain;padding:2px 0}
+.sort-row>span{flex:0 0 auto;color:var(--muted);font-size:11.5px;font-weight:750}
+.sort-chip{flex:0 0 auto;min-height:26px;padding:4px 9px;border:1px solid #a6aaa0;border-radius:99px;background:var(--paper);color:#58625b;font-size:11.5px;font-weight:600;line-height:1.2;white-space:nowrap}
+.sort-chip.active{color:#fff;background:var(--blue);border-color:#1d5781;box-shadow:1px 1px 0 #1d5781}
+.sort-chip:active{transform:translate(1px,1px);box-shadow:none}
 /* 标题独占一行，排列切换 + 只看同乡 + 筛选在下一行排齐：三个控件一共约 300px，362px 里刚好一行放下。 */
 .section-heading.home-heading{flex-wrap:wrap;row-gap:9px}
 .home-heading .home-tools{flex:1 1 100%;justify-content:flex-start}
@@ -624,3 +632,24 @@ button:disabled{box-shadow:none}
 .export-summary{position:sticky;bottom:calc(var(--nav-height) + env(safe-area-inset-bottom,0px) + 6px);z-index:5;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-top:10px;padding:9px 11px;border:1px solid #8eabbc;border-radius:10px;background:#e3eef5;font-size:12px}
 .export-summary b{overflow-wrap:anywhere}
 @media(max-width:360px){.export-field{grid-template-columns:auto minmax(0,1fr) auto auto}.layout-switch{gap:4px}.layout-switch button{padding:4px 7px;font-size:11px}}
+.read-tag{flex:0 0 auto;padding:2px 8px;border-radius:99px;border:1px solid #a6aaa0;background:#eceae0;color:#5c645d;font-size:11px;font-weight:800;letter-spacing:.02em}
+.read-tag.is-unread{background:var(--red);border-color:#b23a2c;color:#fff;box-shadow:1px 1px 0 #b23a2c}
+.dm-panel{display:grid;gap:10px}
+.dm-panel h3{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0}
+.dm-threads{display:grid;gap:8px;max-height:240px;overflow-y:auto;overscroll-behavior-y:contain}
+.dm-thread{display:flex;align-items:center;gap:8px;width:100%;padding:8px;border:1px solid #b6bcb3;border-radius:8px;background:#f4f0e3;text-align:left}
+.dm-thread.active{border-color:var(--blue);box-shadow:2px 2px 0 var(--blue)}
+.dm-thread-body{flex:1 1 auto;min-width:0;display:grid;gap:2px}
+.dm-thread-body b{font-size:12.5px}
+.dm-thread-body small{color:var(--muted);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dm-avatar{flex:0 0 auto;width:30px;height:30px;border-radius:50%;overflow:hidden;background:#d9e5ec;display:grid;place-items:center;color:var(--blue);font-size:12px;font-weight:800}
+.dm-avatar img{width:100%;height:100%;object-fit:cover}
+.dm-unread{flex:0 0 auto;min-width:18px;padding:1px 5px;border-radius:99px;background:var(--red);color:#fff;font-size:10.5px;font-style:normal;font-weight:800;text-align:center}
+.dm-thread-list{display:grid;gap:8px;max-height:46vh;overflow-y:auto;overscroll-behavior-y:contain}
+.dm-bubble{display:grid;gap:3px;justify-items:start;margin:0}
+.dm-bubble span{max-width:86%;padding:8px 10px;border:1px solid #b6bcb3;border-radius:10px;background:#f4f0e3;font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.dm-bubble.me{justify-items:end}
+.dm-bubble.me span{background:#e3eef5;border-color:#9dbdd0}
+.dm-bubble small{color:var(--muted);font-size:10.5px}
+.dm-composer{display:grid;gap:8px}
+.dm-composer textarea{min-height:74px}

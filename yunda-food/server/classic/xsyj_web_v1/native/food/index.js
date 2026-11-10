@@ -7,7 +7,7 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
 const db = cloud.database()
 const _ = db.command
-const C = { profiles: 'xsyj_profiles', items: 'xsyj_food_items', favorites: 'xsyj_favorites', likes: 'xsyj_food_likes', reviews: 'xsyj_reviews', admins: 'xsyj_admins', events: 'xsyj_events' }
+const C = { profiles: 'xsyj_profiles', items: 'xsyj_food_items', favorites: 'xsyj_favorites', likes: 'xsyj_food_likes', direct: 'xsyj_direct_messages', reviews: 'xsyj_reviews', admins: 'xsyj_admins', events: 'xsyj_events' }
 const KUNMING_AREAS = new Set(['ynu-chenggong', 'ynu-donglu', 'university-town', 'chenggong', 'wuhua', 'panlong', 'xishan', 'guandu', 'jinning', 'anning', 'zhweitang', 'yuweitang', 'shilinjie', 'nandu'])
 const BLOCKED_TERMS = ['加微', '加群', '推广', '广告', '代理', '兼职', '刷单', '博彩', '赌博', '色情', '裸聊', '毒品', '贷款', '代购彩票']
 

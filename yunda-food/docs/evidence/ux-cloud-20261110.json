@@ -1,6 +1,6 @@
 {
   "date": "2026-11-10",
-  "executedAt": "2026-11-10T05:28:09.942Z",
+  "executedAt": "2026-11-10T06:03:14.468Z",
   "environment": "cloud-yunda-d5gxrar1s14b2ee0d",
   "mode": "real-classic-cloud",
   "scope": "storeName-image-review-tag-notice-avatar-image-rejection-pending-visibility-badge-like",
@@ -94,7 +94,16 @@
     "本轮真实待审核内容立即进入集中审核台",
     "管理员待办角标覆盖集中审核台的全部待审内容",
     "普通账号不会拿到管理员待办角标",
-    "作者列表带审核标签，便于显示待审核数字"
+    "作者列表带审核标签，便于显示待审核数字",
+    "普通用户不能主动发起私信（实际：sendDirectMessage: 无管理员权限。）",
+    "管理员私信写进对应用户的对话",
+    "私信接口不向客户端暴露用户 openid",
+    "用户收到管理员私信后消息汇总未读+1",
+    "用户能看到管理员私信且为未读",
+    "用户读过私信后未读回落",
+    "用户伪造主页编号也写不进别人的对话",
+    "管理员看到用户回复并计入未读",
+    "管理员打开对话后未读清零"
   ],
   "failure": "",
   "cleanupFailure": "",
