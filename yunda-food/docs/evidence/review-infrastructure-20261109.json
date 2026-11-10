@@ -3,12 +3,12 @@
   "collections": [
     {
       "name": "xsyj_review_audit",
-      "created": true,
+      "created": false,
       "acl": "ADMINONLY"
     },
     {
       "name": "xsyj_review_notifications",
-      "created": true,
+      "created": false,
       "acl": "ADMINONLY"
     }
   ],

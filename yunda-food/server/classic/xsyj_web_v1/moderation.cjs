@@ -4,7 +4,8 @@ const LABELS={pending:'待审核',approved:'已审核',changes:'需修改',block
 const READS=['adminReviewQueue','adminReviewDetail','adminReviewSummary','reviewNotifications','reviewSummary']
 const ACTIONS=[...READS,'adminReviewApply','adminReviewBatch','reviewNotificationAction']
 const AUDIT='xsyj_review_audit',NOTICES='xsyj_review_notifications'
-const tag=r=>r.status==='withdrawn'?'withdrawn':r.reviewTag||({hidden:'blocked',rejected:'changes',returned:'changes'}[r.status]||'pending')
+// Legacy rows without reviewTag follow their real publication status instead of defaulting to 待审核.
+const tag=r=>r.status==='withdrawn'?'withdrawn':r.reviewTag||({hidden:'blocked',rejected:'changes',returned:'changes',public:'approved',published:'approved',approved:'approved',pending:'pending'}[r.status]||'pending')
 const fingerprint=r=>crypto.createHash('sha256').update(JSON.stringify(Object.fromEntries(Object.keys(r).filter(k=>!['likeCount','favoriteCount','ratingCount','ratingAverage','verificationPositiveCount','verificationNegativeCount','replyCount','sequence','updatedAt','reviewedAt'].includes(k)).sort().map(k=>[k,r[k]])))).digest('hex').slice(0,32)
 const fields=r=>({reviewTag:tag(r),reviewVersion:r.reviewVersion||0,adminEdited:!!r.adminEdited,reviewToken:fingerprint(r)})
 module.exports=function createModeration(d){
@@ -34,7 +35,7 @@ module.exports=function createModeration(d){
  }
  async function guard(uid,kind,id,version){if(!id)return;const r=await get(db,def(kind).table,id);if(!r)return;if(r.ownerOpenId!==uid)fail('只能修改自己的内容。');if(['deleted','withdrawn'].includes(tag(r)))fail('已删除或撤回内容不能修改。');if(r.reviewVersion&&Number(version)!==r.reviewVersion)fail('内容已有审核更新，请重新读取最新版本后修改。')}
  async function resubmitted(kind,id){const t=def(kind);await db.runTransaction(async tx=>{const r=await get(tx,t.table,id);if(!r)return;const patch={reviewTag:'pending',reviewVersion:r.reviewVersion||0};if(['changes','blocked'].includes(tag(r)))patch.status=kind==='caution'?'pending':'hidden';await tx.collection(t.table).doc(id).update({data:patch})})}
- const whereTag=(label)=>label==='withdrawn'?{status:'withdrawn'}:label&&label!=='all'?db.command.and([{status:db.command.neq('withdrawn')},db.command.or([{reviewTag:label},{reviewTag:db.command.exists(false),status:db.command.in(label==='pending'?['published','public','pending']:label==='changes'?['rejected','returned']:label==='blocked'?['hidden']:[]) }])]):{}
+ const whereTag=(label)=>label==='withdrawn'?{status:'withdrawn'}:label&&label!=='all'?db.command.and([{status:db.command.neq('withdrawn')},db.command.or([{reviewTag:label},{reviewTag:db.command.exists(false),status:db.command.in(label==='pending'?['pending']:label==='changes'?['rejected','returned']:label==='blocked'?['hidden']:label==='approved'?['published','public']:[]) }])]):{}
  async function handler(uid,action,p={}){
   if(action.startsWith('admin'))await requireAdmin(uid);else if(!uid)fail('请先登录。')
   if(action==='adminReviewApply')return apply(uid,p)

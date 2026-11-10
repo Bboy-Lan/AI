@@ -1,6 +1,8 @@
 import {checkSessionError} from '../platform/session-errors'
 import type cloudbase from '@cloudbase/js-sdk'
 import {isDemo,demoCase,demoActor} from '../demo/mode'
+import {prepareImage} from './image'
+import type {ImagePurpose} from '../domain/image-policy'
 let demoRepository:ReturnType<typeof import('../demo/repository').loadDemoRepository>|undefined
 async function demo(){if(!demoRepository){const {loadDemoRepository}=await import('../demo/repository');demoRepository=loadDemoRepository(demoCase!,localStorage)}return demoRepository}
 export const cloudEnabled=isDemo||Boolean(import.meta.env?.VITE_CLOUDBASE_ENV_ID)
@@ -62,23 +64,25 @@ export async function login(username:string,password:string){
  if(result.error)throw Error(result.error.message)
  if(!result.data.session)throw Error('尚未取得登录会话。')
 }
-export async function uploadImage(file:File){
- if(isDemo){if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>1024*1024)throw Error('演示案例请选择1MB以内的图片，仅保存在本机。');return new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(Error('图片读取失败。'));reader.readAsDataURL(file)})}
- const session=await activeSession();if(!session)throw Error('请先登录后上传图片。');const storageClient=await client()
- if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw Error('请选择JPG、PNG或WebP图片。')
- if(file.size>1024*1024){
-  try{const bitmap=await createImageBitmap(file),scale=Math.min(1,2560/Math.max(bitmap.width,bitmap.height));const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));canvas.getContext('2d')!.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(Error('照片压缩失败')),'image/webp',.8));file=new File([blob],file.name,{type:blob.type})}catch{throw Error('照片压缩失败，请重新选择图片；当前输入已保留。')}
+export async function uploadImage(file:File,purpose:ImagePurpose='photo'){
+ // Every entry point shares one pipeline: HEIC/HEIF decode, orientation, per-purpose sizing, encoding fallback.
+ const prepared=await prepareImage(file,purpose)
+ const name=String(file.name||'photo').replace(/\.[^.]+$/,'')+'.'+prepared.extension
+ const processed=new File([prepared.blob],name,{type:prepared.type})
+ if(isDemo){
+  if(prepared.bytes>2*1024*1024)throw Error('演示案例照片处理后仍超过2MB，请换一张更小的图片；演示只保存在本机。')
+  return new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(Error('图片读取失败。'));reader.readAsDataURL(processed)})
  }
- if(file.size>5*1024*1024)throw Error('压缩后仍超过5MB，请裁剪照片后重新选择。')
- const extension=file.type==='image/png'?'png':file.type==='image/webp'?'webp':'jpg'
+ const session=await activeSession();if(!session)throw Error('请先登录后上传图片。');const storageClient=await client()
+ const extension=prepared.extension
  if(classicBackend){
   const {path}=await rpc<{path:string}>('mediaUploadPath',{extension})
-  const result=await storageClient.uploadFile({cloudPath:path,filePath:file})
+  const result=await storageClient.uploadFile({cloudPath:path,filePath:processed})
   if(!result.fileID)throw Error('照片上传未完成，请重试。')
   return result.fileID
  }
  const key=`${session.user.id}/${crypto.randomUUID()}.${extension}`
- const {error}=await storageClient.storage.from('xsyj-media').upload(key,file,{contentType:file.type,upsert:false})
+ const {error}=await storageClient.storage.from('xsyj-media').upload(key,processed,{contentType:prepared.type,upsert:false})
  if(error)throw Error(error.message)
  return key
 }

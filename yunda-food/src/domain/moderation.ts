@@ -4,3 +4,14 @@ export type ReviewFields={reviewTag?:ReviewTag,reviewVersion?:number,reviewToken
 export type ReviewKind='food'|'caution'|'topic'|'review'|'reply'
 export const REVIEW_KINDS:Record<ReviewKind,string>={food:'推荐',caution:'黑榜',topic:'讨论主题',review:'评价',reply:'楼层回复'}
 export type ReviewRecord=ReviewFields&{id:string,kind:ReviewKind,title:string,body:string,images:string[],author:string,createdAt:string,path:string,editPath:string,category:string,status:string,audit?:{operatorName?:string,action:string,reason:string,createdAt:string,before:any,after:any}[]}
+
+// Server and client share the same rule: no reviewTag means follow the publication status.
+export function reviewTagOf(item:{reviewTag?:ReviewTag,status?:string}):ReviewTag{
+ if(item.reviewTag)return item.reviewTag
+ if(item.status==='hidden')return 'blocked'
+ if(item.status==='withdrawn')return 'withdrawn'
+ if(item.status==='returned'||item.status==='rejected')return 'changes'
+ if(item.status==='public'||item.status==='published'||item.status==='approved')return 'approved'
+ return 'pending'
+}
+export function reviewBadgeVisible(tag:ReviewTag,audience:{own?:boolean,admin?:boolean}){return tag!=='approved'&&Boolean(audience.own||audience.admin)}

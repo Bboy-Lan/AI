@@ -36,7 +36,7 @@ export function filterItems(items:Food[],filters:Filters={},prefs:Partial<Prefer
  const words=String(filters.keyword||'').trim().toLowerCase(),budget=numeric(filters.budget),people=Number(filters.people)>0?Number(filters.people):1
  return items.map(normalize).filter(item=>{
   if(item.status&&item.status!=='public')return false
-  if(words&&![item.name,item.venue,item.placeText].join(' ').toLowerCase().includes(words))return false
+  if(words&&![item.storeName,item.name,item.venue,item.placeText].join(' ').toLowerCase().includes(words))return false
   if(filters.locationType&&filters.locationType!=='all'&&item.locationType!==filters.locationType)return false
   if(filters.place&&![item.school,item.campus,item.region,item.venue,item.addressSummary,item.placeText,item.address].join(' ').includes(filters.place))return false
   if(filters.category&&filters.category!=='全部'&&item.category!==filters.category)return false

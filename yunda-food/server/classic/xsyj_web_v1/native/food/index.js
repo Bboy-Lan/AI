@@ -61,7 +61,7 @@ async function getPublicProfile(id, payload) {
   if (!profile || !profile.ownerOpenId) fail('该用户暂未设置个人资料。')
   const [admin, items] = await Promise.all([adminFor(profile.ownerOpenId), db.collection(C.items).where({ ownerOpenId: profile.ownerOpenId, status: 'published' }).orderBy('submittedAt', 'desc').limit(100).get()])
   const publicProfile = { _id: profile._id, foodieId: profile.foodieId || '未命名吃货', hometown: profile.hometown || '', avatarFileId: profile.avatarFileId || '', isAdmin: Boolean(admin) }
-  const fields = ['_id', 'name', 'venue', 'price', 'priceBasis', 'imageFileIds', 'category', 'locationType', 'school', 'campus', 'region', 'addressSummary', 'taste', 'ratingAverage', 'ratingCount', 'status']
+  const fields = ['_id', 'name', 'storeName', 'venue', 'price', 'priceBasis', 'imageFileIds', 'category', 'locationType', 'school', 'campus', 'region', 'addressSummary', 'taste', 'ratingAverage', 'ratingCount', 'status']
   return { profile: publicProfile, items: items.data.map(item => ({ ...Object.fromEntries(fields.filter(key => item[key] !== undefined).map(key => [key, item[key]])), authorNickname: publicProfile.foodieId, authorAvatarFileId: publicProfile.avatarFileId, authorHometown: publicProfile.hometown, authorRole: admin ? 'admin' : 'user' })), limit: 100 }
 }
 async function saveProfile(id, payload) {
@@ -90,11 +90,12 @@ async function getItem(id, payload) {
   return null
 }
 async function submitItem(id, payload) {
-  const profile = await requireProfile(id); const verifiedAdmin = Boolean(await adminFor(id)); const name = text(payload.name, 60); const venue = text(payload.venue, 80); const description = text(payload.description, 500); const areaId = text(payload.areaId, 40); const price = finiteNumber(payload.price)
+  const profile = await requireProfile(id); const verifiedAdmin = Boolean(await adminFor(id)); const name = text(payload.name, 60); const storeName = text(payload.storeName, 40); const venue = text(payload.venue, 80); const description = text(payload.description, 500); const areaId = text(payload.areaId, 40); const price = finiteNumber(payload.price)
   if (name.length < 1 || venue.length < 1) fail('请填写菜品名称和具体地点。')
   if (!payload.locationType && !KUNMING_AREAS.has(areaId)) fail('投稿地点仅支持昆明市内的预设地点。')
   if (price == null || !Number.isInteger(price) || price < 1 || price > 999) fail('请填写1～999元的整数价格。')
-  assertSafeText(name, '菜品名称'); assertSafeText(venue, '具体地点'); assertSafeText(description, '补充说明')
+  assertSafeText(name, '菜品名称'); assertSafeText(storeName, '店名'); assertSafeText(venue, '具体地点'); assertSafeText(description, '补充说明')
+  if (storeName && storeName.length < 2) fail('店名至少需要 2 个字，没有正式店名可以留空。')
   const extra = contract.extension(payload, null, text(payload.category, 20) || '其他', assertSafeText)
   const requestId = requestKey(payload.clientRequestId)
   const documentId = requestId ? submissionId(id, requestId) : ''
@@ -115,7 +116,7 @@ async function submitItem(id, payload) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(authorAteDate)) fail('请填写亲自吃过的日期。')
   if (extra.itemSchemaVersion === 2) validateNewSubmission(payload, imageFileIds, latitude, longitude)
   const data = {
-    ownerOpenId: id, name, venue, areaId, campusId: 'kunming', category: text(payload.category, 20) || '其他', price, description, imageFileIds,
+    ownerOpenId: id, name, storeName, venue, areaId, campusId: 'kunming', category: text(payload.category, 20) || '其他', price, description, imageFileIds,
     authorNickname: profile.foodieId, authorHometown: profile.hometown, authorAvatarFileId: profile.avatarFileId || '', authorAte, authorAteDate,
     ...reviewPolicy.resubmit(null,verifiedAdmin), status: 'published', hiddenReason: '', submittedAt: now(), submissionDay, contentUpdatedAt: now(), priceUpdatedAt: now(), latitude, longitude, addressSummary: text(payload.addressSummary, 120),
     favoriteCount: 0, ratingCount: 0, ratingAverage: 0, verificationStatus: 'unverified', verificationPositiveCount: 0, verificationNegativeCount: 0,
@@ -136,13 +137,14 @@ async function updateItem(id, payload) {
   const profile = await requireProfile(id, { allowRestricted: true }); const itemId = text(payload.id, 100); const item = await itemById(itemId)
   if (!item) fail('投稿不存在或已被删除。')
   if (item.ownerOpenId !== id) fail('只能编辑自己的投稿。')
-  const name = text(payload.name, 60); const venue = text(payload.venue, 80); const description = text(payload.description, 500); const areaId = text(payload.areaId || item.areaId, 40); const price = finiteNumber(payload.price)
+  const name = text(payload.name, 60); const storeName = text(payload.storeName == null ? item.storeName || '' : payload.storeName, 40); const venue = text(payload.venue, 80); const description = text(payload.description, 500); const areaId = text(payload.areaId || item.areaId, 40); const price = finiteNumber(payload.price)
   const category = text(payload.category == null ? item.category : payload.category, 20) || '其他'
   const extra = contract.extension(payload, item, category, assertSafeText)
   if (name.length < 1 || venue.length < 1) fail('请填写菜品名称和具体地点。')
   if (!extra.itemSchemaVersion && !KUNMING_AREAS.has(areaId)) fail('投稿地点仅支持昆明市内的预设地点。')
   if (price == null || price <= 0 || price >= 1000) fail('请填写1～999元的整数价格。')
-  assertSafeText(name, '菜品名称'); assertSafeText(venue, '具体地点'); assertSafeText(description, '补充说明')
+  assertSafeText(name, '菜品名称'); assertSafeText(storeName, '店名'); assertSafeText(venue, '具体地点'); assertSafeText(description, '补充说明')
+  if (storeName && storeName.length < 2) fail('店名至少需要 2 个字，没有正式店名可以留空。')
   const authorAte = Boolean(payload.authorAte); const authorAteDate = chinaDay()
   if (!authorAte || !/^\d{4}-\d{2}-\d{2}$/.test(authorAteDate)) fail('请确认亲自吃过，并填写日期。')
   const latitude = finiteNumber(payload.latitude); const longitude = finiteNumber(payload.longitude)
@@ -151,7 +153,7 @@ async function updateItem(id, payload) {
   const imageFileIds = Array.isArray(payload.imageFileIds) ? payload.imageFileIds.map((value) => text(value, 300)).filter(Boolean).slice(0, 3) : item.imageFileIds || []
   if (extra.itemSchemaVersion === 2 || item.itemSchemaVersion === 2) validateNewSubmission(payload, imageFileIds, latitude, longitude)
   await db.runTransaction(async tx=>{const ref=tx.collection(C.items).doc(itemId),current=(await ref.get()).data;reviewPolicy.assertEditable(current,payload,fail);await ref.update({ data: {
-    name, venue, areaId, price, category, description, imageFileIds, authorAte, authorAteDate,
+    name, storeName, venue, areaId, price, category, description, imageFileIds, authorAte, authorAteDate,
     latitude: Object.prototype.hasOwnProperty.call(payload, 'latitude') ? latitude : item.latitude == null ? null : item.latitude,
     longitude: Object.prototype.hasOwnProperty.call(payload, 'longitude') ? longitude : item.longitude == null ? null : item.longitude,
     ...extra, ...savedLocation(payload, item),

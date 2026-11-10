@@ -1,0 +1,65 @@
+{
+  "checkedAt": "2026-11-10T02:20:26.259Z",
+  "base": "http://127.0.0.1:5173/",
+  "passed": 11,
+  "failed": 0,
+  "consoleErrors": [],
+  "runtimeErrors": [],
+  "results": [
+    {
+      "name": "我的页面出现导出 Excel 入口",
+      "ok": true,
+      "detail": "导出 Excel · 选取美食与字段"
+    },
+    {
+      "name": "导出页可筛选、全选并显示已选数量",
+      "ok": true,
+      "detail": "列表2条 · 已选 2 / 2 条 · 预览列6"
+    },
+    {
+      "name": "导出真实 .xlsx 文件并写入磁盘",
+      "ok": true,
+      "detail": "小食云记-我的投稿-20261110.xlsx · 已生成 小食云记-我的投稿-20261110.xlsx · 2 行 × 6 列。"
+    },
+    {
+      "name": "首页默认不显示已审核/待审核徽章",
+      "ok": true,
+      "detail": "0 个徽章"
+    },
+    {
+      "name": "首页三种排列可切换且保留搜索与筛选",
+      "ok": true,
+      "detail": "紧凑1行 · 格子1个 · 刷新后保留grid"
+    },
+    {
+      "name": "五颗评分星在 320-1440 宽度均完整可见可点",
+      "ok": true,
+      "detail": "320/360/375/390/414/430/768/1024/1440 px"
+    },
+    {
+      "name": "横屏与放大字体下星级仍完整",
+      "ok": true,
+      "detail": "横屏 + 19px 基准字号 + 第5颗可点"
+    },
+    {
+      "name": "头像可点击放大且不触发卡片跳转",
+      "ok": true,
+      "detail": "1 个头像可放大 · aria-modal=true"
+    },
+    {
+      "name": "浏览器内图片管线压缩大图并按用途限尺寸",
+      "ok": true,
+      "detail": "照片 44KB 1398x932 image/webp · 头像 14KB · 长截图 503x2796（保留可读像素）"
+    },
+    {
+      "name": "真实 HEIC 照片可在浏览器内解码并转成通用格式",
+      "ok": true,
+      "detail": "HEIC → image/webp 1280x854 310KB webp · 头像 45KB webp"
+    },
+    {
+      "name": "全页面无横向溢出与运行时错误",
+      "ok": true,
+      "detail": "6 宽度 × 5 页面无溢出；pageerror=0"
+    }
+  ]
+}
