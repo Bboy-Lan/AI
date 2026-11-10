@@ -51,6 +51,7 @@ export const repository={
   const result=await decorateFood(saved);foods=[result,...foods.filter(x=>x.id!==result.id)];return result
  },
  async toggleFavorite(id:string){if(!cloudEnabled)return local.toggleFavorite(id);const saved=await decorateFood(await rpc<Food>('favorite',{id,favorite:!foods.find(x=>x.id===id)?.favorite}));foods=foods.map(x=>x.id===id?saved:x);return saved},
+ async toggleLike(id:string){if(!cloudEnabled)return local.toggleLike(id);const saved=await decorateFood(await rpc<Food>('likeFood',{id,liked:!foods.find(x=>x.id===id)?.liked}));foods=foods.map(x=>x.id===id?saved:x);return saved},
  async saveReview(review:Review){if(!cloudEnabled)return local.saveReview(review);await rpc('saveReview',{...review,id:review.foodId});await this.loadDetail(review.foodId);return review},
  async saveIssue(foodId:string,type:'price_report'|'content_report',reason:string){if(!cloudEnabled)return local.saveIssue(foodId,type,reason);await rpc('saveIssue',{id:foodId,type,reason})},
  async saveCaution(post:Caution){if(!cloudEnabled)return local.saveCaution(post);return rpc<{id:string,status:string}>('saveCaution',{...post,id:cautions.some(x=>x.id===post.id)?post.id:undefined})},

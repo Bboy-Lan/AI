@@ -97,6 +97,20 @@ try{
  check((await rpc('food',{id:withPhoto.id})).images.length===1,'推荐配图按转码后的通用格式真实落库')
  check((await rpc('mediaUrl',{key:photoUpload.fileID})).startsWith('https://'),'公开推荐的配图可取得访问链接')
 
+ // 5b. 点赞只做计数：同一账号重复点赞不翻倍，取消后回到原值，计数对其他账号可见。
+ const likeBase=Number((await rpc('food',{id:food.id},b.token)).likeCount||0)
+ check(likeBase===0,'新投稿的点赞计数从 0 开始')
+ const liked=await rpc('likeFood',{id:food.id,liked:true},b.token)
+ check(liked.liked===true&&liked.likeCount===likeBase+1,'点赞后即时返回已赞状态与 +1 计数')
+ check((await rpc('likeFood',{id:food.id,liked:true},b.token)).likeCount===likeBase+1,'重复点赞不会重复计数')
+ const seenByOther=await rpc('food',{id:food.id},c.token)
+ check(seenByOther.likeCount===likeBase+1,'点赞计数对其他账号可见')
+ check(seenByOther.liked===false,'其他账号不会被误标为已赞')
+ check((await rpc('foods')).find(r=>r.id===food.id)?.likeCount===likeBase+1,'公开列表携带点赞计数')
+ const unliked=await rpc('likeFood',{id:food.id,liked:false},b.token)
+ check(unliked.liked===false&&unliked.likeCount===likeBase,'取消点赞回到原计数')
+ check((await rpc('likeFood',{id:food.id,liked:false},b.token)).likeCount===likeBase,'重复取消不会把计数减成负数')
+
  // 6. Legacy rows without reviewTag follow their real publication status instead of defaulting to 待审核.
  const legacyId='0ux-legacy-'+Date.now()
  mongo('xsyj_food_items',{insert:'xsyj_food_items',documents:[{_id:legacyId,ownerOpenId:b.uid,name:'临时历史遗留记录，请忽略',venue:'临时验收窗口',price:9,priceBasis:'portion',category:'正餐',locationType:'inside',school:'云南大学',campus:'呈贡校区',status:'published',imageFileIds:[],submittedAt:new Date().toISOString(),ratingAverage:0,ratingCount:0}]},'INSERT')
@@ -227,7 +241,7 @@ try{
  check((await rpc('myFoods',{},b.token)).every(r=>typeof r.reviewTag==='string'),'作者列表带审核标签，便于显示待审核数字')
 }catch(e){failure=e.message;console.log('FAIL '+failure)}finally{
  const cleanupErrors=[],uids=accounts.map(a=>a.uid)
- const tables=['profiles','food_items','favorites','reviews','admins','events','caution_posts','caution_likes','caution_reports','caution_messages','caution_meta','caution_audit','forum_topics','forum_replies','forum_reports','forum_notifications','forum_meta','forum_audit','review_audit','review_notifications'].map(n=>'xsyj_'+n)
+ const tables=['profiles','food_items','favorites','food_likes','reviews','admins','events','caution_posts','caution_likes','caution_reports','caution_messages','caution_meta','caution_audit','forum_topics','forum_replies','forum_reports','forum_notifications','forum_meta','forum_audit','review_audit','review_notifications'].map(n=>'xsyj_'+n)
  const attempt=fn=>{try{fn()}catch(e){cleanupErrors.push(e.message)}}
  if(accounts.length!==3||accounts.some(a=>!a.name.startsWith('xsyj_ux_')))cleanupErrors.push('Unexpected temporary account set')
  else{
@@ -238,7 +252,7 @@ try{
  }
  cleanupFailure=cleanupErrors.join('; ')
  if(!cleanupFailure&&fs.existsSync(ledger))fs.unlinkSync(ledger)
- const result={date:new Date(Date.now()+8*3600e3).toISOString().slice(0,10),executedAt:new Date().toISOString(),environment:env,mode:'real-classic-cloud',scope:'storeName-image-review-tag-notice-avatar-image-rejection-pending-visibility-badge',checks,failure,cleanupFailure,temporaryAccounts:accounts.length,temporaryFiles:files.length,temporaryRecords:inserted.length,credentialsPersisted:false,sharedBasicNoticeWritten:false,ledgerRemoved:!fs.existsSync(ledger)}
+ const result={date:new Date(Date.now()+8*3600e3).toISOString().slice(0,10),executedAt:new Date().toISOString(),environment:env,mode:'real-classic-cloud',scope:'storeName-image-review-tag-notice-avatar-image-rejection-pending-visibility-badge-like',checks,failure,cleanupFailure,temporaryAccounts:accounts.length,temporaryFiles:files.length,temporaryRecords:inserted.length,credentialsPersisted:false,sharedBasicNoticeWritten:false,ledgerRemoved:!fs.existsSync(ledger)}
  fs.writeFileSync('docs/evidence/ux-cloud-20261110.json',JSON.stringify(result,null,2))
  console.log(JSON.stringify({checks:checks.length,failure,cleanupFailure}))
  process.exit(failure||cleanupFailure?1:0)

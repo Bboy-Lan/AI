@@ -82,9 +82,10 @@ export function buildExportMatrix(items:Food[],columns:ExportColumn[],notes:Reco
  return {header,rows,columns:active}
 }
 
-export function exportFileName(scope:'mine'|'favorites',date=new Date()){
+export function exportFileName(scope:'all'|'mine'|'favorites',date=new Date()){
  const stamp=`${date.getFullYear()}${String(date.getMonth()+1).padStart(2,'0')}${String(date.getDate()).padStart(2,'0')}`
- return `小食云记-${scope==='favorites'?'我的收藏':'我的投稿'}-${stamp}.xlsx`
+ const label=scope==='all'?'全部美食':scope==='favorites'?'我的收藏':'我的投稿'
+ return `小食云记-${label}-${stamp}.xlsx`
 }
 
 export function downloadHint(){

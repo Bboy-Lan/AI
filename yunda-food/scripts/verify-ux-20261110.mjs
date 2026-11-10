@@ -391,6 +391,122 @@ await check('评价昵称紧挨头像，分数贴右对齐',async()=>{
  return `${wide.length} 条 · 390px 头像→昵称 ${Math.min(...gaps)}–${Math.max(...gaps)}px · 320px ${Math.round(narrow[0].gap)}px · 行高 ${wide[0].rowHeight}px`
 })
 
+await check('卡片缩略图拉满卡片高度，图片下方不再留白',async()=>{
+ await page.setViewportSize({width:390,height:844})
+ await page.goto(BASE+'?demo=student#/',{waitUntil:'networkidle'})
+ await page.locator('.layout-switch button',{hasText:'卡片'}).click()
+ await page.waitForSelector('.food-card',{timeout:10000})
+ const cards=await page.evaluate(()=>[...document.querySelectorAll('.food-card')].map(card=>{
+  const box=card.getBoundingClientRect(),media=card.querySelector('.food-media').getBoundingClientRect(),style=getComputedStyle(card)
+  const innerTop=box.top+parseFloat(style.paddingTop)+parseFloat(style.borderTopWidth)
+  const innerBottom=box.bottom-parseFloat(style.paddingBottom)-parseFloat(style.borderBottomWidth)
+  return {width:Math.round(media.width),height:Math.round(media.height),above:Math.round(media.top-innerTop),below:Math.round(innerBottom-media.bottom),inner:Math.round(innerBottom-innerTop)}
+ }))
+ if(!cards.length)throw new Error('首页没有卡片')
+ const gaps=cards.filter(c=>c.below>1||c.above>1)
+ if(gaps.length)throw new Error('图片没有贴满卡片内高：'+gaps.map(c=>'上'+c.above+'/下'+c.below).join(','))
+ if(cards.some(c=>Math.abs(c.width-88)>2))throw new Error('缩略图宽度被改动：'+cards.map(c=>c.width).join(','))
+ return `${cards.length} 张卡片 · 图 ${cards[0].width}×${cards[0].height}px 与内高 ${cards[0].inner}px 对齐 · 上下留白 0`
+})
+
+await check('“只看同乡”按钮只剩一行主文案，与筛选按钮同高同排',async()=>{
+ const state=await page.evaluate(()=>{
+  const toggle=document.querySelector('.hometown-toggle'),filter=document.querySelector('.filter-toggle'),tools=document.querySelector('.home-tools')
+  const box=el=>{const r=el.getBoundingClientRect();return {top:Math.round(r.top),height:Math.round(r.height),width:Math.round(r.width),text:(el.innerText||'').replace(/\s+/g,' ').trim(),lines:el.querySelectorAll('small').length}}
+  return {toggle:box(toggle),filter:box(filter),toolsWidth:Math.round(tools.getBoundingClientRect().width),toolsHeight:Math.round(tools.getBoundingClientRect().height),scroll:document.documentElement.scrollWidth,inner:innerWidth}
+ })
+ if(state.toggle.lines)throw new Error('按钮里还留着副标题')
+ if(!/只看同乡/.test(state.toggle.text)||state.toggle.text.replace(/[✓\s]/g,'').length!=='只看同乡'.length)throw new Error('按钮文案不对：'+state.toggle.text)
+ if(state.toggle.top!==state.filter.top)throw new Error('同乡按钮与筛选按钮不在同一行')
+ if(Math.abs(state.toggle.height-state.filter.height)>1)throw new Error('两个按钮不等高：'+state.toggle.height+' vs '+state.filter.height)
+ if(state.toggle.height<28)throw new Error('按钮过矮，不好点：'+state.toggle.height)
+ if(state.scroll>state.inner+1)throw new Error('工具行造成横向溢出')
+ return `「${state.toggle.text}」${state.toggle.width}×${state.toggle.height}px · 与筛选同排 · 工具行高 ${state.toolsHeight}px`
+})
+
+await check('评价超过三条默认折叠，可展开全部再收起',async()=>{
+ await page.goto(BASE+'?demo=student#/detail/demo-food-1',{waitUntil:'networkidle'})
+ await page.waitForSelector('.review-card',{timeout:10000})
+ const fewFolds=await page.locator('.review-fold').count()
+ await page.goto(BASE+'?demo=student&reviewCase=bulk#/detail/bulk-food-000',{waitUntil:'networkidle'})
+ await page.waitForSelector('.review-card',{timeout:10000})
+ const folded=await page.locator('.review-card').count()
+ const label=await page.locator('.review-fold').innerText()
+ const total=await page.locator('.review-heading span').innerText()
+ if(fewFolds!==0)throw new Error('三条以内的评价也出现了折叠条')
+ if(folded!==3)throw new Error('默认没有折叠到 3 条：'+folded)
+ if(!/展开全部 \d+ 条评价/.test(label))throw new Error('折叠条文案不对：'+label)
+ if(await page.locator('.review-fold').getAttribute('aria-expanded')!=='false')throw new Error('折叠条初始状态不对')
+ await page.locator('.review-fold').click()
+ await page.waitForFunction(()=>document.querySelectorAll('.review-card').length>3,null,{timeout:5000})
+ const expanded=await page.locator('.review-card').count()
+ const collapseLabel=await page.locator('.review-fold').innerText()
+ await page.locator('.review-fold').click()
+ await page.waitForFunction(()=>document.querySelectorAll('.review-card').length===3,null,{timeout:5000})
+ return `默认 ${folded} 条（${label.replace(/\s+/g,' ')}）→ 展开 ${expanded} 条（${collapseLabel.replace(/\s+/g,' ')}）→ 收起 ${folded} 条 · 合计 ${total}`
+})
+
+await check('详情页点赞只计数可取消，收藏等同“下次想吃”',async()=>{
+ const detail=BASE+'?demo=student#/detail/demo-food-1'
+ await page.goto(detail,{waitUntil:'networkidle'})
+ await page.waitForSelector('.detail-actions',{timeout:10000})
+ const read=async()=>page.evaluate(()=>{
+  const like=document.querySelector('.like-action'),fav=document.querySelector('.favorite-action')
+  const state=el=>({text:(el.innerText||'').replace(/\s+/g,' ').trim(),pressed:el.getAttribute('aria-pressed'),on:el.classList.contains('on'),icons:el.querySelectorAll('svg.action-icon').length})
+  return {like:state(like),fav:state(fav),buttons:document.querySelectorAll('.detail-actions .button').length,blindbox:document.querySelectorAll('.detail-actions .blindbox-action').length}
+ })
+ const initial=await read()
+ if(initial.buttons!==3)throw new Error('方框里不是三个按钮：'+initial.buttons)
+ if(initial.like.icons!==1||initial.fav.icons!==1)throw new Error('按钮缺少图标')
+ if(initial.like.pressed!=='false')throw new Error('点赞初始状态不是未赞')
+ if(!/想吃 · 收藏/.test(initial.fav.text))throw new Error('收藏按钮没有“想吃”口径：'+initial.fav.text)
+ await page.locator('.like-action').click()
+ await page.waitForFunction(()=>document.querySelector('.like-action')?.getAttribute('aria-pressed')==='true',null,{timeout:8000})
+ const liked=await read()
+ const count=Number((liked.like.text.match(/(\d+)$/)||[])[1])
+ if(!liked.like.on)throw new Error('点赞后没有高亮')
+ if(count!==Number((initial.like.text.match(/(\d+)$/)||[])[1])+1)throw new Error('点赞计数没有 +1：'+initial.like.text+' → '+liked.like.text)
+ await page.reload({waitUntil:'networkidle'})
+ await page.waitForSelector('.like-action',{timeout:10000})
+ const persisted=await read()
+ if(persisted.like.pressed!=='true')throw new Error('刷新后点赞状态没有保留')
+ await page.locator('.like-action').click()
+ await page.waitForFunction(()=>document.querySelector('.like-action')?.getAttribute('aria-pressed')==='false',null,{timeout:8000})
+ const cancelled=await read()
+ const cancelledCount=Number((cancelled.like.text.match(/(\d+)$/)||[])[1])
+ if(cancelledCount!==Number((initial.like.text.match(/(\d+)$/)||[])[1]))throw new Error('取消点赞没有回到原计数：'+cancelled.like.text)
+ await page.locator('.favorite-action').click()
+ await page.waitForFunction(()=>document.querySelector('.favorite-action')?.getAttribute('aria-pressed')==='true',null,{timeout:8000})
+ const saved=await read()
+ if(!/已收藏/.test(saved.fav.text)||!saved.fav.on)throw new Error('收藏后没有回显已收藏：'+saved.fav.text)
+ await page.getByRole('button',{name:/再开盲盒/}).waitFor({timeout:5000})
+ return `点赞 ${initial.like.text} → ${liked.like.text}（刷新后保留）→ ${cancelled.like.text} · 收藏 ${initial.fav.text} → ${saved.fav.text}`
+})
+
+await check('导出新增“全部美食”并排在前面，导出文件名与行数正确',async()=>{
+ await page.goto(BASE+'?demo=student#/',{waitUntil:'networkidle'})
+ const publicFoods=await page.evaluate(()=>document.querySelectorAll('.food-card').length)
+ await page.goto(BASE+'?demo=student#/export',{waitUntil:'networkidle'})
+ await page.waitForSelector('.export-page',{timeout:10000})
+ const chips=await page.locator('.export-card').first().locator('.chips').first().locator('button').allInnerTexts()
+ if(!/^全部美食/.test(chips[0]||''))throw new Error('“全部美食”没有排在最前：'+chips.join(' | '))
+ if(!chips.some(t=>/我的投稿/.test(t))||!chips.some(t=>/我的收藏/.test(t)))throw new Error('原有范围被挤掉：'+chips.join(' | '))
+ const allCount=Number((chips[0].match(/(\d+)$/)||[])[1])
+ if(!allCount)throw new Error('全部美食数量为 0')
+ await page.getByRole('button',{name:/全选当前筛选结果/}).click()
+ const summary=await page.locator('.export-selection span').innerText()
+ if(!new RegExp('已选 '+allCount+' / '+allCount).test(summary))throw new Error('全选没有覆盖全部美食：'+summary)
+ mkdirSync('.tmpview',{recursive:true})
+ const [download]=await Promise.all([page.waitForEvent('download',{timeout:20000}),page.getByRole('button',{name:/生成并下载/}).click()])
+ const name=download.suggestedFilename()
+ await download.saveAs('.tmpview/export-all.xlsx')
+ if(!/全部美食/.test(name))throw new Error('文件名没有体现全部美食：'+name)
+ const status=await page.locator('.export-page .notice').last().innerText()
+ const rows=Number((status.match(/(\d+) 行/)||[])[1])
+ if(rows!==allCount)throw new Error('导出行数与全选数量不一致：'+rows+' vs '+allCount)
+ return `${chips.join(' | ')} · ${name} · ${rows} 行 · 首页公开 ${publicFoods} 条`
+})
+
 await check('全页面无横向溢出与运行时错误',async()=>{
  const pages=['?demo=student#/','?demo=student#/me','?demo=student#/export','?demo=student#/detail/demo-food-1','?demo=student#/treehole']
  const overflow=[]

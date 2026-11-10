@@ -7,7 +7,7 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
 const db = cloud.database()
 const _ = db.command
-const C = { profiles: 'xsyj_profiles', items: 'xsyj_food_items', favorites: 'xsyj_favorites', reviews: 'xsyj_reviews', admins: 'xsyj_admins', events: 'xsyj_events' }
+const C = { profiles: 'xsyj_profiles', items: 'xsyj_food_items', favorites: 'xsyj_favorites', likes: 'xsyj_food_likes', reviews: 'xsyj_reviews', admins: 'xsyj_admins', events: 'xsyj_events' }
 const KUNMING_AREAS = new Set(['ynu-chenggong', 'ynu-donglu', 'university-town', 'chenggong', 'wuhua', 'panlong', 'xishan', 'guandu', 'jinning', 'anning', 'zhweitang', 'yuweitang', 'shilinjie', 'nandu'])
 const BLOCKED_TERMS = ['加微', '加群', '推广', '广告', '代理', '兼职', '刷单', '博彩', '赌博', '色情', '裸聊', '毒品', '贷款', '代购彩票']
 
@@ -194,6 +194,21 @@ async function toggleFavorite(id, payload) {
   const old = await findOne(C.favorites, { ownerOpenId: id, itemId })
   if (old) { await db.collection(C.favorites).doc(old._id).remove(); await db.collection(C.items).doc(itemId).update({ data: { favoriteCount: _.inc(-1) } }); return { favorite: false } }
   await db.collection(C.favorites).add({ data: { ownerOpenId: id, itemId, createdAt: now() } }); await db.collection(C.items).doc(itemId).update({ data: { favoriteCount: _.inc(1) } }); return { favorite: true }
+}
+async function getLikedItemIds(id) { const result = await db.collection(C.likes).where({ ownerOpenId: id }).limit(100).get(); return result.data.map((item) => item.itemId) }
+// 点赞只计数：同一个人再次点击就是取消，计数永远不为负数。
+async function toggleFoodLike(id, payload) {
+  const itemId = text(payload.itemId, 100); if (typeof payload.liked !== 'boolean') fail('点赞状态无效。')
+  const item = await getItem(id, { id: itemId }); if (!item || item.status !== 'published') fail('该推荐已下架或暂不可点赞。')
+  const old = await findOne(C.likes, { ownerOpenId: id, itemId }), current = Math.max(0, Number(item.likeCount) || 0)
+  if (payload.liked && !old) {
+    await db.collection(C.likes).add({ data: { ownerOpenId: id, itemId, createdAt: now() } })
+    await db.collection(C.items).doc(itemId).update({ data: { likeCount: current + 1 } })
+  } else if (!payload.liked && old) {
+    await db.collection(C.likes).doc(old._id).remove()
+    await db.collection(C.items).doc(itemId).update({ data: { likeCount: Math.max(0, current - 1) } })
+  }
+  return { liked: payload.liked, likeCount: payload.liked === Boolean(old) ? current : Math.max(0, current + (payload.liked ? 1 : -1)) }
 }
 async function rebuildItemRatings(itemId) {
   const result = await db.collection(C.reviews).where({ itemId, status: 'published' }).limit(100).get()
@@ -382,7 +397,7 @@ async function requireAccountAccess(id) {
 }
 
 const noticeHandlers=require('../../notice-center.cjs')({db,collection:C.events,requireAdmin,adminFor,profileFor,now,fail})
-const handlers = { ...noticeHandlers, ...inboxHandlers, ...appealHandlers, ...feedbackHandlers, ...announcementHandlers, adminSetAccountBan, getCapabilities, findSubmission, getMyProfile, getPublicProfile, saveProfile, listPublishedItems: async () => listPublishedItems(), getItem, submitItem, updateItem, updateItemLocation, myItems, getFavoriteIds, toggleFavorite, listReviews, upsertReview, submitIssue, myFavoriteItems, myReviews, adminListItems, adminSetItemVisibility, adminListReviews, adminSetReviewVisibility, adminListProfiles, adminGetProfileDetail, adminSetProfileModeration, whoAmI }
+const handlers = { ...noticeHandlers, ...inboxHandlers, ...appealHandlers, ...feedbackHandlers, ...announcementHandlers, adminSetAccountBan, getCapabilities, findSubmission, getMyProfile, getPublicProfile, saveProfile, listPublishedItems: async () => listPublishedItems(), getItem, submitItem, updateItem, updateItemLocation, myItems, getFavoriteIds, toggleFavorite, getLikedItemIds, toggleFoodLike, listReviews, upsertReview, submitIssue, myFavoriteItems, myReviews, adminListItems, adminSetItemVisibility, adminListReviews, adminSetReviewVisibility, adminListProfiles, adminGetProfileDetail, adminSetProfileModeration, whoAmI }
 
 // Only the trusted wrapper supplies the verified CloudBase UID. Old OpenIDs are never imported.
 exports.dispatch=async(id,action,payload={})=>{
