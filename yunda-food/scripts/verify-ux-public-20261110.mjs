@@ -10,8 +10,8 @@ const ORIGINS=[
  {id:'hosting',base:'https://cloud-ynnu-d6gs8ekf7dbcbe80e-1517920911.tcloudbaseapp.com/',ui:false},
 ]
 const legacyAssets={
- pages:['/AI/assets/index-BWgSAIDG.js','/AI/assets/index-Cffx27Pj.css'],
- hosting:['/assets/index-DRtJZsBK.js','/assets/index-Cffx27Pj.css'],
+ pages:['/AI/assets/index-DMkA7puj.js','/AI/assets/index-gm0iCXwR.css'],
+ hosting:['/assets/index-DXznGj5m.js','/assets/index-gm0iCXwR.css'],
 }
 const results=[],consoleErrors=[],runtimeErrors=[]
 const record=(origin,name,ok,detail)=>{results.push({origin,name,ok,detail});console.log((ok?'PASS ':'FAIL ')+origin+' · '+name+(detail?' · '+detail:''))}
@@ -35,7 +35,7 @@ for(const origin of ORIGINS){
  await check(origin.id,'HTML 引用本轮新主包',async()=>{
   const script=html[origin.id].text.match(/src="([^"]*\/assets\/index-[^"]*\.js)"/)
   if(!script)throw new Error('HTML 未引用主脚本')
-  if(!/index-DXznGj5m|index-DMkA7puj|index-CJ4CPwd0|index-B_HOo9zM/.test(script[1]))throw new Error('仍是旧主包：'+script[1])
+  if(!/index-DJNTHebY|index-DZQTh9yM|index-DdTdkLRc|index-DXznGj5m|index-DMkA7puj|index-CJ4CPwd0|index-B_HOo9zM/.test(script[1]))throw new Error('仍是旧主包：'+script[1])
   return `status=${html[origin.id].status} ${script[1]}`
  })
 
@@ -333,6 +333,52 @@ for(const origin of ORIGINS){
   const name=download.suggestedFilename()
   if(!/全部美食/.test(name))throw new Error('文件名没有体现全部美食：'+name)
   return `${chips.join(' | ')} · ${name}`
+ })
+
+ await check(origin.id,'首页可切换排布方式并显示点赞数',async()=>{
+  await page.goto(origin.base+'?demo=student#/',{waitUntil:'networkidle'})
+  await page.waitForSelector('.sort-row .sort-chip',{timeout:20000})
+  const chips=await page.locator('.sort-row .sort-chip').allInnerTexts()
+  if(chips.join('|')!=='推荐顺序|点赞最多|最新发布|评分最高')throw new Error('排布按钮不对：'+chips.join('|'))
+  await page.locator('.sort-chip').filter({hasText:'点赞最多'}).click()
+  await page.waitForTimeout(300)
+  const counts=await page.locator('.food-card').evaluateAll(cards=>cards.map(card=>{const text=card.querySelector('.like-mini')?.textContent||'';return Number((text.match(/(\d+)/)||[])[1]||0)}))
+  for(let i=1;i<counts.length;i++)if(counts[i]>counts[i-1])throw new Error('点赞没有从高到低：'+counts.join(','))
+  return `${chips.join(' / ')} · 赞 ${counts.join('>')}`
+ })
+
+ await check(origin.id,'互动消息未读标签醒目，点开原文后变为已读',async()=>{
+  await page.goto(origin.base+'?demo=student#/messages',{waitUntil:'networkidle'})
+  await page.waitForSelector('.message',{timeout:20000})
+  const before=await page.locator('.read-tag.is-unread').count()
+  if(!before)throw new Error('没有未读消息')
+  const color=await page.locator('.read-tag.is-unread').first().evaluate(node=>getComputedStyle(node).backgroundColor)
+  await page.locator('.message.unread .message-item').first().click()
+  await page.waitForTimeout(600)
+  await page.goto(origin.base+'?demo=student#/messages',{waitUntil:'networkidle'})
+  await page.waitForSelector('.message',{timeout:20000})
+  const after=await page.locator('.read-tag.is-unread').count()
+  if(after>=before)throw new Error('点开后仍未标记已读：'+before+'→'+after)
+  return `未读 ${before}→${after} · 底色 ${color}`
+ })
+
+ await check(origin.id,'管理员私信面板可发起，用户侧只能回复',async()=>{
+  await page.goto(origin.base+'?demo=admin#/messages?mode=direct',{waitUntil:'networkidle'})
+  await page.waitForSelector('.dm-thread',{timeout:20000})
+  const threads=await page.locator('.dm-thread').count()
+  await page.locator('.dm-thread').first().click()
+  await page.waitForTimeout(400)
+  await page.locator('.dm-composer textarea').fill('公网读回：管理员私信测试。')
+  await page.getByRole('button',{name:'发送'}).click()
+  await page.waitForTimeout(700)
+  const sent=await page.locator('.dm-bubble.me').last().innerText()
+  if(!/管理员私信测试/.test(sent))throw new Error('管理员消息没有发出：'+sent)
+  await page.goto(origin.base+'?demo=student#/messages?mode=direct',{waitUntil:'networkidle'})
+  await page.waitForSelector('.dm-panel',{timeout:20000})
+  if(await page.locator('.dm-threads').count())throw new Error('用户侧出现发起对话的用户列表')
+  const hint=await page.locator('.dm-panel .muted').innerText()
+  if(!/只有管理员可以主动发起私信/.test(hint))throw new Error('用户侧说明缺失')
+  return threads+' 个对话 · 管理员已发送 · 用户侧只读可回'
  })
 
  await check(origin.id,'页面运行无脚本错误',async()=>{

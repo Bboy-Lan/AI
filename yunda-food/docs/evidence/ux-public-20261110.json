@@ -1,6 +1,6 @@
 {
-  "checkedAt": "2026-11-10T05:32:52.783Z",
-  "passed": 24,
+  "checkedAt": "2026-11-10T06:17:46.191Z",
+  "passed": 27,
   "failed": 0,
   "consoleErrors": [
     "hosting: Failed to load resource: the server responded with a status of 404 (Not Found)"
@@ -11,7 +11,7 @@
       "origin": "pages",
       "name": "HTML 引用本轮新主包",
       "ok": true,
-      "detail": "status=200 /AI/assets/index-DMkA7puj.js"
+      "detail": "status=200 /AI/assets/index-DJNTHebY.js"
     },
     {
       "origin": "pages",
@@ -65,7 +65,7 @@
       "origin": "pages",
       "name": "待处理用红色数字角标提示，与用户消息数字一致",
       "ok": true,
-      "detail": "导航 2 · 互动消息 2 · rgb(233, 78, 60)"
+      "detail": "导航 3 · 互动消息 3 · rgb(233, 78, 60)"
     },
     {
       "origin": "pages",
@@ -123,6 +123,24 @@
     },
     {
       "origin": "pages",
+      "name": "首页可切换排布方式并显示点赞数",
+      "ok": true,
+      "detail": "推荐顺序 / 点赞最多 / 最新发布 / 评分最高 · 赞 5>4>3>3>1>0>0"
+    },
+    {
+      "origin": "pages",
+      "name": "互动消息未读标签醒目，点开原文后变为已读",
+      "ok": true,
+      "detail": "未读 1→0 · 底色 rgb(233, 78, 60)"
+    },
+    {
+      "origin": "pages",
+      "name": "管理员私信面板可发起，用户侧只能回复",
+      "ok": true,
+      "detail": "2 个对话 · 管理员已发送 · 用户侧只读可回"
+    },
+    {
+      "origin": "pages",
       "name": "页面运行无脚本错误",
       "ok": true,
       "detail": "consoleErrors=0 pageErrors=0"
@@ -131,7 +149,7 @@
       "origin": "hosting",
       "name": "HTML 引用本轮新主包",
       "ok": true,
-      "detail": "status=200 /assets/index-DXznGj5m.js"
+      "detail": "status=200 /assets/index-DZQTh9yM.js"
     },
     {
       "origin": "hosting",
