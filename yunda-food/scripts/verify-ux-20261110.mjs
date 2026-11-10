@@ -314,6 +314,55 @@ await check('管理员驳回头像后该账号回落到默认头像',async()=>{
  return '面板与公开投稿均回落默认头像 · 刷新后保持 · 无头像时入口禁用'
 })
 
+await check('详情页可一键导航、切换其他地图并复制坐标',async()=>{
+ await page.goto(BASE+'?demo=student#/detail/demo-food-1',{waitUntil:'networkidle'})
+ await page.waitForSelector('.map-card',{timeout:10000})
+ // 拦掉 window.open，只记录要跳的地址，避免验收时真的弹窗。
+ await page.evaluate(()=>{window.__opened=[];window.open=(url)=>{window.__opened.push(String(url));return null}})
+ const cardText=await page.locator('.map-card').innerText()
+ if(!/已选地点/.test(cardText))throw new Error('详情页没有显示已选地点：'+cardText.slice(0,80))
+ if(!/坐标 .*\d{2}\.\d+.*\d{3}\.\d+/.test(cardText))throw new Error('详情页没有显示坐标：'+cardText.slice(0,120))
+ await page.getByRole('button',{name:/导航到这里/}).click()
+ const opened=await page.evaluate(()=>window.__opened)
+ if(!opened.length||!/uri\.amap\.com\/marker\?position=[\d.]+,[\d.]+/.test(opened[0]))throw new Error('导航没有打开高德：'+opened[0])
+ if(!/coordinate=gaode/.test(opened[0]))throw new Error('高德链接缺少 coordinate=gaode')
+ await page.getByRole('button',{name:'其他地图',exact:true}).click()
+ await page.waitForSelector('.map-alt',{timeout:5000})
+ const alternatives=await page.locator('.map-alt button').allInnerTexts()
+ for(const label of ['腾讯地图','苹果地图','百度地图','复制坐标'])if(!alternatives.includes(label))throw new Error('缺少备用入口：'+label)
+ await page.getByRole('button',{name:'腾讯地图',exact:true}).click()
+ const toTencent=await page.evaluate(()=>window.__opened[window.__opened.length-1])
+ if(!/apis\.map\.qq\.com\/uri\/v1\/marker\?marker=coord:/.test(toTencent))throw new Error('腾讯链接不对：'+toTencent)
+ await page.getByRole('button',{name:'复制坐标',exact:true}).click()
+ await page.waitForFunction(()=>[...document.querySelectorAll('.detail-notice,.notice')].some(n=>/坐标/.test(n.textContent||'')),null,{timeout:8000})
+ const notice=await page.locator('.detail-notice,.notice').filter({hasText:'坐标'}).first().innerText()
+ if(!/坐标已复制|可长按选择坐标/.test(notice))throw new Error('复制坐标没有反馈：'+notice)
+ return `高德 ${opened[0].slice(0,42)}… · 备用 ${alternatives.length} 项 · ${notice.slice(0,26)}`
+})
+
+await check('出发点弹窗支持高德链接粘贴解析并回填地点名与距离',async()=>{
+ await page.goto(BASE+'?demo=student#/',{waitUntil:'networkidle'})
+ await page.locator('.filter-toggle').click()
+ await page.getByRole('button',{name:/设置出发点|更换出发点/}).click()
+ await page.waitForSelector('.map-picker-overlay',{timeout:8000})
+ const tools=await page.locator('.map-tools .chip').allInnerTexts()
+ if(!tools.some(x=>/用我的位置/.test(x)))throw new Error('缺少“用我的位置”：'+tools.join('|'))
+ if(!tools.some(x=>/底图 · 高德/.test(x)))throw new Error('默认底图不是高德：'+tools.join('|'))
+ await page.locator('.map-advanced textarea').first().fill('https://uri.amap.com/marker?position=102.71688,25.05021&name=%E6%A5%A0%E8%8B%91%E9%A3%9F%E5%A0%82&coordinate=gaode')
+ await page.getByRole('button',{name:'解析并使用',exact:true}).click()
+ await page.waitForFunction(()=>/已按粘贴的位置更新选点/.test(document.body.textContent||''),null,{timeout:8000})
+ const coord=await page.locator('.map-picker-overlay .map-coord').innerText()
+ if(!/25\.050\d+/.test(coord)||!/102\.716\d+/.test(coord))throw new Error('粘贴后坐标不对：'+coord)
+ const nameValue=await page.locator('.map-picker-card input').first().inputValue()
+ if(nameValue!=='楠苑食堂')throw new Error('没有按链接回填地点名：'+nameValue)
+ await page.getByRole('button',{name:'确认位置',exact:true}).click()
+ await page.waitForFunction(()=>/出发点：楠苑食堂/.test(document.body.textContent||''),null,{timeout:8000})
+ const notes=(await page.locator('.page p.muted, .food-row small, .food-tile small').allInnerTexts()).filter(t=>/距出发点约/.test(t))
+ if(!notes.length)throw new Error('首页卡片没有显示距离提示')
+ if(!notes.some(t=>/米|公里/.test(t)))throw new Error('距离文案没有单位：'+notes[0])
+ return `${coord.replace(/\s+/g,' ')} · 回填「${nameValue}」 · ${notes.length} 处距离提示`
+})
+
 await check('全页面无横向溢出与运行时错误',async()=>{
  const pages=['?demo=student#/','?demo=student#/me','?demo=student#/export','?demo=student#/detail/demo-food-1','?demo=student#/treehole']
  const overflow=[]

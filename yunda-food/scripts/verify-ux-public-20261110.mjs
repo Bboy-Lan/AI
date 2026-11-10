@@ -10,8 +10,8 @@ const ORIGINS=[
  {id:'hosting',base:'https://cloud-ynnu-d6gs8ekf7dbcbe80e-1517920911.tcloudbaseapp.com/',ui:false},
 ]
 const legacyAssets={
- pages:['/AI/assets/index-CwrjmMmD.js','/AI/assets/index-BCArHfDK.css'],
- hosting:['/assets/index-cuAQG5gO.js','/assets/index-BCArHfDK.css'],
+ pages:['/AI/assets/index-CBMNg-Wo.js','/AI/assets/index-IgASAuXo.css'],
+ hosting:['/assets/index-CyIvN0AA.js','/assets/index-IgASAuXo.css'],
 }
 const results=[],consoleErrors=[],runtimeErrors=[]
 const record=(origin,name,ok,detail)=>{results.push({origin,name,ok,detail});console.log((ok?'PASS ':'FAIL ')+origin+' · '+name+(detail?' · '+detail:''))}
@@ -34,7 +34,7 @@ for(const origin of ORIGINS){
  await check(origin.id,'HTML 引用本轮新主包',async()=>{
   const script=html[origin.id].text.match(/src="([^"]*\/assets\/index-[^"]*\.js)"/)
   if(!script)throw new Error('HTML 未引用主脚本')
-  if(!/index-CBMNg-Wo|index-CyIvN0AA/.test(script[1]))throw new Error('仍是旧主包：'+script[1])
+  if(!/index-BWgSAIDG|index-DRtJZsBK/.test(script[1]))throw new Error('仍是旧主包：'+script[1])
   return `status=${html[origin.id].status} ${script[1]}`
  })
 
@@ -193,6 +193,44 @@ for(const origin of ORIGINS){
   if(state.avatars!==state.count)throw new Error('有卡片缺少缩略头像：'+state.avatars+'/'+state.count)
   if(state.tallest>80)throw new Error('卡片仍然过高：'+state.tallest+'px')
   return `${state.count} 位 · 每行 ${state.perRow.join('/')} · 最高 ${state.tallest}px · ${[...new Set(state.tags)].join('/')}`
+ })
+
+ await check(origin.id,'详情页可一键导航到高德并切换其他地图',async()=>{
+  await page.goto(origin.base+'?demo=student#/detail/demo-food-1',{waitUntil:'networkidle'})
+  await page.waitForSelector('.map-card',{timeout:20000})
+  await page.evaluate(()=>{window.__opened=[];window.open=(url)=>{window.__opened.push(String(url));return null}})
+  await page.getByRole('button',{name:/导航到这里/}).click()
+  const opened=await page.evaluate(()=>window.__opened)
+  if(!opened.length||!/uri\.amap\.com\/marker\?position=[\d.]+,[\d.]+/.test(opened[0]))throw new Error('未打开高德导航：'+opened[0])
+  if(!/coordinate=gaode/.test(opened[0]))throw new Error('高德链接缺少 coordinate=gaode')
+  await page.getByRole('button',{name:'其他地图',exact:true}).click()
+  await page.waitForSelector('.map-alt',{timeout:10000})
+  const alternatives=await page.locator('.map-alt button').allInnerTexts()
+  if(alternatives.length!==4)throw new Error('备用入口数量不对：'+alternatives.join('/'))
+  await page.getByRole('button',{name:'腾讯地图',exact:true}).click()
+  const toTencent=await page.evaluate(()=>window.__opened[window.__opened.length-1])
+  if(!/apis\.map\.qq\.com\/uri\/v1\/marker\?marker=coord:/.test(toTencent))throw new Error('腾讯链接不对：'+toTencent)
+  return `高德 ${opened[0].slice(0,40)}… · 备用 ${alternatives.length} 项`
+ })
+
+ await check(origin.id,'选点弹窗按高德底图解析分享链接并回填地点名',async()=>{
+  await page.goto(origin.base+'?demo=student#/',{waitUntil:'networkidle'})
+  await page.waitForSelector('.filter-toggle',{timeout:20000})
+  await page.locator('.filter-toggle').click()
+  await page.getByRole('button',{name:/设置出发点|更换出发点/}).click()
+  await page.waitForSelector('.map-picker-overlay',{timeout:10000})
+  const tools=await page.locator('.map-tools .chip').allInnerTexts()
+  if(!tools.some(x=>/用我的位置/.test(x))||!tools.some(x=>/底图 · 高德/.test(x)))throw new Error('缺少定位或高德底图入口：'+tools.join('|'))
+  await page.locator('.map-advanced textarea').first().fill('https://uri.amap.com/marker?position=102.71688,25.05021&name=%E6%A5%A0%E8%8B%91%E9%A3%9F%E5%A0%82&coordinate=gaode')
+  await page.getByRole('button',{name:'解析并使用',exact:true}).click()
+  await page.waitForFunction(()=>/已按粘贴的位置更新选点/.test(document.body.textContent||''),null,{timeout:10000})
+  const coord=(await page.locator('.map-picker-overlay .map-coord').innerText()).replace(/\s+/g,' ')
+  if(!/25\.050\d+/.test(coord)||!/102\.716\d+/.test(coord))throw new Error('粘贴后坐标不对：'+coord)
+  const name=await page.locator('.map-picker-card input').first().inputValue()
+  if(name!=='楠苑食堂')throw new Error('没有回填地点名：'+name)
+  await page.locator('.map-picker-overlay .announcement-heading button').click()
+  await page.waitForSelector('.map-picker-overlay',{state:'detached',timeout:10000})
+  return `${coord} · 回填「${name}」`
  })
 
  await check(origin.id,'页面运行无脚本错误',async()=>{
