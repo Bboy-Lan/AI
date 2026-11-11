@@ -46,7 +46,9 @@ export const repository={
  },
  async saveFood(food:Food){
   if(!cloudEnabled)return local.saveFood(food)
-  const exists=foods.some(x=>x.id===food.id)||this.mine.some(x=>x.id===food.id)
+  // Any draft that carries an id is an edit: always update in place. Only a truly new draft may
+  // fall back to creating a submission, so a stale cache can never spawn a duplicate on re-submit.
+  const exists=Boolean(food.id)||foods.some(x=>x.id===food.id)||this.mine.some(x=>x.id===food.id)
   const saved=await rpc<Food>('saveFood',{...food,id:exists?food.id:undefined,images:food.mediaKeys||food.images})
   const result=await decorateFood(saved);foods=[result,...foods.filter(x=>x.id!==result.id)];return result
  },
