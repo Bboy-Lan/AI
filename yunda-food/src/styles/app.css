@@ -739,6 +739,7 @@ button:disabled{box-shadow:none}
 .rung-title{display:block;font-size:13px;font-weight:650;color:#5b4a1a}
 .rung-cond{display:block;font-size:11px;color:#8a7a52;margin-top:2px}
 .rung-quota{flex:0 0 auto;font-size:11px;color:#a05a12;white-space:nowrap}
+.level-sheet-note{margin:10px 0 0;padding:10px 12px;border:1px dashed #d8bb64;border-radius:8px;background:#fffdf2;font-size:11.5px;line-height:1.7;color:#6a715f}
 .level-badge.is-clickable{cursor:pointer}
 .level-badge.is-clickable:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .level-track{height:7px;border-radius:99px;background:#f0e4bd;overflow:hidden}

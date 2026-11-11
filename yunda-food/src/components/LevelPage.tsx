@@ -1,5 +1,5 @@
 import {useEffect,useRef} from 'react'
-import {LEVELS,MESSAGES,type DailyLevelView} from '../domain/daily-level'
+import {LEVELS,EXP_RULES,MESSAGES,type DailyLevelView} from '../domain/daily-level'
 import {RoleBadge} from './RoleBadge'
 
 // A modal that shows one account's level status, Bilibili-style: the current badge plus growth
@@ -36,6 +36,7 @@ export function LevelPage({level,isAdmin,isSelf=false,showLadder=false,onClose}:
           {isSelf&&level.override_active&&<p className="level-summary-override">管理员单独设置：{level.override_value} 条/日{level.override_expires_on?' · 有效至 '+level.override_expires_on:''}</p>}
         </div>}
       {showLadder&&<div className="level-ladder">{LEVELS.map((rule,i)=>{const cond=rule.minExp>0?`连续签到 ${rule.minDays} 天 · 或成长值 ${rule.minExp}`:i===0?'新用户默认等级':`连续签到 ${rule.minDays} 天`;return <div className={'level-rung'+(i===currentIndex?' is-current':'')} key={rule.title}><span className="rung-badge"><RoleBadge title={rule.title}/></span><span className="rung-info"><b className="rung-title">{rule.title}</b><span className="rung-cond">{cond}</span></span><span className="rung-quota">每日 {rule.dailyLimit} 条</span></div>})}</div>}
+      {showLadder&&<><p className="level-sheet-note">{MESSAGES.expNote}</p><p className="level-sheet-note">发布 +{EXP_RULES.awards.publish} 成长值 · 点赞 +{EXP_RULES.awards.like} · 收藏 +{EXP_RULES.awards.favorite} · 评价 +{EXP_RULES.awards.review}（每日上限 {EXP_RULES.dailyCap}）。</p></>}
     </section>
   </div>
 }
