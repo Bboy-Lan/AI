@@ -367,6 +367,28 @@ fieldset{border:0;padding:0;margin:0;min-width:0}
 .messages .message .chips{margin:4px 0 0;gap:6px;flex-wrap:wrap}
 .messages .message .chips .link{font-size:12px;margin:0;padding:4px 2px;min-height:0}
 .messages .message details{margin-top:6px;font-size:12px}
+.msg-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0;font-size:12px;color:var(--muted)}
+.msg-split{display:grid;gap:10px;margin-top:4px}
+.msg-list{display:grid;gap:6px;align-content:start}
+.msg-row{display:flex;align-items:center;gap:9px;width:100%;padding:8px 10px;border:1px solid #b6bcb3;border-radius:10px;background:#fffdf5;text-align:left;cursor:pointer}
+.msg-row.active{border-color:var(--blue);box-shadow:2px 2px 0 var(--blue)}
+.msg-row.unread{background:#fffaf7;border-left:3px solid var(--red)}
+.msg-dot{flex:0 0 7px;width:7px;height:7px;border-radius:50%;background:transparent}
+.msg-row.unread .msg-dot{background:var(--red)}
+.msg-row-main{flex:1 1 auto;min-width:0;display:grid;gap:1px}
+.msg-row-main b{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msg-row-main small{font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msg-row-side{flex:0 0 auto;display:grid;justify-items:end;gap:3px}
+.msg-row-side time{font-size:10.5px;color:var(--muted);white-space:nowrap}
+.msg-tag{font-style:normal;font-size:10px;padding:1px 6px;border-radius:5px;border:1px solid #d7d1bf;background:#f4f1e8;color:#7d7668;white-space:nowrap}
+.msg-tag.is-unread{border-color:#f0b6a8;background:#fff0ea;color:#b5402c}
+.msg-inspector{display:grid;gap:9px;align-content:start;padding:14px;border:1px solid #a6aaa0;border-radius:12px;background:#fbf8ee}
+.msg-inspector .section-heading{align-items:center}
+.msg-inspector h2{font-size:15px;margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msg-meta{font-size:11px;color:var(--muted);margin:0}
+.msg-body{margin:0;font-size:13px;line-height:1.6;white-space:pre-wrap}
+.msg-thread{display:grid;gap:8px}
+@media(min-width:900px){.app-frame.msg-workspace{max-width:980px;width:calc(100% - 40px)}.msg-split{grid-template-columns:minmax(0,1fr) minmax(300px,380px);gap:16px}.msg-inspector{position:sticky;top:14px;max-height:calc(100dvh - 28px);overflow:auto}}
 .reply-row{white-space:pre-wrap;border-left:3px solid #91b3c7;padding-left:10px;font-size:13px}
 .draft-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 0;font-size:12px}
 .food-meta{font-size:12px;color:#65756a;margin:5px 0}

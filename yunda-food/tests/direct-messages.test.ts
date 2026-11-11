@@ -105,13 +105,14 @@ test('消息页新增私信分组，管理员从用户资料发起', () => {
  assert.match(direct(), /\(mine\(m\)\?'我':isAdmin\?'用户':'管理员'\)/)
 })
 
-test('点开消息即已读，未读标签高对比显示', () => {
+test('点开消息即已读，未读状态高对比显示', () => {
  const code = pages()
- assert.match(code, /onClick=\{\(\)=>\{if\(unread\)void mutate\('read',row\.id\);go\(row\.path\?/)
- assert.match(code, /if\(open!==row\.id&&unread\)void mutate\('read',row\.id\)/)
+ assert.match(code, /const select=\(row:any\)=>\{setSelectedId\(row\.id\);if\(isUnread\(row\)\)void mutate\('read',row\.id\)/)
+ assert.match(code, /const openTarget=\(row:any\)=>\{if\(isUnread\(row\)\)void mutate\('read',row\.id\);go\(row\.path\?/)
+ assert.match(code, /if\(!threadOpen&&isUnread\(selected\)\)void mutate\('read',selected\.id\)/)
  assert.match(feedback(), /if\(p\.open!==row\.id&&unread\)p\.onAction\('read',row\.id\)/)
- assert.match(code, /read-tag'\+\(unread\?' is-unread':''\)/)
+ assert.match(code, /'msg-tag'\+\(unread\?' is-unread':''\)/)
  const rules = css()
- assert.match(rules, /\.read-tag\{[^}]*border-radius:99px[^}]*font-weight:800/)
- assert.match(rules, /\.read-tag\.is-unread\{[^}]*background:var\(--red\)[^}]*color:#fff/)
+ assert.match(rules, /\.msg-tag\{[^}]*border-radius:5px/)
+ assert.match(rules, /\.msg-tag\.is-unread\{[^}]*color:#b5402c/)
 })

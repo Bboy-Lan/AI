@@ -11,11 +11,13 @@ test('编辑重提交按 id 更新，避免因缓存未命中而重复新建',()
   assert.ok(app.includes("food.reviewTag==='pending'"),'详情页应提示修改待审核')
 })
 
-test('互动消息支持全部已读并压缩行高',()=>{
+test('互动消息支持全部已读，并做成左右两栏大屏 + 紧凑行',()=>{
   const pages=read('src/pages/GovernancePages.tsx'),css=read('src/styles/app.css')
   assert.ok(pages.includes('markAllRead'),'缺少一键已读逻辑')
   assert.ok(pages.includes('全部已读'),'缺少全部已读按钮')
-  assert.match(css,/\.messages \.message\{[^}]*padding:10px 12px/,'消息卡应更紧凑')
-  assert.match(css,/\.messages \.message>p:not\(\.notice\)\{[^}]*-webkit-line-clamp:2/,'消息正文应两行截断')
-  assert.match(css,/\.messages \.message \.message-item\{[^}]*display:inline-flex/,'查看原帖按钮应内联变小')
+  assert.ok(pages.includes('msg-split'),'消息页应为左右两栏大屏布局')
+  assert.ok(pages.includes('selectedId'),'应有选中态详情面板')
+  assert.match(css,/\.msg-row\{[^}]*padding:8px 10px/,'消息行应紧凑')
+  assert.match(css,/\.msg-split\{[^}]*display:grid/,'消息页应为网格分栏')
+  assert.match(css,/@media\(min-width:900px\)\{\.app-frame\.msg-workspace\{max-width:980px/,'大屏应加宽到 980')
 })
