@@ -1,0 +1,30 @@
+{
+  "generatedAt": "2026-11-11T01:15:52.682Z",
+  "environment": "cloud-yunda-d5gxrar1s14b2ee0d",
+  "mode": "anonymous-read-only",
+  "total": 4,
+  "passed": 3,
+  "failed": 1,
+  "results": [
+    {
+      "name": "云端 context 匿名可读且只返回游客身份",
+      "ok": true,
+      "detail": "uid=null profile=null"
+    },
+    {
+      "name": "adminDailyQuotaDetail 已部署且后端拒绝越权",
+      "ok": true,
+      "detail": "请先登录网页账号。"
+    },
+    {
+      "name": "adminSetDailyQuota 已部署且后端拒绝越权",
+      "ok": true,
+      "detail": "请先登录网页账号。"
+    },
+    {
+      "name": "未知动作仍被白名单拒绝",
+      "ok": false,
+      "detail": "请先登录网页账号。"
+    }
+  ]
+}

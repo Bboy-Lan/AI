@@ -43,6 +43,8 @@ async function requireProfile(id, options = {}) {
 }
 async function requireAdmin(id) { if (!(await adminFor(id))) fail('无管理员权限。') }
 async function event(type, operatorOpenId, targetType, targetId, reason, snapshot) { await db.collection(C.events).add({ data: { type, operatorOpenId, targetType, targetId, reason: reason || '', ...(snapshot?{snapshot}:{}), createdAt: now() } }) }
+// Daily activity / quota authority. Only context writes the check-in; submitItem reads the resulting level.
+const dailyActivity = require('../../daily-activity.cjs')({ db, fail, now, chinaDay, requireAdmin, collections: { profiles: C.profiles, items: C.items, events: C.events } })
 
 async function getMyProfile(id) { return profileFor(id) }
 async function getPublicProfile(id, payload) {
@@ -60,7 +62,7 @@ async function getPublicProfile(id, payload) {
   }
   if (!profile || !profile.ownerOpenId) fail('该用户暂未设置个人资料。')
   const [admin, items] = await Promise.all([adminFor(profile.ownerOpenId), db.collection(C.items).where({ ownerOpenId: profile.ownerOpenId, status: 'published' }).orderBy('submittedAt', 'desc').limit(100).get()])
-  const publicProfile = { _id: profile._id, foodieId: profile.foodieId || '未命名吃货', hometown: profile.hometown || '', avatarFileId: profile.avatarFileId || '', isAdmin: Boolean(admin) }
+  const publicProfile = { _id: profile._id, foodieId: profile.foodieId || '未命名吃货', hometown: profile.hometown || '', avatarFileId: profile.avatarFileId || '', activityStreak: profile.activityStreak || 0, isAdmin: Boolean(admin) }
   const fields = ['_id', 'name', 'storeName', 'venue', 'price', 'priceBasis', 'imageFileIds', 'category', 'locationType', 'school', 'campus', 'region', 'addressSummary', 'taste', 'ratingAverage', 'ratingCount', 'status']
   return { profile: publicProfile, items: items.data.map(item => ({ ...Object.fromEntries(fields.filter(key => item[key] !== undefined).map(key => [key, item[key]])), authorNickname: publicProfile.foodieId, authorAvatarFileId: publicProfile.avatarFileId, authorHometown: publicProfile.hometown, authorRole: admin ? 'admin' : 'user' })), limit: 100 }
 }
@@ -107,7 +109,8 @@ async function submitItem(id, payload) {
     return existing
   }
   const submissionDay = chinaDay()
-  if (await dailyCount(C.items, id, submissionDay, 3) >= 3) fail('每位用户每天最多发布 3 条真实推荐，请明天再来分享。')
+  // Server-side gate: the level default or an active admin override decides today's allowance.
+  await dailyActivity.assertQuota(id, profile)
   const latitude = finiteNumber(payload.latitude); const longitude = finiteNumber(payload.longitude)
   if (latitude != null && (latitude < -90 || latitude > 90)) fail('位置纬度无效。')
   if (longitude != null && (longitude < -180 || longitude > 180)) fail('位置经度无效。')
@@ -409,5 +412,5 @@ exports.dispatch=async(id,action,payload={})=>{
  if(id&&!['whoAmI','getMyProfile','submitFeedback','myFeedback','submitAccountAppeal','myAccountAppeals','feedbackReplySummary','readFeedbackReply','replyFeedback','archiveFeedback','clearReadFeedback'].includes(action))await requireAccountAccess(id);
  return decorateRoles(action,await handler(id,payload));
 };
-exports.dependencies={noticesEnabled:true,rebuildItemRatings,db,fail,text,now,chinaDay,requireProfile,profileFor,adminFor,requireAdmin,assertSafeText,hash:(...parts)=>crypto.createHash('sha256').update(JSON.stringify(parts)).digest('hex').slice(0,32)};
+exports.dependencies={noticesEnabled:true,rebuildItemRatings,db,dailyActivity,fail,text,now,chinaDay,requireProfile,profileFor,adminFor,requireAdmin,assertSafeText,hash:(...parts)=>crypto.createHash('sha256').update(JSON.stringify(parts)).digest('hex').slice(0,32)};
 
