@@ -10,7 +10,14 @@ const SITES = [
   { id: 'pages', name: 'GitHub Pages', url: 'https://bboy-lan.github.io/AI/' },
   { id: 'hosting', name: 'CloudBase 备用站', url: 'https://cloud-ynnu-d6gs8ekf7dbcbe80e-1517920911.tcloudbaseapp.com/' }
 ]
-const get = url => execFileSync('curl', ['-x', PROXY, '-s', '--max-time', '45', url], { encoding: 'utf8', maxBuffer: 20e6 })
+const get = url => {
+  let last
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try { return execFileSync('curl', ['-x', PROXY, '-s', '--max-time', '45', url], { encoding: 'utf8', maxBuffer: 20e6 }) }
+    catch (error) { last = error }
+  }
+  throw last
+}
 const results = []
 function record(name, ok, detail, skipped = false) { results.push({ name, ok, skipped, detail }); console.log((skipped ? 'SKIP ' : ok ? 'PASS ' : 'FAIL ') + name + (detail ? ' · ' + detail : '')) }
 async function check(name, fn) { try { record(name, true, await fn()) } catch (e) { record(name, false, (e && e.message) || String(e)) } }
@@ -27,7 +34,8 @@ for (const site of SITES) {
   if (!jsPath || !cssPath) continue
   const js = get(new URL(jsPath, site.url).href), css = get(new URL(cssPath, site.url).href)
   await check(`${site.name} 主 bundle 含等级/额度/覆写新代码`, () => {
-    mustInclude(js, ['adminSetDailyQuota', 'adminDailyQuotaDetail', '每日发布额度', 'level-badge', 'price-unit', 'tier-', 'level-toggle'], '主 bundle')
+    mustInclude(js, ['adminSetDailyQuota', 'adminDailyQuotaDetail', '每日发布额度', 'level-badge', 'price-unit', 'tier-', 'level-toggle',
+      '今日还可发布', '小吃货 Ultra', '成长值', 'unlockDay', 'quotaHint', 'minDays'], '主 bundle')
     return `JS ${js.length} 字节`
   })
   await check(`${site.name} CSS 含响应式与等级卡新规则`, () => {
@@ -35,11 +43,12 @@ for (const site of SITES) {
     return `CSS ${css.length} 字节`
   })
   const repoName = (js.match(/(?:repository)[\w.-]*\.js/) || [])[0]
-  await check(`${site.name} 懒加载 chunk 含规则表与文案`, () => {
+  await check(`${site.name} 懒加载演示仓储 chunk 可加载`, () => {
     if (!repoName) throw Error('主 bundle 未引用 repository chunk')
     const base = jsPath.slice(0, jsPath.lastIndexOf('/') + 1)
     const chunk = get(new URL(base + repoName, site.url).href)
-    mustInclude(chunk, ['今日还可发布', '小吃货 Ultra', '今日发布额度已用完', 'quotaHint', 'minDays', '成长值', 'unlockDay'], 'repository chunk')
+    // The rule table is inlined into the main bundle this round; only the demo repository lives here.
+    mustInclude(chunk, ['xsyj-demo', '此演示不支持该操作', 'demo-profile-'], 'repository chunk')
     return repoName + ` (${chunk.length} 字节)`
   })
 }

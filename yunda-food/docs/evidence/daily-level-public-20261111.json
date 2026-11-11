@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-11T01:31:21.952Z",
+  "generatedAt": "2026-11-11T02:31:28.457Z",
   "sites": [
     "https://bboy-lan.github.io/AI/",
     "https://cloud-ynnu-d6gs8ekf7dbcbe80e-1517920911.tcloudbaseapp.com/"
@@ -13,52 +13,52 @@
       "name": "GitHub Pages HTML 引用新产物",
       "ok": true,
       "skipped": false,
-      "detail": "index-DlAUDGgB.js + index-C4DiqArz.css"
+      "detail": "index-DercofTL.js + index-QSOvD8gF.css"
     },
     {
       "name": "GitHub Pages 主 bundle 含等级/额度/覆写新代码",
       "ok": true,
       "skipped": false,
-      "detail": "JS 605392 字节"
+      "detail": "JS 610877 字节"
     },
     {
       "name": "GitHub Pages CSS 含响应式与等级卡新规则",
       "ok": true,
       "skipped": false,
-      "detail": "CSS 94761 字节"
+      "detail": "CSS 97450 字节"
     },
     {
-      "name": "GitHub Pages 懒加载 chunk 含规则表与文案",
+      "name": "GitHub Pages 懒加载演示仓储 chunk 可加载",
       "ok": true,
       "skipped": false,
-      "detail": "repository-DtBFCNrB.js (43772 字节)"
+      "detail": "repository-DhquZ_91.js (40887 字节)"
     },
     {
       "name": "CloudBase 备用站 HTML 引用新产物",
       "ok": true,
       "skipped": false,
-      "detail": "index-nSJ677qf.js + index-C4DiqArz.css"
+      "detail": "index-CmEkVnrK.js + index-QSOvD8gF.css"
     },
     {
       "name": "CloudBase 备用站 主 bundle 含等级/额度/覆写新代码",
       "ok": true,
       "skipped": false,
-      "detail": "JS 605341 字节"
+      "detail": "JS 610826 字节"
     },
     {
       "name": "CloudBase 备用站 CSS 含响应式与等级卡新规则",
       "ok": true,
       "skipped": false,
-      "detail": "CSS 94761 字节"
+      "detail": "CSS 97450 字节"
     },
     {
-      "name": "CloudBase 备用站 懒加载 chunk 含规则表与文案",
+      "name": "CloudBase 备用站 懒加载演示仓储 chunk 可加载",
       "ok": true,
       "skipped": false,
-      "detail": "repository-BPEto2nS.js (43772 字节)"
+      "detail": "repository-DV4aMisZ.js (40887 字节)"
     },
     {
-      "name": "GitHub Pages 浏览器 demo：等级卡 / 额度提示 / 管理区",
+      "name": "GitHub Pages 浏览器 demo：折叠等级卡 / 额度提示 / 精简管理区",
       "ok": true,
       "skipped": false,
       "detail": "pageerror=0"

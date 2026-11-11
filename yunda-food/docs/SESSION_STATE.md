@@ -10,6 +10,8 @@
 
 验证：自动测试 **178/178**（新增双通道边界、成长值上限/幂等/跨日、折叠与分级样式守卫、面板精简守卫、演示态成长值）；`tsc -b` 通过；本地浏览器 **15/15**（含默认收起、点击展开再收起、管理员无升级组件、步进器按钮实测 48×50）。
 
+发布结果（同日）：沿用上一轮已解除限制的发布口径。`node scripts/deploy.mjs` 全门禁通过（178 项测试、tsc、vite build、`verify_sources.py` 574/77/234），云函数 `xsyj_web_v1` 重新部署（CodeSize 20902909→20904581、Status=Active），备用静态站 `verified=true`，根路径产物 `index-CmEkVnrK.js` + `index-QSOvD8gF.css`。GitHub Pages `/AI/` 产物 `index-DercofTL.js` + `index-QSOvD8gF.css`，gh-pages `8313f1d`；main 实现提交 `fa8eacd`。两站读回 **9 项通过 + 1 项按既有口径跳过**（备用站对全新浏览器返回风险提示页，HTTP 层已验证新 bundle/CSS/chunk）；云端只读探针 **4/4**；正式站浏览器 demo 折叠等级卡、发布页额度提示、精简管理区均可见且 `pageerror=0`。未修改任何真实用户数据。
+
 ---
 
 # 当前完成：每日活跃等级、每日发布额度、管理员覆写与推荐卡响应式（2026-11-11）
