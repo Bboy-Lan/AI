@@ -117,13 +117,37 @@ try {
   const page = await ui.newPage()
   page.on('pageerror', error => runtimeErrors.push('UI: ' + error.message))
   await page.goto(BASE + '?demo=student#/me', { waitUntil: 'domcontentloaded' })
-  await page.waitForSelector('.level-card', { timeout: 15000 })
-  await check('个人页展示当前称号、连续活跃天数与升级进度', async () => {
+  await page.waitForSelector('.level-toggle', { timeout: 15000 })
+  await check('个人页默认收起等级详情卡', async () => {
+    if (await page.locator('.level-card').count()) throw Error('等级卡仍常驻在下方')
+    return '默认无等级详情卡'
+  })
+  await check('点击称号标签展开、再点收起，展开后含成长值进度', async () => {
+    const toggle = page.locator('.level-toggle')
+    const badge = await toggle.locator('.level-badge').getAttribute('class')
+    if (!/tier-\d/.test(badge || '')) throw Error('称号标签没有分级样式: ' + badge)
+    await toggle.click()
+    await page.waitForSelector('.level-card', { timeout: 8000 })
     const text = await page.locator('.level-card').innerText()
-    for (const part of ['小吃货', '连续活跃', '每日']) if (!text.includes(part)) throw Error('等级卡缺少 ' + part)
+    for (const part of ['小吃货', '连续活跃', '成长值', '每日']) if (!text.includes(part)) throw Error('等级卡缺少 ' + part)
     const bar = await page.locator('.level-track').getAttribute('aria-valuenow')
-    if (Number(bar) < 0 || Number(bar) > 100) throw Error('进度值无效 ' + bar)
-    return text.split('\n').slice(0, 2).join(' / ') + ' · 进度 ' + bar + '%'
+    const expBar = await page.locator('.level-exp-track').getAttribute('aria-valuenow')
+    if (Number(bar) < 0 || Number(bar) > 100 || Number(expBar) < 0 || Number(expBar) > 100) throw Error('进度值无效')
+    await toggle.click()
+    if (await page.locator('.level-card').count()) throw Error('再次点击未收起')
+    return `样式 ${badge} · 签到 ${bar}% · 成长值 ${expBar}%`
+  })
+  await check('管理员最高身份不显示升级经验与进度', async () => {
+    await page.goto(BASE + '?demo=admin#/me', { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('.level-toggle', { timeout: 15000 })
+    const badge = await page.locator('.level-toggle .level-badge').getAttribute('class')
+    if (!/tier-admin/.test(badge || '')) throw Error('管理员未用最尊贵样式: ' + badge)
+    await page.locator('.level-toggle').click()
+    await page.waitForSelector('.level-card.is-max', { timeout: 8000 })
+    const text = await page.locator('.level-card').innerText()
+    if (!text.includes('吃货大王')) throw Error('缺少最高身份')
+    for (const sel of ['.level-track', '.level-exp', '.level-card-progress']) if (await page.locator('.level-card ' + sel).count()) throw Error('管理员卡不应显示 ' + sel)
+    return '吃货大王 · 无进度条/成长值组件'
   })
   await page.goto(BASE + '?demo=student#/publish', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.quota-hint', { timeout: 15000 })
@@ -132,7 +156,7 @@ try {
     if (!/今日还可发布/.test(text)) throw Error('未展示剩余额度: ' + text)
     return text
   })
-  await check('管理员用户详情含每日发布额度管理区与历史记录', async () => {
+  await check('管理员额度面板精简且步进器按钮够大', async () => {
     await page.goto(BASE + '?demo=admin#/admin', { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.admin-tabs button', { timeout: 15000 })
     await page.locator('.admin-tabs button').filter({ hasText: /^用户$/ }).click()
@@ -140,12 +164,15 @@ try {
     await page.locator('.admin-people .admin-person').first().click()
     await page.waitForSelector('.quota-admin', { timeout: 15000 })
     const text = await page.locator('.quota-admin').innerText()
-    for (const part of ['每日发布额度', '当前称号', '连续活跃天数', '等级默认额度', '今日已发布 / 剩余', '历史操作记录']) if (!text.includes(part)) throw Error('管理区缺少 ' + part)
-    const controls = await page.locator('.quota-admin input').count()
-    if (controls < 3) throw Error('缺少额度/原因/失效日期输入')
-    const buttons = await page.locator('.quota-admin .chip').allInnerTexts()
-    if (!buttons.some(b => b.includes('取消覆写'))) throw Error('缺少取消覆写')
-    return `${controls} 个输入 · 操作 ${buttons.join('/')}`
+    for (const part of ['每日发布额度', '当前称号', '连续活跃天数', '等级默认额度', '今日已发布 / 剩余']) if (!text.includes(part)) throw Error('管理区缺少 ' + part)
+    for (const gone of ['额度调整原因', '失效日期', '历史操作记录']) if (text.includes(gone)) throw Error('仍保留 ' + gone)
+    const inputs = await page.locator('.quota-admin input').count()
+    if (inputs !== 1) throw Error('应只保留 1 个额度输入框，实际 ' + inputs)
+    const size = await page.locator('.quota-stepper .price-stepper-controls button').first().boundingBox()
+    if (!size || size.width < 44 || size.height < 44) throw Error('加减按钮过小: ' + JSON.stringify(size))
+    const chips = await page.locator('.quota-admin .chip').allInnerTexts()
+    if (!chips.some(b => b.includes('取消覆写'))) throw Error('缺少取消覆写')
+    return `1 个紧凑输入 · 按钮 ${Math.round(size.width)}×${Math.round(size.height)} · ${chips.join('/')}`
   })
   await check('隔离演示模式没有运行时错误', async () => {
     if (runtimeErrors.length) throw Error(runtimeErrors.slice(0, 3).join(' | '))

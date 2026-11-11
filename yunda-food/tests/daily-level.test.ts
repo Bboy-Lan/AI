@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
 import {createRequire} from 'node:module'
 import {memoryDb} from './support/memory-db'
-import {LEVELS,levelFor,quotaView,chinaDay,shiftDay,streakAfter,progressToNext,titleFor} from '../src/domain/daily-level'
+import {LEVELS,levelFor,activityLevel,quotaView,chinaDay,shiftDay,streakAfter,progressToNext,titleFor} from '../src/domain/daily-level'
 import {createDemoState} from '../src/demo/fixtures'
 import {createDemoRepository} from '../src/demo/repository'
 
@@ -269,7 +269,8 @@ test('覆写参数在服务端逐项校验，0 条额度同样禁止发布', asy
   s.seed('xsyj_profiles', [profile({ activityLastDay: DAY, activityStreak: 14 })])
   const row = () => s.rows('xsyj_profiles')[0]
   for (const value of [21, -1, 1.5]) await assert.rejects(() => s.service.adminSet('admin', { id: 'p1', operation: 'set', value, reason: '超出范围' }), /0～20/)
-  await assert.rejects(() => s.service.adminSet('admin', { id: 'p1', operation: 'set', value: 5, reason: 'X' }), /至少2个字/)
+  const optionalReason = await s.service.adminSet('admin', { id: 'p1', operation: 'set', value: 5 })
+  assert.equal(optionalReason.override_active, true, '原因改为可选，管理员不必填理由')
   await assert.rejects(() => s.service.adminSet('admin', { id: 'p1', operation: 'set', value: 5, reason: '过期日期', expiresOn: '2026-11-09' }), /失效日期/)
   await assert.rejects(() => s.service.adminSet('admin', { id: 'p1', operation: 'set', value: 5, reason: '格式错误', expiresOn: '2026/11/12' }), /失效日期/)
   const zero = await s.service.adminSet('admin', { id: 'p1', operation: 'set', value: 0, reason: '临时关闭发布' })
@@ -291,4 +292,90 @@ test('覆写在到期当天仍有效，次日起失效且明日额度按等级�
   s.setDay('2026-11-11')
   const tomorrow = await s.service.adminDetail('admin', 'p1')
   assert.equal(tomorrow.override_active, false); assert.equal(tomorrow.effective_limit, 1)
+})
+
+test('双通道升级：前 7 天锁死小吃货，满 7 天后成长值可加速升级，天数通道仍保底', () => {
+  const cases: [number, number, string, number][] = [
+    [1, 0, '小吃货', 1], [1, 999, '小吃货', 1], [6, 999, '小吃货', 1],
+    [7, 0, '小吃货 Min', 2], [7, 39, '小吃货 Min', 2],
+    [7, 40, '小吃货 Plus', 3], [7, 90, '小吃货 Pro', 3], [7, 160, '小吃货 Ultra', 3],
+    [14, 0, '小吃货 Plus', 3], [21, 0, '小吃货 Pro', 3], [28, 0, '小吃货 Ultra', 3]
+  ]
+  for (const [days, exp, title, limit] of cases) {
+    const row = { activityStreak: days, activityExp: exp }
+    assert.equal(activityLevel(days, exp).title, title, `day=${days} exp=${exp}`)
+    assert.equal(activityLevel(days, exp).dailyLimit, limit)
+    assert.equal(pure.activityLevel(days, exp).title, title, 'CJS 与 TS 等级一致')
+    const view = quotaView(row, DAY, 0)
+    assert.equal(view.title, title); assert.equal(view.effective_limit, limit, '额度随等级变化')
+    assert.equal(view.exp, exp)
+    assert.deepEqual(pure.quotaView(row, DAY, 0), view, 'CJS 与 TS 视图一致')
+  }
+  assert.ok(quotaView({ activityStreak: 1, activityExp: 999 }, DAY, 0).exp_note.includes('前 7 天'))
+  assert.ok(quotaView({ activityStreak: 7, activityExp: 40 }, DAY, 0).upgrade_hint.includes('成长值'))
+  assert.equal(progressToNext(1, 999).nextTitle, '小吃货 Min', '前期仍以 7 天为唯一门槛')
+})
+
+test('成长值由行为累加：每日上限、同目标幂等、跨日重置且不改签到天数', async () => {
+  const s = setup()
+  s.seed('xsyj_profiles', [profile({ activityLastDay: DAY, activityStreak: 1 })])
+  const first = await s.service.award('u1', 'publish', 'food-1')
+  assert.equal(first.awarded, 3); assert.equal(first.exp, 3); assert.equal(first.exp_today, 3)
+  const again = await s.service.award('u1', 'publish', 'food-1')
+  assert.equal(again.awarded, 0, '同一目标不重复计分'); assert.equal(again.exp, 3)
+  await s.service.award('u1', 'like', 'food-2')
+  await s.service.award('u1', 'favorite', 'food-3')
+  await s.service.award('u1', 'review', 'food-4')
+  assert.equal(s.rows('xsyj_profiles')[0].activityExp, 7)
+  assert.equal(s.rows('xsyj_profiles')[0].activityStreak, 1, '成长值不改签到天数')
+  for (let i = 0; i < 10; i++) await s.service.award('u1', 'like', 'cap-' + i)
+  const row = s.rows('xsyj_profiles')[0]
+  assert.equal(row.activityExpToday, 12, '每日上限 12'); assert.equal(row.activityExp, 12)
+  const capped = await s.service.award('u1', 'like', 'cap-99')
+  assert.equal(capped.capped, true); assert.equal(capped.awarded, 0)
+  s.setDay('2026-11-11')
+  const next = await s.service.award('u1', 'like', 'newday-1')
+  assert.equal(next.exp_today, 1, '跨日重置当日计数'); assert.equal(next.exp, 13)
+})
+
+test('等级卡默认收起、点击展开，管理员不显示升级与成长信息', () => {
+  const pages = read('src/pages/CloudPages.tsx'), badge = read('src/components/RoleBadge.tsx'), css = read('src/styles/app.css')
+  assert.match(pages, /const\[levelOpen,setLevelOpen\]=useState\(false\)/)
+  assert.match(pages, /className="level-toggle"[^}]*aria-expanded=\{levelOpen\}/)
+  assert.match(pages, /\{levelOpen&&\(isAdmin\?/)
+  assert.ok(!/\{level&&<section className="level-card"/.test(pages), '等级详情卡不应常驻')
+  assert.match(pages, /MESSAGES\.adminLevel/)
+  assert.match(badge, /tier-admin/); assert.match(badge, /tier-'\+tier/)
+  for (const tier of ['tier-0', 'tier-1', 'tier-2', 'tier-3', 'tier-4', 'tier-admin', 'level-shine']) assert.ok(css.includes(tier), '缺少 ' + tier)
+  assert.match(css, /\.level-toggle\{/); assert.match(css, /\.level-exp\{/)
+})
+
+test('管理员额度面板精简且额度输入为紧凑步进器', () => {
+  const panel = read('src/components/AdminProfilePanel.tsx'), css = read('src/styles/app.css')
+  for (const gone of ['额度调整原因', '失效日期', '历史操作记录', 'quotaReason', 'quotaExpiry']) assert.ok(!panel.includes(gone), '仍保留 ' + gone)
+  assert.match(panel, /className="price-stepper quota-stepper"/)
+  assert.match(panel, /aria-label="减少1条"/); assert.match(panel, /aria-label="增加1条"/)
+  assert.match(panel, /保存自定义额度/); assert.match(panel, /取消覆写/)
+  assert.match(css, /\.quota-stepper\{width:min\(100%,210px\)/)
+  assert.match(css, /\.quota-stepper \.price-stepper-controls button\{width:48px;min-height:46px/)
+  const service = read('server/classic/xsyj_web_v1/service.cjs')
+  assert.match(service, /case 'saveFood':[\s\S]{0,500}award\(uid,'publish'/)
+  for (const kind of ['favorite', 'like', 'review']) assert.ok(service.includes("award(uid,'" + kind + "'"), '缺少 ' + kind + ' 成长值入口')
+})
+
+test('演示态成长值随互动累加，前 7 天等级锁死，第 7 天经验可升 Plus', () => {
+  const clock = () => new Date(DAY + 'T04:00:00Z')
+  const locked = createDemoState('student')
+  locked.daily = { checkIns: { [locked.actor]: { lastDay: DAY, streak: 6 } }, overrides: {}, events: [], exp: {} }
+  const repo = createDemoRepository(locked, () => {}, { now: clock })
+  assert.equal(repo.rpc<any>('context').profile.daily_level.title, '小吃货')
+  repo.rpc('favorite', { id: 'demo-food-7', favorite: true })
+  repo.rpc('likeFood', { id: 'demo-food-7', liked: true })
+  const after = repo.rpc<any>('context').profile.daily_level
+  assert.equal(after.exp, 2, '收藏 +1、点赞 +1')
+  assert.equal(after.title, '小吃货', '经验不提前升级')
+  const boosted = createDemoState('student')
+  boosted.daily = { checkIns: { [boosted.actor]: { lastDay: DAY, streak: 7 } }, overrides: {}, events: [], exp: { [boosted.actor]: { total: 40, day: DAY, today: 0, keys: [] } } }
+  const view = createDemoRepository(boosted, () => {}, { now: clock }).rpc<any>('context').profile.daily_level
+  assert.equal(view.title, '小吃货 Plus'); assert.equal(view.effective_limit, 3)
 })

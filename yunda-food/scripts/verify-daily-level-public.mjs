@@ -27,11 +27,11 @@ for (const site of SITES) {
   if (!jsPath || !cssPath) continue
   const js = get(new URL(jsPath, site.url).href), css = get(new URL(cssPath, site.url).href)
   await check(`${site.name} 主 bundle 含等级/额度/覆写新代码`, () => {
-    mustInclude(js, ['adminSetDailyQuota', 'adminDailyQuotaDetail', '每日发布额度', 'level-badge', 'price-unit'], '主 bundle')
+    mustInclude(js, ['adminSetDailyQuota', 'adminDailyQuotaDetail', '每日发布额度', 'level-badge', 'price-unit', 'tier-', 'level-toggle'], '主 bundle')
     return `JS ${js.length} 字节`
   })
   await check(`${site.name} CSS 含响应式与等级卡新规则`, () => {
-    mustInclude(css, ['min-width:58px', 'align-items:stretch', 'level-card', 'display:inline', 'gap:4px'], 'CSS')
+    mustInclude(css, ['min-width:58px', 'align-items:stretch', 'level-card', 'display:inline', 'gap:4px', 'tier-4', 'level-shine', 'quota-stepper'], 'CSS')
     return `CSS ${css.length} 字节`
   })
   const repoName = (js.match(/(?:repository)[\w.-]*\.js/) || [])[0]
@@ -39,7 +39,7 @@ for (const site of SITES) {
     if (!repoName) throw Error('主 bundle 未引用 repository chunk')
     const base = jsPath.slice(0, jsPath.lastIndexOf('/') + 1)
     const chunk = get(new URL(base + repoName, site.url).href)
-    mustInclude(chunk, ['今日还可发布', '小吃货 Ultra', '今日发布额度已用完', 'quotaHint', 'minDays'], 'repository chunk')
+    mustInclude(chunk, ['今日还可发布', '小吃货 Ultra', '今日发布额度已用完', 'quotaHint', 'minDays', '成长值', 'unlockDay'], 'repository chunk')
     return repoName + ` (${chunk.length} 字节)`
   })
 }
@@ -54,9 +54,12 @@ try {
     page.on('pageerror', e => errors.push(e.message))
     try {
       await page.goto(site.url + '?demo=student#/me', { waitUntil: 'domcontentloaded', timeout: 35000 })
+      await page.waitForSelector('.level-toggle', { timeout: 16000 })
+      if (await page.locator('.level-card').count()) throw Error('等级卡默认仍常驻')
+      await page.locator('.level-toggle').click()
       await page.waitForSelector('.level-card', { timeout: 16000 })
       const card = await page.locator('.level-card').innerText()
-      for (const part of ['小吃货', '连续活跃', '每日']) if (!card.includes(part)) throw Error('等级卡缺少 ' + part)
+      for (const part of ['小吃货', '连续活跃', '成长值', '每日']) if (!card.includes(part)) throw Error('等级卡缺少 ' + part)
       await page.goto(site.url + '?demo=student#/publish', { waitUntil: 'domcontentloaded', timeout: 35000 })
       await page.waitForSelector('.quota-hint', { timeout: 16000 })
       const hint = await page.locator('.quota-hint').innerText()
@@ -68,9 +71,11 @@ try {
       await page.locator('.admin-people .admin-person').first().click()
       await page.waitForSelector('.quota-admin', { timeout: 16000 })
       const panel = await page.locator('.quota-admin').innerText()
-      for (const part of ['每日发布额度', '等级默认额度', '历史操作记录']) if (!panel.includes(part)) throw Error('管理区缺少 ' + part)
+      for (const part of ['每日发布额度', '等级默认额度']) if (!panel.includes(part)) throw Error('管理区缺少 ' + part)
+      for (const gone of ['额度调整原因', '失效日期', '历史操作记录']) if (panel.includes(gone)) throw Error('仍保留 ' + gone)
+      if (await page.locator('.quota-stepper .price-stepper-controls button').count() !== 2) throw Error('缺少加减步进按钮')
       if (errors.length) throw Error('运行时错误: ' + errors.slice(0, 2).join(' | '))
-      record(`${site.name} 浏览器 demo：等级卡 / 额度提示 / 管理区`, true, 'pageerror=0')
+      record(`${site.name} 浏览器 demo：折叠等级卡 / 额度提示 / 精简管理区`, true, 'pageerror=0')
     } catch (e) {
       record(`${site.name} 浏览器 demo`, true, '跳过（' + ((e && e.message) || '').slice(0, 90) + '）', true)
     }

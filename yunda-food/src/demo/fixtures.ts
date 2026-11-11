@@ -10,7 +10,8 @@ export type DemoFeedback={id:string,owner_uid:string,kind:string,body:string,adm
 export type DemoOverride={active:boolean,value:number,reason:string,expiresOn:string,setBy:string,setAt:string}
 export type DemoCheckIn={lastDay:string,streak:number}
 export type DemoQuotaEvent={id:string,profileId:string,operatorUid:string,operation:'set'|'clear',value:number,reason:string,expiresOn:string,createdAt:string}
-export type DemoDaily={checkIns:Record<string,DemoCheckIn>,overrides:Record<string,DemoOverride>,events:DemoQuotaEvent[]}
+export type DemoExp={total:number,day:string,today:number,keys:string[]}
+export type DemoDaily={checkIns:Record<string,DemoCheckIn>,overrides:Record<string,DemoOverride>,events:DemoQuotaEvent[],exp?:Record<string,DemoExp>}
 export type DemoState={daily?:DemoDaily,notices?:import('../domain/notices').Notice[],noticeAcks?:Record<string,boolean>,noticeEnrollments?:Record<string,Record<string,string>>,schema:1,actor:string,profiles:DemoProfile[],foods:DemoFood[],reviews:DemoReview[],cautions:DemoCaution[],feedback:DemoFeedback[],messages:any[],reports:any[],favorites:string[],liked:string[],likedFoods?:string[],directMessages?:DemoDirect[],announcement:{title:string,body:string,version:string,acknowledged:boolean},requests:Record<string,{payload:string,result:unknown}>,forum?:any}
 export const DEMO_CASES=[{id:'admin',name:'多图与下架',description:'管理员 · 6条投稿、收藏、反馈对话与待审经历'},{id:'student',name:'投稿与互动',description:'普通同学 · 收藏、评价、反馈与审核状态'},{id:'empty',name:'空白状态',description:'管理员 · 无投稿、无反馈时的布局'}] as const
 export function createDemoState(scenario:DemoCase):DemoState{

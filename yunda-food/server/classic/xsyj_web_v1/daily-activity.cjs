@@ -5,6 +5,10 @@ const rules = require('./daily-level-rules.json')
 const LEVELS = rules.levels.map(level => ({ ...level, maxDays: level.maxDays == null ? null : level.maxDays }))
 const MESSAGES = rules.messages
 const MAX = rules.maxOverrideLimit
+// Two upgrade channels: consecutive check-in days (always available) and growth points (unlocked on
+// day 7). Before unlockDay nothing but the entry tier is possible, so the first Min still needs 7 days.
+// From day 7 on, either channel can unlock a tier, so active users can reach Plus/Pro/Ultra early.
+const EXP = { unlockDay: 7, dailyCap: 12, step: 30, awards: { publish: 3, like: 1, favorite: 1, review: 2 }, ...(rules.exp || {}) }
 const DEFAULT_COLLECTIONS = { profiles: 'xsyj_profiles', items: 'xsyj_food_items', events: 'xsyj_events' }
 const EVENT_TYPE = 'daily_quota_override'
 
@@ -29,10 +33,31 @@ function levelFor(streak) {
   for (let i = LEVELS.length - 1; i >= 0; i--) if (days >= LEVELS[i].minDays) return LEVELS[i]
   return LEVELS[0]
 }
-function progressToNext(streak) {
+function expOf(row) { return Math.max(0, Math.floor(Number(row && row.activityExp) || 0)) }
+// Highest tier unlocked by EITHER channel. Before unlockDay the exp channel is closed entirely.
+function activityLevel(streak, exp) {
   const days = Math.max(0, Math.floor(Number(streak) || 0))
-  const level = levelFor(days), index = LEVELS.indexOf(level), next = LEVELS[index + 1]
-  return { index, total: LEVELS.length, level, next, daysToNext: next ? Math.max(0, next.minDays - days) : 0, nextTitle: next ? next.title : '', nextDailyLimit: next ? next.dailyLimit : 0 }
+  const points = Math.max(0, Math.floor(Number(exp) || 0))
+  let level = LEVELS[0]
+  for (const candidate of LEVELS) {
+    const byDays = days >= candidate.minDays
+    const byExp = days >= EXP.unlockDay && (candidate.minExp || 0) > 0 && points >= candidate.minExp
+    if (byDays || byExp) level = candidate
+  }
+  return level
+}
+function progressToNext(streak, exp) {
+  const days = Math.max(0, Math.floor(Number(streak) || 0))
+  const points = Math.max(0, Math.floor(Number(exp) || 0))
+  const level = activityLevel(days, points), index = LEVELS.indexOf(level), next = LEVELS[index + 1]
+  const expTarget = next ? (next.minExp || 0) : 0
+  return {
+    index, total: LEVELS.length, level, next,
+    daysToNext: next ? Math.max(0, next.minDays - days) : 0,
+    nextTitle: next ? next.title : '', nextDailyLimit: next ? next.dailyLimit : 0,
+    expTarget, expGap: next ? Math.max(0, expTarget - points) : 0,
+    expAvailable: !!next && days >= EXP.unlockDay && expTarget > 0
+  }
 }
 function streakAfter(lastDay, streak, day) {
   const base = readStreak({ activityStreak: streak })
@@ -49,22 +74,28 @@ function formatMessage(template, vars) {
   return String(template).replace(/\{(\w+)\}/g, (_match, key) => vars[key] == null ? '' : String(vars[key]))
     .replace(/。\s*。+/g, '。').replace(/\s+/g, ' ').trim()
 }
-function levelProgressText(streak) {
-  const progress = progressToNext(streak)
+function levelProgressText(streak, exp) {
+  const progress = progressToNext(streak, exp), points = Math.max(0, Math.floor(Number(exp) || 0))
   return progress.nextTitle
-    ? formatMessage(MESSAGES.levelProgress, { streak, nextTitle: progress.nextTitle, days: progress.daysToNext })
-    : formatMessage(MESSAGES.levelProgressMaxed, { streak })
+    ? formatMessage(MESSAGES.levelProgress, { streak, exp: points, nextTitle: progress.nextTitle, days: progress.daysToNext })
+    : formatMessage(MESSAGES.levelProgressMaxed, { streak, exp: points })
 }
 function quotaView(row, day, used) {
-  const streak = readStreak(row), level = levelFor(streak), progress = progressToNext(streak)
+  const streak = readStreak(row), exp = expOf(row)
+  const level = activityLevel(streak, exp), progress = progressToNext(streak, exp)
   const override = (row && row.dailyQuotaOverride) || null, active = overrideActive(override, day)
   const limit = active && override ? override.value : level.dailyLimit
   const tomorrow = shiftDay(day, 1)
   const tomorrowOverride = active && override && (!override.expiresOn || tomorrow <= override.expiresOn)
-  const tomorrowLimit = tomorrowOverride && override ? override.value : levelFor(streak + 1).dailyLimit
+  const tomorrowLimit = tomorrowOverride && override ? override.value : activityLevel(streak + 1, exp).dailyLimit
   const count = Math.max(0, Math.floor(Number(used) || 0)), remaining = Math.max(0, limit - count)
+  const expToday = row && row.activityExpDay === day ? Math.max(0, Math.floor(Number(row.activityExpToday) || 0)) : 0
+  const expStep = Math.max(1, Number(EXP.step) || 30)
+  const expProgress = Math.min(99, Math.round((exp % expStep) / expStep * 100))
   const upgradeHint = progress.nextTitle
-    ? formatMessage(MESSAGES.upgrade, { days: progress.daysToNext, nextTitle: progress.nextTitle, nextLimit: progress.nextDailyLimit })
+    ? (progress.expAvailable && progress.expGap > 0
+      ? formatMessage(MESSAGES.upgradeWithExp, { days: progress.daysToNext, expTarget: progress.expTarget, expGap: progress.expGap, nextTitle: progress.nextTitle })
+      : formatMessage(MESSAGES.upgrade, { days: progress.daysToNext, nextTitle: progress.nextTitle, nextLimit: progress.nextDailyLimit }))
     : formatMessage(MESSAGES.maxed, { title: level.title, limit })
   const expiry = active && override && override.expiresOn ? formatMessage(MESSAGES.expiry, { date: override.expiresOn }) : MESSAGES.expiryNever
   const overrideNote = active && override ? formatMessage(MESSAGES.overrideNote, { limit, expiry }) : ''
@@ -83,10 +114,12 @@ function quotaView(row, day, used) {
     override_reason: active && override ? override.reason : '',
     override_expires_on: active && override && override.expiresOn ? override.expiresOn : '',
     quota_hint: quotaHint, exhausted_message: exhaustedMessage, upgrade_hint: upgradeHint,
-    level_progress: levelProgressText(streak)
+    level_progress: levelProgressText(streak, exp),
+    exp, exp_today: expToday, exp_cap: EXP.dailyCap, exp_step: expStep, exp_progress: expProgress,
+    exp_note: MESSAGES.expNote || '', exp_hint: formatMessage(MESSAGES.expHint || '', { exp, today: expToday, cap: EXP.dailyCap })
   }
 }
-const pure = { chinaDay, shiftDay, readStreak, levelFor, progressToNext, streakAfter, overrideActive, formatMessage, quotaView, levelProgressText, titleFor: streak => levelFor(streak).title, dailyLimitFor: streak => levelFor(streak).dailyLimit, rules }
+const pure = { chinaDay, shiftDay, readStreak, expOf, levelFor, activityLevel, progressToNext, streakAfter, overrideActive, formatMessage, quotaView, levelProgressText, titleFor: (streak, exp) => activityLevel(streak, exp).title, dailyLimitFor: (streak, exp) => activityLevel(streak, exp).dailyLimit, rules }
 
 module.exports = function createDailyActivity(options) {
   const { db, fail, now, requireAdmin } = options
@@ -125,7 +158,26 @@ module.exports = function createDailyActivity(options) {
     if (view.remaining <= 0) fail(view.exhausted_message)
     return view
   }
-  function titleOf(row) { return levelFor(readStreak(row)).title }
+  // Growth points never inflate activityStreak; they only unlock tiers after EXP.unlockDay.
+  async function award(uid, kind, key) {
+    const points = Number(EXP.awards[kind]) || 0
+    if (!uid || points <= 0) return null
+    const row = await profileByOwner(uid)
+    if (!row) return null
+    const date = day(), sameDay = row.activityExpDay === date
+    const today = sameDay ? Math.max(0, Math.floor(Number(row.activityExpToday) || 0)) : 0
+    const keys = sameDay && Array.isArray(row.activityExpKeys) ? row.activityExpKeys.slice(-39) : []
+    const token = kind + ':' + String(key || '')
+    const exp = Math.max(0, Math.floor(Number(row.activityExp) || 0))
+    if (keys.includes(token)) return { exp, exp_today: today, awarded: 0, capped: false }
+    if (today >= EXP.dailyCap) return { exp, exp_today: today, awarded: 0, capped: true }
+    const gain = Math.min(points, EXP.dailyCap - today)
+    await db.collection(C.profiles).doc(row._id).update({ data: {
+      activityExp: exp + gain, activityExpDay: date, activityExpToday: today + gain, activityExpKeys: [...keys, token].slice(-40)
+    } })
+    return { exp: exp + gain, exp_today: today + gain, awarded: gain, capped: false }
+  }
+  function titleOf(row) { return activityLevel(readStreak(row), expOf(row)).title }
 
   async function adminDetail(operatorUid, id) {
     await requireAdmin(operatorUid)
@@ -152,8 +204,8 @@ module.exports = function createDailyActivity(options) {
     if (!profileId) fail('缺少用户标识。')
     const row = await profileById(profileId)
     if (!row) fail('用户资料不存在。')
-    const reason = text(payload.reason, 120)
-    if (reason.length < 2) fail('请填写至少2个字的原因。')
+    // Reason is optional in the UI now; a default keeps the audit trail meaningful without a mandatory field.
+    const reason = text(payload.reason, 120) || '管理员调整每日发布额度'
     const operation = payload.operation === 'clear' ? 'clear' : 'set'
     const date = day(), at = now()
     let override
@@ -174,6 +226,6 @@ module.exports = function createDailyActivity(options) {
     } })
     return adminDetail(operatorUid, profileId)
   }
-  return { pure, checkIn, quotaFor, assertQuota, adminDetail, adminSet, titleOf, countToday, chinaDay: day }
+  return { pure, checkIn, quotaFor, assertQuota, award, adminDetail, adminSet, titleOf, countToday, chinaDay: day }
 }
 module.exports.pure = pure

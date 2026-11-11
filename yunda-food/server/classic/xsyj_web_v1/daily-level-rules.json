@@ -3,23 +3,33 @@
   "defaultTitle": "小吃货",
   "defaultDailyLimit": 1,
   "maxOverrideLimit": 20,
+  "exp": {
+    "unlockDay": 7,
+    "dailyCap": 12,
+    "step": 30,
+    "awards": { "publish": 3, "like": 1, "favorite": 1, "review": 2 }
+  },
   "levels": [
-    { "minDays": 1, "maxDays": 6, "title": "小吃货", "dailyLimit": 1 },
-    { "minDays": 7, "maxDays": 13, "title": "小吃货 Min", "dailyLimit": 2 },
-    { "minDays": 14, "maxDays": 20, "title": "小吃货 Plus", "dailyLimit": 3 },
-    { "minDays": 21, "maxDays": 27, "title": "小吃货 Pro", "dailyLimit": 3 },
-    { "minDays": 28, "maxDays": null, "title": "小吃货 Ultra", "dailyLimit": 3 }
+    { "minDays": 1, "maxDays": 6, "title": "小吃货", "dailyLimit": 1, "minExp": 0 },
+    { "minDays": 7, "maxDays": 13, "title": "小吃货 Min", "dailyLimit": 2, "minExp": 0 },
+    { "minDays": 14, "maxDays": 20, "title": "小吃货 Plus", "dailyLimit": 3, "minExp": 40 },
+    { "minDays": 21, "maxDays": 27, "title": "小吃货 Pro", "dailyLimit": 3, "minExp": 90 },
+    { "minDays": 28, "maxDays": null, "title": "小吃货 Ultra", "dailyLimit": 3, "minExp": 160 }
   ],
   "messages": {
     "exhausted": "今日发布额度已用完，当前称号「{title}」· 今日 {used}/{limit} 条；明日可用 {tomorrow} 条；{upgrade}。{overrideNote}",
     "upgrade": "再连续签到 {days} 天升级「{nextTitle}」，每日可发 {nextLimit} 条",
+    "upgradeWithExp": "再连续签到 {days} 天，或累计成长值到 {expTarget}（还差 {expGap}）升级「{nextTitle}」，每日可发 3 条",
     "maxed": "已达最高称号「{title}」，保持每日签到即可维持每日 {limit} 条权益",
     "overrideNote": "管理员单独设置：{limit} 条/日（{expiry}）",
     "expiry": "有效至 {date}",
     "expiryNever": "长期有效",
     "quotaHint": "今日还可发布 {remaining} 条 · 当前称号「{title}」",
     "quotaHintExhausted": "今日发布额度已用完 · 当前称号「{title}」",
-    "levelProgress": "连续活跃 {streak} 天 · 距「{nextTitle}」还差 {days} 天",
-    "levelProgressMaxed": "连续活跃 {streak} 天 · 已达最高称号"
+    "levelProgress": "连续活跃 {streak} 天 · 成长值 {exp} · 距「{nextTitle}」还差 {days} 天",
+    "levelProgressMaxed": "连续活跃 {streak} 天 · 成长值 {exp} · 已达最高称号",
+    "expNote": "前 7 天锁定「小吃货」每日 1 条；连续签到满 7 天后，成长值可加速升级称号，天数达标也会照常升级",
+    "expHint": "成长值 {exp} · 今日 +{today}（每日上限 {cap}）",
+    "adminLevel": "管理员为最高身份「吃货大王」，不参与等级成长与升级进度"
   }
 }
