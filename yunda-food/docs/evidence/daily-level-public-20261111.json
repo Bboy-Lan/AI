@@ -1,0 +1,73 @@
+{
+  "generatedAt": "2026-11-11T01:25:42.070Z",
+  "sites": [
+    "https://bboy-lan.github.io/AI/",
+    "https://cloud-ynnu-d6gs8ekf7dbcbe80e-1517920911.tcloudbaseapp.com/"
+  ],
+  "total": 10,
+  "passed": 9,
+  "skipped": 1,
+  "failed": 0,
+  "results": [
+    {
+      "name": "GitHub Pages HTML 引用新产物",
+      "ok": true,
+      "skipped": false,
+      "detail": "index-DlAUDGgB.js + index-C4DiqArz.css"
+    },
+    {
+      "name": "GitHub Pages 主 bundle 含等级/额度/覆写新代码",
+      "ok": true,
+      "skipped": false,
+      "detail": "JS 605392 字节"
+    },
+    {
+      "name": "GitHub Pages CSS 含响应式与等级卡新规则",
+      "ok": true,
+      "skipped": false,
+      "detail": "CSS 94761 字节"
+    },
+    {
+      "name": "GitHub Pages 懒加载 chunk 含规则表与文案",
+      "ok": true,
+      "skipped": false,
+      "detail": "repository-DtBFCNrB.js (43772 字节)"
+    },
+    {
+      "name": "CloudBase 备用站 HTML 引用新产物",
+      "ok": true,
+      "skipped": false,
+      "detail": "index-nSJ677qf.js + index-C4DiqArz.css"
+    },
+    {
+      "name": "CloudBase 备用站 主 bundle 含等级/额度/覆写新代码",
+      "ok": true,
+      "skipped": false,
+      "detail": "JS 605341 字节"
+    },
+    {
+      "name": "CloudBase 备用站 CSS 含响应式与等级卡新规则",
+      "ok": true,
+      "skipped": false,
+      "detail": "CSS 94761 字节"
+    },
+    {
+      "name": "CloudBase 备用站 懒加载 chunk 含规则表与文案",
+      "ok": true,
+      "skipped": false,
+      "detail": "repository-BPEto2nS.js (43772 字节)"
+    },
+    {
+      "name": "GitHub Pages 浏览器 demo：等级卡 / 额度提示 / 管理区",
+      "ok": true,
+      "skipped": false,
+      "detail": "pageerror=0"
+    },
+    {
+      "name": "CloudBase 备用站 浏览器 demo",
+      "ok": true,
+      "skipped": true,
+      "detail": "跳过（page.waitForSelector: Timeout 16000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.le）"
+    }
+  ]
+}

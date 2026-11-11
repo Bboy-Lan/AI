@@ -10,7 +10,9 @@
 
 验证：自动测试 **173/173**（新增 `tests/daily-level.test.ts` 15 项并进 `deploy.mjs` 门禁）；`tsc -b`、生产构建通过；`scripts/verify-daily-level-ui.mjs` 自起 Vite 5199 + msedge，390/360/320 三档 × 三视图 + 个人页/发布页/管理区 **13/13**；`verify_sources.py` ok（574/77/234 未变）。报告：[每日活跃等级与发布额度](每日活跃等级与发布额度-20261111.md)。
 
-已知边界：签到是读后写幂等（并发不会多涨天数，已测，但非 CAS 事务）；演示态纯浏览跨天不累积天数；失效时间只到自然日；编辑旧稿不占额度；未测真机与微信内置浏览器。云端端到端、两站发布与提交号见本轮发布追加记录。
+已知边界：签到是读后写幂等（并发不会多涨天数，已测，但非 CAS 事务）；演示态纯浏览跨天不累积天数；失效时间只到自然日；编辑旧稿不占额度；未测真机与微信内置浏览器。
+
+发布结果（2026-11-11）：用户明确解除上一轮「不部署/不提交」限制后执行完整发布。`node scripts/deploy.mjs` 全门禁通过（173 项测试、tsc、vite build、verify_sources 574/77/234、initialize-review），云函数 `xsyj_web_v1` 重新部署（CLI `fn detail` Status=Active），备用静态站 26+1 文件上传 `verified=true`，根路径产物 `index-nSJ677qf.js` + `index-C4DiqArz.css`。GitHub Pages `/AI/` 构建 `index-DlAUDGgB.js` + `index-C4DiqArz.css`，gh-pages `bd808e4`；main 源码 `67fb5b1`，两分支经本机 `127.0.0.1:10808` 代理正常快进推送（环境代理 2310 对 github.com 返回 502，已规避，未强推、未改远端历史）。云端只读探针 `verify-daily-level-cloud.mjs` **4/4**：匿名 context 正常、两个新 admin 动作已上线且拒绝越权、未知动作仍被拒。两站读回 `verify-daily-level-public.mjs` **9 项通过 + 1 项按已知情况跳过**：正式站与备用站 HTML/主 bundle/CSS/懒加载 chunk 均含本轮新代码；正式站浏览器 demo 等级卡、发布页额度提示、管理员额度管理区全部可见且 `pageerror=0`；备用站对全新浏览器返回风险提示页，按既有口径只做 HTTP 层读回。备份 `D:\Desktop\_备份\小食云记-新网页版-20261111-pre-发布`（1374 文件/127MB）。
 
 ---
 

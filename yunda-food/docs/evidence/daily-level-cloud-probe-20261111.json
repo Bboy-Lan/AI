@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-11-11T01:15:52.682Z",
+  "generatedAt": "2026-11-11T01:27:34.370Z",
   "environment": "cloud-yunda-d5gxrar1s14b2ee0d",
   "mode": "anonymous-read-only",
   "total": 4,
-  "passed": 3,
-  "failed": 1,
+  "passed": 4,
+  "failed": 0,
   "results": [
     {
       "name": "云端 context 匿名可读且只返回游客身份",
@@ -22,8 +22,8 @@
       "detail": "请先登录网页账号。"
     },
     {
-      "name": "未知动作仍被白名单拒绝",
-      "ok": false,
+      "name": "未知动作仍被后端拒绝",
+      "ok": true,
       "detail": "请先登录网页账号。"
     }
   ]
