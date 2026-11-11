@@ -370,7 +370,7 @@ async function authorBadges(rows) {
     const groups = []; for (let index = 0; index < owners.length; index += 20) groups.push(owners.slice(index, index + 20))
     const [flags, snapshots] = await Promise.all([adminFlags(owners), Promise.all(groups.map(group => db.collection(C.profiles).where({ ownerOpenId: db.command.in(group) }).limit(100).get()))])
     const profiles = new Map(snapshots.flatMap(result => result.data).map(profile => [profile.ownerOpenId, profile]))
-    return rows.map(row => { const profile = profiles.get(row.ownerOpenId); return { ...row, ...(profile ? { authorNickname: profile.foodieId || '未命名吃货', authorAvatarFileId: profile.avatarFileId || '', authorHometown: profile.hometown || '' } : {}), authorRole: flags.has(row.ownerOpenId) ? 'admin' : 'user' } })
+    return rows.map(row => { const profile = profiles.get(row.ownerOpenId); return { ...row, ...(profile ? { authorNickname: profile.foodieId || '未命名吃货', authorAvatarFileId: profile.avatarFileId || '', authorHometown: profile.hometown || '', authorExp: Math.max(0, Math.floor(Number(profile.activityExp) || 0)), authorStreak: Number.isInteger(profile.activityStreak) && profile.activityStreak > 0 ? profile.activityStreak : 0 } : {}), authorRole: flags.has(row.ownerOpenId) ? 'admin' : 'user' } })
   }
   catch (error) { return rows.map(row => ({ ...row, authorRole: 'unknown' })) }
 }

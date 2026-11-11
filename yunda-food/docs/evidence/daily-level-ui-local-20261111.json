@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-11T02:23:22.991Z",
+  "generatedAt": "2026-11-11T03:36:43.033Z",
   "scope": "isolated-demo-local",
   "viewports": [
     390,
@@ -11,8 +11,8 @@
     "list",
     "grid"
   ],
-  "total": 15,
-  "passed": 15,
+  "total": 16,
+  "passed": 16,
   "failed": 0,
   "runtimeErrors": [],
   "results": [
@@ -62,19 +62,24 @@
       "detail": "7 卡 · 价格 ¥15/份 单行 19px · 称号标签 6"
     },
     {
-      "name": "个人页默认收起等级详情卡",
+      "name": "个人页默认不弹等级页",
       "ok": true,
-      "detail": "默认无等级详情卡"
+      "detail": "默认无等级页"
     },
     {
-      "name": "点击称号标签展开、再点收起，展开后含成长值进度",
+      "name": "点击称号标签弹出等级页，含完整阶梯与成长值",
       "ok": true,
-      "detail": "样式 level-badge tier-0 · 签到 14% · 成长值 0%"
+      "detail": "样式 level-badge tier-0 · 阶梯 5 级 · 签到 14%"
     },
     {
       "name": "管理员最高身份不显示升级经验与进度",
       "ok": true,
-      "detail": "吃货大王 · 无进度条/成长值组件"
+      "detail": "吃货大王 · 无进度条 · 皇冠徽章"
+    },
+    {
+      "name": "他人徽章可查看等级状态",
+      "ok": true,
+      "detail": "Ta 的等级 · 三项统计"
     },
     {
       "name": "发布页展示剩余额度与称号",

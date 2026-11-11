@@ -118,36 +118,51 @@ try {
   page.on('pageerror', error => runtimeErrors.push('UI: ' + error.message))
   await page.goto(BASE + '?demo=student#/me', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.level-toggle', { timeout: 15000 })
-  await check('个人页默认收起等级详情卡', async () => {
-    if (await page.locator('.level-card').count()) throw Error('等级卡仍常驻在下方')
-    return '默认无等级详情卡'
+  await check('个人页默认不弹等级页', async () => {
+    if (await page.locator('.level-sheet').count()) throw Error('等级页不应常驻')
+    return '默认无等级页'
   })
-  await check('点击称号标签展开、再点收起，展开后含成长值进度', async () => {
+  await check('点击称号标签弹出等级页，含完整阶梯与成长值', async () => {
     const toggle = page.locator('.level-toggle')
     const badge = await toggle.locator('.level-badge').getAttribute('class')
     if (!/tier-\d/.test(badge || '')) throw Error('称号标签没有分级样式: ' + badge)
     await toggle.click()
-    await page.waitForSelector('.level-card', { timeout: 8000 })
-    const text = await page.locator('.level-card').innerText()
-    for (const part of ['小吃货', '连续活跃', '成长值', '每日']) if (!text.includes(part)) throw Error('等级卡缺少 ' + part)
+    await page.waitForSelector('.level-sheet', { timeout: 8000 })
+    const text = await page.locator('.level-sheet').innerText()
+    for (const part of ['小吃货', '连续活跃', '成长值', '每日', '小吃货 Ultra']) if (!text.includes(part)) throw Error('等级页缺少 ' + part)
+    const rungs = await page.locator('.level-rung').count()
+    if (rungs !== 5) throw Error('应显示 5 个等级阶梯，实际 ' + rungs)
+    if (await page.locator('.level-rung.is-current').count() !== 1) throw Error('应高亮 1 个当前等级')
     const bar = await page.locator('.level-track').getAttribute('aria-valuenow')
-    const expBar = await page.locator('.level-exp-track').getAttribute('aria-valuenow')
-    if (Number(bar) < 0 || Number(bar) > 100 || Number(expBar) < 0 || Number(expBar) > 100) throw Error('进度值无效')
-    await toggle.click()
-    if (await page.locator('.level-card').count()) throw Error('再次点击未收起')
-    return `样式 ${badge} · 签到 ${bar}% · 成长值 ${expBar}%`
+    if (Number(bar) < 0 || Number(bar) > 100) throw Error('进度值无效')
+    await page.locator('.level-sheet .chip').click()
+    if (await page.locator('.level-sheet').count()) throw Error('关闭按钮未关闭等级页')
+    return `样式 ${badge} · 阶梯 ${rungs} 级 · 签到 ${bar}%`
   })
   await check('管理员最高身份不显示升级经验与进度', async () => {
     await page.goto(BASE + '?demo=admin#/me', { waitUntil: 'domcontentloaded' })
     await page.waitForSelector('.level-toggle', { timeout: 15000 })
     const badge = await page.locator('.level-toggle .level-badge').getAttribute('class')
     if (!/tier-admin/.test(badge || '')) throw Error('管理员未用最尊贵样式: ' + badge)
+    if (!(await page.locator('.level-toggle .crown').count())) throw Error('管理员徽章缺少皇冠')
     await page.locator('.level-toggle').click()
-    await page.waitForSelector('.level-card.is-max', { timeout: 8000 })
-    const text = await page.locator('.level-card').innerText()
+    await page.waitForSelector('.level-sheet', { timeout: 8000 })
+    const text = await page.locator('.level-sheet').innerText()
     if (!text.includes('吃货大王')) throw Error('缺少最高身份')
-    for (const sel of ['.level-track', '.level-exp', '.level-card-progress']) if (await page.locator('.level-card ' + sel).count()) throw Error('管理员卡不应显示 ' + sel)
-    return '吃货大王 · 无进度条/成长值组件'
+    if (await page.locator('.level-summary .level-track').count()) throw Error('管理员不应显示进度条')
+    return '吃货大王 · 无进度条 · 皇冠徽章'
+  })
+  await page.goto(BASE + '?demo=student#/', { waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('.food-card .level-badge.is-clickable', { timeout: 15000 })
+  await check('他人徽章可查看等级状态', async () => {
+    await page.locator('.food-card .level-badge.is-clickable').first().click()
+    await page.waitForSelector('.level-sheet', { timeout: 8000 })
+    const text = await page.locator('.level-sheet').innerText()
+    if (!text.includes('Ta 的等级')) throw Error('应显示 Ta 的等级: ' + text)
+    for (const part of ['成长值', '连续活跃', '每日额度']) if (!text.includes(part)) throw Error('缺少统计项 ' + part)
+    if (await page.locator('.level-ladder').count()) throw Error('他人弹窗不应显示完整阶梯')
+    await page.locator('.level-sheet .chip').click()
+    return 'Ta 的等级 · 三项统计'
   })
   await page.goto(BASE + '?demo=student#/publish', { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('.quota-hint', { timeout: 15000 })

@@ -34,7 +34,7 @@ module.exports = function createCautions({ db, fail, text, now, chinaDay, requir
   }
   async function author(actor) {
     const p = await profileFor(actor)
-    return p ? { profileId: p._id, nickname: p.foodieId || '吃货同学', avatar: p.avatarFileId || '', hometown: p.hometown || '',isAdmin:Boolean(await adminFor(actor)) } : { nickname: '吃货同学', avatar: '', hometown: '' }
+    return p ? { profileId: p._id, nickname: p.foodieId || '吃货同学', avatar: p.avatarFileId || '', hometown: p.hometown || '',isAdmin:Boolean(await adminFor(actor)), exp: Math.max(0, Math.floor(Number(p.activityExp) || 0)), streak: Number.isInteger(p.activityStreak) && p.activityStreak > 0 ? p.activityStreak : 0 } : { nickname: '吃货同学', avatar: '', hometown: '' }
   }
   async function expose(row, actor) {
     const own = row.ownerOpenId === actor, admin = Boolean(await adminFor(actor))
