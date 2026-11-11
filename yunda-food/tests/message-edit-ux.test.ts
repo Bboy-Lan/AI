@@ -21,3 +21,12 @@ test('互动消息支持全部已读，并做成左右两栏大屏 + 紧凑行',
   assert.match(css,/\.msg-split\{[^}]*display:grid/,'消息页应为网格分栏')
   assert.match(css,/@media\(min-width:900px\)\{\.app-frame\.msg-workspace\{max-width:980px/,'大屏应加宽到 980')
 })
+
+test('私信页为左右两栏，手机端可切换会话',()=>{
+  const dm=read('src/components/DirectMessages.tsx'),css=read('src/styles/app.css')
+  assert.ok(dm.includes('dm-split'),'私信应为左右两栏')
+  assert.ok(dm.includes('dm-list-pane')&&dm.includes('dm-chat-pane'),'缺少列表/聊天分栏')
+  assert.ok(dm.includes('chatOpen')&&dm.includes('dm-back'),'手机端应可返回会话列表')
+  assert.match(css,/\.dm-split\{[^}]*display:grid/)
+  assert.match(css,/@media\(min-width:900px\)\{\.dm-split\{grid-template-columns/)
+})
